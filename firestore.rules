@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admin authorization check:
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'shivu.angadi@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Test connection endpoint for system health verification
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Global system settings (read-only for all users, write restricted to Admin only)
+    match /systemSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin collection rules
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin() || (
+        isSignedIn() && 
+        request.auth.token.email == 'shivu.angadi@gmail.com' && 
+        request.auth.uid == adminId
+      );
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Registration Requests collection for admin verification
+    match /registrationRequests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Schools collection (keyed by 11-digit DISE code or school UID)
+    match /schools/{schoolId} {
+      // Individual get: School can read its own school record for login & dashboard
+      allow get: if true;
+
+      // Listing schools:
+      allow list: if true;
+
+      // School Registration creation:
+      allow create: if true;
+
+      // Updates: School updates profile, notes, payment; Admin updates approvals
+      allow update: if true;
+
+      // Delete:
+      allow delete: if true;
+
+      // Sub-collections under school (students, examMarks, reports, deletedStudents, etc.)
+      match /students/{studentId} {
+        allow read, write: if true;
+      }
+
+      match /deletedStudents/{studentId} {
+        allow read, write: if true;
+      }
+
+      match /examMarks/{studentId} {
+        allow read, write: if true;
+      }
+
+      match /{subcollection}/{docId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Backup archive for deleted schools
+    match /deletedSchoolsBackup/{diseCode} {
+      allow read, write: if true;
+    }
+  }
+}

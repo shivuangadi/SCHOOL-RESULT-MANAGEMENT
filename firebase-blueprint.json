@@ -1,0 +1,173 @@
+{
+  "entities": {
+    "School": {
+      "title": "School",
+      "description": "Registered Karnataka School profile and subscription status",
+      "type": "object",
+      "properties": {
+        "schoolId": { "type": "string", "maxLength": 128 },
+        "diseCode": { "type": "string", "maxLength": 11, "minLength": 11, "pattern": "^[0-9]{11}$" },
+        "schoolName": { "type": "string", "maxLength": 150 },
+        "schoolType": { "type": "string", "enum": ["Government", "Aided", "Unaided"] },
+        "schoolMedium": { "type": "string", "enum": ["Kannada", "English", "Urdu", "Marathi", "Hindi", "Tamil", "Telugu"] },
+        "headmasterName": { "type": "string", "maxLength": 100 },
+        "taluk": { "type": "string", "maxLength": 100 },
+        "district": { "type": "string", "maxLength": 100 },
+        "mobile": { "type": "string", "maxLength": 15, "pattern": "^[0-9]{10}$" },
+        "email": { "type": "string", "format": "email", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "SUSPENDED", "EXPIRED"] },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "PAID", "FAILED"] },
+        "subscriptionStatus": { "type": "string", "enum": ["PENDING", "ACTIVE", "EXPIRED", "SUSPENDED"] },
+        "subscriptionStart": { "type": "string", "maxLength": 50 },
+        "subscriptionExpiry": { "type": "string", "maxLength": 50 },
+        "ownerUid": { "type": "string", "maxLength": 128 },
+        "firebaseAuthUid": { "type": "string", "maxLength": 128 },
+        "registrationPassword": { "type": "string", "maxLength": 100 },
+        "paymentReference": { "type": "string", "maxLength": 100 },
+        "paymentNotes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 },
+        "approvedAt": { "type": "string", "maxLength": 50 },
+        "lastLoginAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["diseCode", "schoolName", "schoolType", "headmasterName", "mobile", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student record in a school roster",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "schoolId": { "type": "string", "maxLength": 128 },
+        "diseCode": { "type": "string", "maxLength": 11 },
+        "studentName": { "type": "string", "maxLength": 150 },
+        "classStandard": { "type": "string", "maxLength": 10 },
+        "division": { "type": "string", "maxLength": 10 },
+        "gender": { "type": "string", "enum": ["Boy", "Girl", "Other"] },
+        "caste": { "type": "string", "maxLength": 50 },
+        "religion": { "type": "string", "maxLength": 50 },
+        "satsNo": { "type": "string", "maxLength": 50 },
+        "penNo": { "type": "string", "maxLength": 50 },
+        "aadharNo": { "type": "string", "maxLength": 50 },
+        "admissionNo": { "type": "string", "maxLength": 50 },
+        "admissionDate": { "type": "string", "maxLength": 50 },
+        "dob": { "type": "string", "maxLength": 50 },
+        "fatherName": { "type": "string", "maxLength": 100 },
+        "motherName": { "type": "string", "maxLength": 100 },
+        "medium": { "type": "string", "maxLength": 50 },
+        "academicYear": { "type": "string", "maxLength": 50 },
+        "mobile": { "type": "string", "maxLength": 20 },
+        "photoUrl": { "type": "string", "maxLength": 2048 },
+        "photoPath": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "diseCode", "studentName", "classStandard"]
+    },
+    "ExamMarks": {
+      "title": "ExamMarks",
+      "description": "Examination marks (FA1-FA4, SA1-SA2) for a student",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "maxLength": 128 },
+        "schoolId": { "type": "string", "maxLength": 128 },
+        "diseCode": { "type": "string", "maxLength": 11 },
+        "academicYear": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["studentId", "diseCode"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile associated with a school or administrative account",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "diseCode": { "type": "string", "maxLength": 11 },
+        "schoolId": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["admin", "schoolAdmin"] },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "SUSPENDED", "EXPIRED"] },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["uid", "role", "email", "status"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Designated system administrator",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 100 },
+        "name": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "RegistrationRequest": {
+      "title": "RegistrationRequest",
+      "description": "Pending school registration requests for admin review",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string", "maxLength": 128 },
+        "diseCode": { "type": "string", "maxLength": 11 },
+        "schoolName": { "type": "string", "maxLength": 150 },
+        "headmasterName": { "type": "string", "maxLength": 100 },
+        "mobile": { "type": "string", "maxLength": 15 },
+        "email": { "type": "string", "format": "email", "maxLength": 100 },
+        "taluk": { "type": "string", "maxLength": 100 },
+        "district": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "PAID", "FAILED"] },
+        "password": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["diseCode", "schoolName", "headmasterName", "mobile"]
+    },
+    "SystemSetting": {
+      "title": "SystemSetting",
+      "description": "Global application configuration including app maker profile and permanent photo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/systemSettings/{settingId}": {
+      "schema": "SystemSetting",
+      "description": "Global settings and creator portrait visible to all users"
+    },
+    "/schools/{schoolId}": {
+      "schema": "School",
+      "description": "School records and subscription status"
+    },
+    "/schools/{schoolId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Students roster within the school"
+    },
+    "/schools/{schoolId}/examMarks/{studentId}": {
+      "schema": "ExamMarks",
+      "description": "Exam marks per student within the school"
+    },
+    "/registrationRequests/{requestId}": {
+      "schema": "RegistrationRequest",
+      "description": "Registration requests awaiting admin review and WhatsApp verification"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User accounts linked to schools or administrative privileges"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Administrative records for access control"
+    }
+  }
+}

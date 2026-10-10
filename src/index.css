@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-kannada: 'Anek Kannada', 'Noto Sans Kannada', sans-serif;
+}
+
+:root {
+  font-family: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body, html, #root {
+  font-family: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Ensure all typography, form elements, buttons, and .font-sans use Anek Kannada */
+.font-sans,
+input,
+select,
+textarea,
+button {
+  font-family: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* English Times Roman Numbers across app */
+  .font-mono,
+  .times-num,
+  .tabular-nums {
+    font-family: 'Times New Roman', Times, Georgia, serif !important;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ========================================================
+   1. UNIVERSAL BUTTON HOVER ANIMATION:
+   Move slightly up (-2px) & subtly highlight across the app.
+   Excludes the "Promote Students" button on the home page (.no-hover-lift / [data-no-lift="true"])
+   ======================================================== */
+button:not(.no-hover-lift):not([data-no-lift="true"]):not(:disabled):not([disabled]) {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.15s ease,
+              border-color 0.15s ease,
+              color 0.15s ease;
+  will-change: transform;
+}
+
+button:not(.no-hover-lift):not([data-no-lift="true"]):not(:disabled):not([disabled]):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.14), 0 2px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+button:not(.no-hover-lift):not([data-no-lift="true"]):not(:disabled):not([disabled]):active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+/* Explicit exemption for Promote Student Button in Home Page */
+button.no-hover-lift,
+button[data-no-lift="true"],
+.no-hover-lift,
+[data-no-lift="true"] {
+  transform: none !important;
+  filter: none !important;
+}
+
+button.no-hover-lift:hover,
+button[data-no-lift="true"]:hover {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Disabled button safety */
+button:disabled,
+button[disabled],
+button.cursor-not-allowed {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+/* ========================================================
+   2. CHARTS HOVER ANIMATION:
+   When cursor moves over charts across the app,
+   highlight and move up a little (-3px to -4px).
+   ======================================================== */
+.chart-card,
+.chart-container,
+[data-chart="true"],
+.interactive-chart {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              filter 0.2s ease;
+  will-change: transform;
+}
+
+.chart-card:hover,
+.chart-container:hover,
+[data-chart="true"]:hover,
+.interactive-chart:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.02);
+  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Interactive SVG Chart elements inside charts */
+.chart-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.25s ease;
+  will-change: transform;
+}
+
+.chart-interactive:hover {
+  transform: translateY(-3px) scale(1.02);
+  filter: brightness(1.06) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.12));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .chart-card,
+  .chart-container,
+  [data-chart="true"],
+  .chart-interactive {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+@media print {
+  /* Hide non-printable UI elements */
+  nav, header, footer, button, .print\:hidden {
+    display: none !important;
+  }
+
+  body, html {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Make sure background app isn't covering or distorting print */
+  .fixed.inset-0 {
+    position: static !important;
+    background: white !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: legal;
+    margin: 6mm 8mm;
+  }
+
+  /* Wide analytical reports and broadsheet (2cm left margin for binding) */
+  .legal-landscape {
+    page: legal-landscape;
+  }
+
+  @page legal-landscape {
+    size: legal landscape;
+    margin: 4mm 4mm 4mm 20mm; /* 2cm (20mm) left binding margin */
+  }
+
+  /* Portrait mode legal reports (Page 5: 1-5 all class grade consolidation) */
+  .legal-portrait {
+    page: legal-portrait;
+  }
+
+  @page legal-portrait {
+    size: legal portrait;
+    margin: 6mm 6mm;
+  }
+}
+
+/* Hide number input stepper spin buttons (increasing & decreasing buttons) across all browsers */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+input[type=number] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+/* Karnataka CCE Standard Vertical Text (Rotate Text Up: bottom to top so that turning page left reads left-to-right) */
+.cce-v-header,
+.cce-v-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  display: inline-block;
+}
+

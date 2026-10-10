@@ -1,0 +1,6 @@
+{
+  "name": "School Result Management System",
+  "description": "ಶಾಲಾ ಫಲಿತಾಂಶ ನಿರ್ವಹಣಾ ವ್ಯವಸ್ಥೆ - School Result Management System for Karnataka Schools",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
