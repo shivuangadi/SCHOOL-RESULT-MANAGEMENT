@@ -154,10 +154,10 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
 
                     return (
                       <React.Fragment key={subInfo.code}>
-                        <td className="border border-slate-900 p-0.5 font-mono font-bold text-slate-900">
+                        <td className="border border-slate-900 p-0.5 font-mono font-bold text-slate-900 text-[12px]">
                           {sub?.total100 !== null && sub?.total100 !== undefined ? sub.total100 : '-'}
                         </td>
-                        <td className="border border-slate-900 p-0.5 font-bold text-slate-800">
+                        <td className="border border-slate-900 p-0.5 font-bold text-slate-800 text-[12px]">
                           {isExempt ? 'Exempt' : (sub?.grade || '-')}
                         </td>
                       </React.Fragment>
@@ -165,19 +165,19 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                   })}
 
                   {/* Grand Total 700 */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-black text-emerald-950 bg-emerald-50 text-[9px]">
+                  <td className="border border-slate-900 p-0.5 font-mono font-black text-emerald-950 bg-emerald-50 text-[12px]">
                     {isExempt ? (cSt.totalMarks700 > 0 ? cSt.totalMarks700 : '-') : cSt.totalMarks700}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-emerald-900 bg-emerald-50 text-[8px]">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-emerald-900 bg-emerald-50 text-[12px]">
                     {isExempt ? '-' : `${cSt.percentage}%`}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black text-emerald-950 bg-emerald-200">
+                  <td className="border border-slate-900 p-0.5 font-black text-emerald-950 bg-emerald-200 text-[12px]">
                     {isExempt ? 'Exempt' : cSt.overallGrade}
                   </td>
 
                   {/* Part B 1 to 7 */}
                   {HP_PART_B_COLUMNS.map((col) => (
-                    <td key={col.key} className="border border-slate-900 p-0.5 font-mono font-bold text-purple-950 bg-purple-50/40">
+                    <td key={col.key} className="border border-slate-900 p-0.5 font-mono font-bold text-purple-950 bg-purple-50/40 text-[12px]">
                       {col.type === 'subject'
                         ? cSt.partBSubjects?.[col.key]?.grade || '-'
                         : finalCo[col.key] || '-'}

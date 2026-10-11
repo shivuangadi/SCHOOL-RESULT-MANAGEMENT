@@ -19,7 +19,9 @@ import {
   downloadElementAsPdf,
   exportElementAsImage,
   shareReportToWhatsApp,
+  ReportPaperSize,
 } from '../utils/printPdfHelper';
+import { getSavedClassTeacher, persistClassTeacherLocally } from '../utils/teacherHelper';
 import {
   Printer,
   Download,
@@ -77,10 +79,18 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
   // Selected Class strictly 1 to 5
   const [selectedClass, setSelectedClass] = useState<string>('3');
 
-  // Class Teacher Name & Working Days state
+  // Class Teacher Name & Working Days state (Fetched from School Profile; if not saved, left blank to edit)
   const [classTeacherName, setClassTeacherName] = useState<string>(() => {
-    return localStorage.getItem(`kseab_ct_name_${diseCode}_${selectedClass}`) || 'ಶ್ರೀ ಎಸ್ ಆರ್ ಅಂಗಡಿ';
+    return getSavedClassTeacher(schoolRecord, selectedClass);
   });
+
+  // Paper Size state: 1. A4 size (295mm × 210mm) | 2. Legal size (340mm × 210mm)
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
+
+  // Automatically update class teacher name when selected class or school profile changes
+  useEffect(() => {
+    setClassTeacherName(getSavedClassTeacher(schoolRecord, selectedClass));
+  }, [schoolRecord, selectedClass]);
 
   const [workingDays, setWorkingDays] = useState<number>(() => {
     const saved = localStorage.getItem(`kseab_working_days_${diseCode}_${academicYear}`);
@@ -453,14 +463,14 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
   // Print Handler
   const handlePrint = async () => {
     const title = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}`;
-    await executeReportPrint(reportRef.current, title);
+    await executeReportPrint(reportRef.current, title, paperSize);
   };
 
   // PDF Export
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
-    const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}.pdf`;
-    await downloadElementAsPdf(reportRef.current, filename);
+    const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}_${paperSize.toUpperCase()}.pdf`;
+    await downloadElementAsPdf(reportRef.current, filename, paperSize);
   };
 
   // Excel Export
@@ -615,7 +625,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
               </div>
             )}
 
-            {/* Class Teacher Name Input */}
+            {/* Class Teacher Name Input (Editable, saved in profile or local) */}
             <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300">
               <span className="font-bold text-slate-700">ಶಿಕ್ಷಕರು:</span>
               <input
@@ -623,10 +633,10 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 value={classTeacherName}
                 onChange={(e) => {
                   setClassTeacherName(e.target.value);
-                  localStorage.setItem(`kseab_ct_name_${diseCode}_${selectedClass}`, e.target.value);
+                  persistClassTeacherLocally(diseCode, selectedClass, e.target.value);
                 }}
                 className="bg-transparent font-bold text-xs text-slate-900 focus:outline-none w-28 sm:w-36"
-                placeholder="ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು"
+                placeholder="ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು (ಖಾಲಿ)"
               />
             </div>
 
@@ -644,6 +654,35 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 className="bg-transparent font-mono font-bold text-xs text-slate-900 focus:outline-none w-14"
               />
             </div>
+
+            {/* Paper Size 2 Options: 1. A4 size (295mm × 210mm) & 2. Legal size (340mm × 210mm) */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300 text-xs">
+              <span className="font-bold text-slate-700 px-1.5">ಸೈಜ್:</span>
+              <button
+                type="button"
+                onClick={() => setPaperSize('a4')}
+                className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'a4'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+                title="1. A4 Size (295mm width, 210mm height)"
+              >
+                1. A4 (295×210mm)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('legal')}
+                className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'legal'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+                title="2. Legal Size (340mm width, 210mm height)"
+              >
+                2. Legal (340×210mm)
+              </button>
+            </div>
           </div>
 
           {/* Action Buttons: Print, PDF, Excel, WhatsApp */}
@@ -652,18 +691,20 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
               type="button"
               onClick={handlePrint}
               className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              title={`Print in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
             >
               <Printer className="w-4 h-4" />
-              <span>ಮುದ್ರಣ (Print)</span>
+              <span>ಮುದ್ರಣ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
             </button>
 
             <button
               type="button"
               onClick={handleDownloadPdf}
               className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              title={`Download PDF in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
             >
               <Download className="w-4 h-4" />
-              <span>PDF ಡೌನ್‌ಲೋಡ್</span>
+              <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
             </button>
 
             <button

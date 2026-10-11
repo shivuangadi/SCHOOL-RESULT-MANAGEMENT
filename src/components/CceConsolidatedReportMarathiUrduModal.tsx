@@ -33,6 +33,8 @@ import {
 import { getClassesFromRange } from '../utils/studentStore';
 import { getRealMarksFromLocal, getStudentCalculatedResult } from '../utils/marksStore';
 import { ACADEMIC_YEARS } from './SchoolDashboard';
+import { getSavedClassTeacher } from '../utils/teacherHelper';
+import { executeReportPrint, downloadElementAsPdf, ReportPaperSize } from '../utils/printPdfHelper';
 import { calculateGrade, calculateSubjectGrade } from '../data/demoData';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
@@ -110,17 +112,13 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
   const workingDays =
     (schoolRecord as any)?.workingDays || (selectedYear.includes('2026-27') ? 220 : 220);
 
-  // Dynamic Class Teacher Name from School Profile
+  // Paper Size 2 options: 1. A4 size (295mm × 210mm) | 2. Legal size (340mm × 210mm)
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
+
+  // Dynamic Class Teacher Name from School Profile (if not saved, left blank to edit across the app 1-10)
   const classTeacherName = useMemo(() => {
-    const teachers = schoolRecord?.classTeachers || {};
-    const divKey = `${selectedClass}-${selectedDivision}`;
-    return (
-      teachers[divKey] ||
-      teachers[selectedClass] ||
-      schoolRecord?.headmasterName ||
-      'SHRI. M I NILAJI'
-    );
-  }, [schoolRecord?.classTeachers, schoolRecord?.headmasterName, selectedClass, selectedDivision]);
+    return getSavedClassTeacher(schoolRecord, selectedClass, selectedDivision);
+  }, [schoolRecord, selectedClass, selectedDivision]);
 
   // Headmaster Name from School Profile
   const headmasterName = schoolRecord?.headmasterName?.trim() || 'Head Master';
@@ -252,7 +250,7 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
   if (!isOpen) return null;
 
   // Print Action
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (isDemo && onOpenPaymentModal) {
       onOpenPaymentModal();
       return;
@@ -261,95 +259,8 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
     const printContent = printableRef.current;
     if (!printContent) return;
 
-    // Use isolated iframe printing with exact Legal Landscape page CSS
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${schoolName} - CCE Consolidated Report - Class ${selectedClass} (${activeMedium} Medium)</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Anek+Kannada:wght@300;400;500;600;700;800&family=Noto+Sans+Kannada:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" crossorigin="anonymous">
-          <style>
-            @page {
-              size: legal landscape;
-              margin: 5mm 10mm 0.75mm 20mm;
-            }
-            *, *::before, *::after {
-              box-sizing: border-box;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
-              color: #000000;
-              font-family: 'Anek Kannada', 'Plus Jakarta Sans', sans-serif;
-              font-size: 11px;
-              line-height: 1.35;
-            }
-            .print-sheet {
-              width: 100%;
-              max-width: 100%;
-              margin: 0;
-              padding: 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid #1e293b;
-              padding: 3px 3.5px;
-              vertical-align: middle;
-            }
-            thead {
-              display: table-header-group;
-            }
-            tr {
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-            .no-print {
-              display: none !important;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-sheet">
-            ${printContent.innerHTML}
-          </div>
-          <script>
-            window.addEventListener('load', function() {
-              setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 300);
-            });
-          </script>
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 15000);
+    const title = `${schoolName} - CCE Consolidated Report - Class ${selectedClass} (${activeMedium} Medium)`;
+    await executeReportPrint(printContent, title, paperSize);
   };
 
   // Download PDF Action
@@ -364,82 +275,8 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
 
     setIsExportingPdf(true);
     try {
-      let imgData: string | null = null;
-      let imgWidthPx = 0;
-      let imgHeightPx = 0;
-
-      try {
-        imgData = await toPng(printElement, {
-          quality: 0.98,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          skipFonts: true,
-          fontEmbedCSS: '',
-          filter: (node) => {
-            if (node instanceof HTMLElement && (node.classList.contains('no-print') || node.tagName === 'BUTTON')) {
-              return false;
-            }
-            return true;
-          },
-        });
-        const img = new Image();
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
-          img.src = imgData!;
-        });
-        imgWidthPx = img.naturalWidth || 1200;
-        imgHeightPx = img.naturalHeight || 800;
-      } catch (e) {
-        console.warn('html-to-image fallback:', e);
-      }
-
-      if (!imgData) {
-        const canvas = await html2canvas(printElement, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 1400,
-        });
-        imgData = canvas.toDataURL('image/jpeg', 0.98);
-        imgWidthPx = canvas.width;
-        imgHeightPx = canvas.height;
-      }
-
-      if (!imgData) throw new Error('Could not render image for PDF');
-
-      // Legal Landscape: 355.6mm x 215.9mm
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'legal',
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const leftMargin = 20; // 2 cm as required
-      const rightMargin = 10; // 1 cm as required
-      const bottomMargin = 0.75; // 0.75 mm as required
-      const topMargin = 5; // ~5 mm
-
-      const availableWidth = pageWidth - leftMargin - rightMargin;
-      const availableHeight = pageHeight - topMargin - bottomMargin;
-
-      const imgAspectRatio = imgWidthPx / imgHeightPx;
-      let renderWidth = availableWidth;
-      let renderHeight = renderWidth / imgAspectRatio;
-
-      if (renderHeight > availableHeight) {
-        renderHeight = availableHeight;
-        renderWidth = renderHeight * imgAspectRatio;
-      }
-
-      pdf.addImage(imgData, 'JPEG', leftMargin, topMargin, renderWidth, renderHeight);
-      pdf.save(
-        `CCE_Consolidated_Report_${activeMedium}_Medium_Class_${selectedClass}_${selectedYear}.pdf`
-      );
+      const filename = `CCE_Consolidated_Report_${activeMedium}_Class_${selectedClass}_${selectedYear}_${paperSize.toUpperCase()}.pdf`;
+      await downloadElementAsPdf(printElement, filename, paperSize);
     } catch (err) {
       console.error('PDF export error:', err);
       window.print();
@@ -813,40 +650,40 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
                           <td className="border border-slate-900 py-0.5 px-0.5 font-sans font-bold">{r.category}</td>
 
                           {/* 1. First Language: Mark & Grade */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-blue-50/20">{r.fl.mark}</td>
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-blue-900 bg-blue-50/30">{r.fl.grade}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-blue-50/20 text-[12px]">{r.fl.mark}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-blue-900 bg-blue-50/30 text-[12px]">{r.fl.grade}</td>
 
                           {/* 2. Second Language: Mark & Grade */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-emerald-50/20">{r.sl.mark}</td>
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-emerald-900 bg-emerald-50/30">{r.sl.grade}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-emerald-50/20 text-[12px]">{r.sl.mark}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-emerald-900 bg-emerald-50/30 text-[12px]">{r.sl.grade}</td>
 
                           {/* 3. Third Language: Mark & Grade */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-purple-50/20">{r.tl.mark}</td>
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-purple-900 bg-purple-50/30">{r.tl.grade}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-purple-50/20 text-[12px]">{r.tl.mark}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-purple-900 bg-purple-50/30 text-[12px]">{r.tl.grade}</td>
 
                           {/* 4. Mathematics: Mark & Grade */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-amber-50/20">{r.math.mark}</td>
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-amber-900 bg-amber-50/30">{r.math.grade}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-amber-50/20 text-[12px]">{r.math.mark}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-amber-900 bg-amber-50/30 text-[12px]">{r.math.grade}</td>
 
                           {/* 5. EVS: Mark & Grade */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-teal-50/20">{r.evs.mark}</td>
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-teal-900 bg-teal-50/30">{r.evs.grade}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold bg-teal-50/20 text-[12px]">{r.evs.mark}</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-teal-900 bg-teal-50/30 text-[12px]">{r.evs.grade}</td>
 
                           {/* TOTAL /500 */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-slate-950 bg-slate-100 font-mono text-[10px]">
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-slate-950 bg-slate-100 font-mono text-[12px]">
                             {r.totalMarks}
                           </td>
 
                           {/* PERCENTAGE */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold text-slate-900">{r.percentage}%</td>
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-bold text-slate-900 text-[12px]">{r.percentage}%</td>
 
                           {/* OVERALL GRADE */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-slate-950 bg-slate-100">
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-slate-950 bg-slate-100 text-[12px]">
                             {r.overallGrade}
                           </td>
 
                           {/* CO-SCHOLASTIC ACTIVITIES */}
-                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-indigo-900">
+                          <td className="border border-slate-900 py-0.5 px-0.5 font-black text-indigo-900 text-[12px]">
                             {r.coScholasticGrade}
                           </td>
 

@@ -285,7 +285,7 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                   </td>
 
                   {/* FL 100 Marks (Editable 2-Way Sync) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {cSt.isExempted ? (
                       '-'
                     ) : onUpdateSubject100 ? (
@@ -296,17 +296,17 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                         value={fl.total100 !== null && fl.total100 !== undefined ? fl.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'FL', Number(e.target.value))}
                         placeholder="-"
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         title="Edit First Language 100 Marks"
                       />
                     ) : (
                       fl.total100 !== null && fl.total100 !== undefined ? fl.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{cSt.isExempted ? 'Exempt' : fl.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{cSt.isExempted ? 'Exempt' : fl.grade}</td>
 
                   {/* SL 100 Marks (Editable 2-Way Sync) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {cSt.isExempted ? (
                       '-'
                     ) : onUpdateSubject100 ? (
@@ -317,17 +317,17 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                         value={sl.total100 !== null && sl.total100 !== undefined ? sl.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'SL', Number(e.target.value))}
                         placeholder="-"
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         title="Edit Second Language 100 Marks"
                       />
                     ) : (
                       sl.total100 !== null && sl.total100 !== undefined ? sl.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{cSt.isExempted ? 'Exempt' : sl.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{cSt.isExempted ? 'Exempt' : sl.grade}</td>
 
                   {/* MATHS 100 Marks (Editable 2-Way Sync) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {cSt.isExempted ? (
                       '-'
                     ) : onUpdateSubject100 ? (
@@ -338,17 +338,17 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                         value={maths.total100 !== null && maths.total100 !== undefined ? maths.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'MATHS', Number(e.target.value))}
                         placeholder="-"
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         title="Edit Mathematics 100 Marks"
                       />
                     ) : (
                       maths.total100 !== null && maths.total100 !== undefined ? maths.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{cSt.isExempted ? 'Exempt' : maths.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{cSt.isExempted ? 'Exempt' : maths.grade}</td>
 
                   {/* EVS 100 Marks (Editable 2-Way Sync) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {cSt.isExempted ? (
                       '-'
                     ) : onUpdateSubject100 ? (
@@ -359,34 +359,34 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                         value={evs.total100 !== null && evs.total100 !== undefined ? evs.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'EVS', Number(e.target.value))}
                         placeholder="-"
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         title="Edit EVS 100 Marks"
                       />
                     ) : (
                       evs.total100 !== null && evs.total100 !== undefined ? evs.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{cSt.isExempted ? 'Exempt' : evs.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{cSt.isExempted ? 'Exempt' : evs.grade}</td>
 
                   {/* Total 400 */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-black text-amber-950 bg-amber-50">
+                  <td className="border border-slate-900 p-0.5 font-mono font-black text-amber-950 bg-amber-50 text-[12px]">
                     {cSt.isExempted ? '-' : (cSt.totalMarks400 > 0 ? cSt.totalMarks400 : '-')}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-red-600">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-red-600 text-[12px]">
                     {cSt.isExempted ? '-' : (cSt.totalMarks400 > 0 ? `${cSt.percentage}%` : '-')}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black text-emerald-700 bg-amber-100">
+                  <td className="border border-slate-900 p-0.5 font-black text-emerald-700 bg-amber-100 text-[12px]">
                     {cSt.overallGrade}
                   </td>
 
                   {/* Co-Scholastic Grades (Editable 2-Way Sync) */}
                   {CO_SCHOLASTIC_ACTIVITIES.map((act) => (
-                    <td key={act.key} className="border border-slate-900 p-0.5 font-bold font-mono">
+                    <td key={act.key} className="border border-slate-900 p-0.5 font-bold font-mono text-[12px]">
                       {onUpdateFinalCoGrade ? (
                         <select
                           value={co[act.key] || ''}
                           onChange={(e) => onUpdateFinalCoGrade(st.id, act.key, e.target.value)}
-                          className="bg-transparent font-bold font-mono text-[8px] focus:outline-none cursor-pointer"
+                          className="bg-transparent font-bold font-mono text-[12px] focus:outline-none cursor-pointer"
                         >
                           <option value="">-</option>
                           <option value="A">A</option>

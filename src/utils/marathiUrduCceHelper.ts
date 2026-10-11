@@ -21,6 +21,7 @@
  */
 
 import { Student, StudentExamMarks, isCwsnExempted, isCwsnStudent } from '../types';
+import { calculatePartBAverageGrade } from './primaryCceHelper';
 
 export type MarathiUrduSubjectCode = 'FL' | 'SL' | 'TL' | 'MATHS' | 'EVS';
 
@@ -385,11 +386,11 @@ export const computeMarathiUrduStudentCce = (
     values: (examMarks as any)?.sem2Co?.values || co?.values || '',
   };
   const finalCo = {
-    physical: (examMarks as any)?.finalCo?.physical || sem2Co.physical || sem1Co.physical || '',
-    art: (examMarks as any)?.finalCo?.art || sem2Co.art || sem1Co.art || '',
-    music: (examMarks as any)?.finalCo?.music || sem2Co.music || sem1Co.music || '',
-    supw: (examMarks as any)?.finalCo?.supw || sem2Co.supw || sem1Co.supw || '',
-    values: (examMarks as any)?.finalCo?.values || sem2Co.values || sem1Co.values || '',
+    physical: calculatePartBAverageGrade(sem1Co.physical, sem2Co.physical, (examMarks as any)?.finalCo?.physical),
+    art: calculatePartBAverageGrade(sem1Co.art, sem2Co.art, (examMarks as any)?.finalCo?.art),
+    music: calculatePartBAverageGrade(sem1Co.music, sem2Co.music, (examMarks as any)?.finalCo?.music),
+    supw: calculatePartBAverageGrade(sem1Co.supw, sem2Co.supw, (examMarks as any)?.finalCo?.supw),
+    values: calculatePartBAverageGrade(sem1Co.values, sem2Co.values, (examMarks as any)?.finalCo?.values),
   };
 
   return {

@@ -552,7 +552,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
 
                               return (
                                 <React.Fragment key={s.code}>
-                                  <td className={`border border-slate-900 p-0.5 font-mono ${isTotalRow ? 'text-red-600 font-bold' : ''}`}>
+                                  <td className={`border border-slate-900 p-0.5 font-mono text-[12px] ${isTotalRow ? 'text-red-600 font-bold' : ''}`}>
                                     {isExempt ? (
                                       '-'
                                     ) : r.isFinalTotal && onUpdateSubject100 ? (
@@ -569,7 +569,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                             if (!isNaN(n)) onUpdateSubject100(st.id, s.code, Math.min(100, Math.max(0, Math.floor(n))));
                                           }
                                         }}
-                                        className="w-full text-center bg-transparent hover:bg-yellow-100 focus:bg-white font-mono font-black text-red-600 border-b border-red-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="w-full text-center bg-transparent hover:bg-yellow-100 focus:bg-white font-mono font-black text-red-600 border-b border-red-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title={`Edit ${s.nameKn} 100 Marks (2-way sync)`}
                                       />
@@ -594,7 +594,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                             }
                                           }
                                         }}
-                                        className="w-full text-center bg-transparent hover:bg-blue-50 focus:bg-white font-mono font-bold text-slate-900 border-b border-slate-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="w-full text-center bg-transparent hover:bg-blue-50 focus:bg-white font-mono font-bold text-slate-900 border-b border-slate-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title={`Edit ${s.nameKn} ${r.exam} marks`}
                                       />
@@ -602,7 +602,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                       markVal
                                     )}
                                   </td>
-                                  <td className={`border border-slate-900 p-0.5 font-bold ${
+                                  <td className={`border border-slate-900 p-0.5 font-bold text-[12px] ${
                                     r.isFinalTotal ? 'text-green-600 font-black' : isTotalRow ? 'text-red-600 font-bold' : ''
                                   }`}>
                                     {gradeVal}
@@ -612,24 +612,24 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             })}
 
                             {/* 8. Max Marks */}
-                            <td className={`border border-slate-900 p-0.5 font-mono font-black text-center align-middle ${
+                            <td className={`border border-slate-900 p-0.5 font-mono font-black text-center align-middle text-[12px] ${
                               r.isFinalTotal ? 'bg-amber-100 text-red-600' : isTotalRow ? 'bg-amber-100 text-red-600' : 'bg-slate-50/50'
                             }`}>
                               {r.maxMarks}
                             </td>
 
                             {/* 9. Total Across 7 Subjects: ಅಂಕ, ಶೇಕಡಾ, ಶ್ರೇಣಿ */}
-                            <td className={`border border-slate-900 p-0.5 font-mono font-bold ${
+                            <td className={`border border-slate-900 p-0.5 font-mono font-bold text-[12px] ${
                               isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? '-' : (rowTotalMarks !== null ? rowTotalMarks : '-')}
                             </td>
-                            <td className={`border border-slate-900 p-0.5 font-mono font-bold ${
+                            <td className={`border border-slate-900 p-0.5 font-mono font-bold text-[12px] ${
                               r.isFinalTotal ? 'text-red-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? '-' : rowPctStr}
                             </td>
-                            <td className={`border border-slate-900 p-0.5 font-black ${
+                            <td className={`border border-slate-900 p-0.5 font-black text-[12px] ${
                               r.isFinalTotal ? 'text-green-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? (r.isFinalTotal ? 'Exempt' : '-') : rowGrade}
@@ -638,7 +638,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {/* 10. Part B Item 1: Art Edu / Work Exp (2 cols: Marks, Grade) */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-indigo-50/40">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -650,7 +650,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(50, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'art_workexp', 'sem1', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-b border-indigo-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-b border-indigo-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Art Edu Sem 1 Marks (Max 50)"
                                     />
@@ -658,14 +658,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     artSub?.sem1 !== null && artSub?.sem1 !== undefined ? artSub.sem1 : '-'
                                   )}
                                 </td>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[12px]">
                                   {artSub?.sem1_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-indigo-50/40">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -677,7 +677,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(50, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'art_workexp', 'sem2', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-b border-indigo-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-b border-indigo-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Art Edu Sem 2 Marks (Max 50)"
                                     />
@@ -685,14 +685,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     artSub?.sem2 !== null && artSub?.sem2 !== undefined ? artSub.sem2 : '-'
                                   )}
                                 </td>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[12px]">
                                   {artSub?.sem2_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td className="border border-slate-900 p-0.5 font-mono font-black text-center align-middle bg-amber-100 text-indigo-950">
+                                <td className="border border-slate-900 p-0.5 font-mono font-black text-center align-middle bg-amber-100 text-indigo-950 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -704,7 +704,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(100, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'art_workexp', 'total', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-indigo-950 border-b border-indigo-400 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-indigo-950 border-b border-indigo-400 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Art Edu Total Marks (Max 100)"
                                     />
@@ -712,7 +712,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     artSub?.total !== null && artSub?.total !== undefined ? artSub.total : '-'
                                   )}
                                 </td>
-                                <td className="border border-slate-900 p-0.5 font-black text-center align-middle bg-amber-100 text-indigo-950">
+                                <td className="border border-slate-900 p-0.5 font-black text-center align-middle bg-amber-100 text-indigo-950 text-[12px]">
                                   {artSub?.grade || '-'}
                                 </td>
                               </>
@@ -721,7 +721,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {/* 11. Part B Item 2: Computer Education / ICT (2 cols: Marks, Grade) */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-blue-50/40">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-blue-50/40 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -733,7 +733,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(50, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'ict_computer', 'sem1', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-b border-blue-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-b border-blue-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Computer Edu Sem 1 Marks (Max 50)"
                                     />
@@ -741,14 +741,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     ictSub?.sem1 !== null && ictSub?.sem1 !== undefined ? ictSub.sem1 : '-'
                                   )}
                                 </td>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-blue-50/40 text-blue-950">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[12px]">
                                   {ictSub?.sem1_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-blue-50/40">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-mono font-bold text-center align-middle bg-blue-50/40 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -760,7 +760,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(50, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'ict_computer', 'sem2', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-b border-blue-300 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-b border-blue-300 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Computer Edu Sem 2 Marks (Max 50)"
                                     />
@@ -768,14 +768,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     ictSub?.sem2 !== null && ictSub?.sem2 !== undefined ? ictSub.sem2 : '-'
                                   )}
                                 </td>
-                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-blue-50/40 text-blue-950">
+                                <td rowSpan={4} className="border border-slate-900 p-0.5 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[12px]">
                                   {ictSub?.sem2_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td className="border border-slate-900 p-0.5 font-mono font-black text-center align-middle bg-amber-100 text-blue-950">
+                                <td className="border border-slate-900 p-0.5 font-mono font-black text-center align-middle bg-amber-100 text-blue-950 text-[12px]">
                                   {onUpdatePartBMarks ? (
                                     <input
                                       type="number"
@@ -787,7 +787,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                         const n = clean === '' ? null : Math.min(100, Math.max(0, parseInt(clean, 10)));
                                         onUpdatePartBMarks(st.id, 'ict_computer', 'total', n);
                                       }}
-                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-blue-950 border-b border-blue-400 focus:outline-none text-[8.5px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-blue-950 border-b border-blue-400 focus:outline-none text-[12px] p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       title="Edit Computer Edu Total Marks (Max 100)"
                                     />
@@ -795,7 +795,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     ictSub?.total !== null && ictSub?.total !== undefined ? ictSub.total : '-'
                                   )}
                                 </td>
-                                <td className="border border-slate-900 p-0.5 font-black text-center align-middle bg-amber-100 text-blue-950">
+                                <td className="border border-slate-900 p-0.5 font-black text-center align-middle bg-amber-100 text-blue-950 text-[12px]">
                                   {ictSub?.grade || '-'}
                                 </td>
                               </>
@@ -810,13 +810,13 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-bold text-[8px] text-center align-middle bg-white"
+                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-bold text-[12px] text-center align-middle bg-white"
                                     >
                                       {onUpdateCoGrade ? (
                                         <select
                                           value={grd !== '-' ? grd : ''}
                                           onChange={(e) => onUpdateCoGrade(st.id, 'sem1', act.key, e.target.value)}
-                                          className="bg-transparent font-bold text-[8px] text-slate-800 focus:outline-none cursor-pointer"
+                                          className="bg-transparent font-bold text-[12px] text-slate-800 focus:outline-none cursor-pointer"
                                         >
                                           <option value="">-</option>
                                           <option value="A">A</option>
@@ -839,13 +839,13 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-bold text-[8px] text-center align-middle bg-white"
+                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-bold text-[12px] text-center align-middle bg-white"
                                     >
                                       {onUpdateCoGrade ? (
                                         <select
                                           value={grd !== '-' ? grd : ''}
                                           onChange={(e) => onUpdateCoGrade(st.id, 'sem2', act.key, e.target.value)}
-                                          className="bg-transparent font-bold text-[8px] text-slate-800 focus:outline-none cursor-pointer"
+                                          className="bg-transparent font-bold text-[12px] text-slate-800 focus:outline-none cursor-pointer"
                                         >
                                           <option value="">-</option>
                                           <option value="A">A</option>
@@ -867,13 +867,13 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   return (
                                     <td
                                       key={act.key}
-                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-black text-[8px] text-center align-middle bg-amber-100 text-red-600"
+                                      className="border border-slate-900 p-0.5 w-[20px] font-mono font-black text-[12px] text-center align-middle bg-amber-100 text-red-600"
                                     >
                                       {onUpdateCoGrade ? (
                                         <select
                                           value={grd !== '-' ? grd : ''}
                                           onChange={(e) => onUpdateCoGrade(st.id, 'final', act.key, e.target.value)}
-                                          className="bg-transparent font-black text-[8px] text-red-600 focus:outline-none cursor-pointer"
+                                          className="bg-transparent font-black text-[12px] text-red-600 focus:outline-none cursor-pointer"
                                         >
                                           <option value="">-</option>
                                           <option value="A">A</option>

@@ -16,7 +16,9 @@ import {
   downloadElementAsPdf,
   exportElementAsImage,
   shareReportToWhatsApp,
+  ReportPaperSize,
 } from '../utils/printPdfHelper';
+import { getSavedClassTeacher, persistClassTeacherLocally } from '../utils/teacherHelper';
 import {
   Printer,
   Download,
@@ -97,10 +99,18 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
   // Selected Subject for Page 1
   const [selectedSubject, setSelectedSubject] = useState<HpSubjectCode>('FL');
 
-  // Class Teacher Name & Working Days state
+  // Class Teacher Name & Working Days state (Fetched from School Profile; if not saved, left blank to edit)
   const [classTeacherName, setClassTeacherName] = useState<string>(() => {
-    return localStorage.getItem(`kseab_ct_name_${diseCode}_${selectedClass}`) || 'ಶ್ರೀ ಎಸ್ ಆರ್ ಅಂಗಡಿ';
+    return getSavedClassTeacher(schoolRecord, selectedClass);
   });
+
+  // Paper Size state: 1. A4 size (295mm × 210mm) | 2. Legal size (340mm × 210mm)
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
+
+  // Automatically update class teacher name when selected class or school profile changes
+  useEffect(() => {
+    setClassTeacherName(getSavedClassTeacher(schoolRecord, selectedClass));
+  }, [schoolRecord, selectedClass]);
 
   const [workingDays, setWorkingDays] = useState<number>(() => {
     const saved = localStorage.getItem(`kseab_working_days_${diseCode}_${academicYear}`);
@@ -532,31 +542,112 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
             </button>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
+          {/* Class Selection & Quick Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-300">
+              <span className="text-xs font-black text-slate-700">ತರಗತಿ:</span>
+              <div className="flex items-center gap-1">
+                {['6', '7', '8'].map((cls) => (
+                  <button
+                    key={cls}
+                    type="button"
+                    onClick={() => setSelectedClass(cls)}
+                    className={`px-2 py-0.5 rounded text-xs font-black transition cursor-pointer ${
+                      selectedClass === cls
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    {cls}ನೇ
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Class Teacher Name Input (Editable, fetched from school profile or blank) */}
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-300">
+              <span className="text-xs font-black text-slate-700">ಶಿಕ್ಷಕರು:</span>
+              <input
+                type="text"
+                value={classTeacherName}
+                onChange={(e) => {
+                  setClassTeacherName(e.target.value);
+                  persistClassTeacherLocally(diseCode, selectedClass, e.target.value);
+                }}
+                className="bg-transparent font-bold text-xs text-slate-900 focus:outline-none w-28 sm:w-36"
+                placeholder="ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು (ಖಾಲಿ)"
+              />
+            </div>
+
+            {/* Working Days */}
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-300">
+              <span className="text-xs font-black text-slate-700">ದಿನಗಳು:</span>
+              <input
+                type="number"
+                value={workingDays}
+                onChange={(e) => {
+                  const d = Number(e.target.value);
+                  setWorkingDays(d);
+                  localStorage.setItem(`kseab_working_days_${diseCode}_${academicYear}`, String(d));
+                }}
+                className="bg-transparent font-mono font-bold text-xs text-slate-900 focus:outline-none w-14"
+              />
+            </div>
+
+            {/* Paper Size 2 Options: 1. A4 size (295mm × 210mm) & 2. Legal size (340mm × 210mm) */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300 text-xs">
+              <span className="font-bold text-slate-700 px-1">ಸೈಜ್:</span>
+              <button
+                type="button"
+                onClick={() => setPaperSize('a4')}
+                className={`px-2 py-0.5 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'a4'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+                title="1. A4 Size (295mm width, 210mm height)"
+              >
+                1. A4 (295×210mm)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('legal')}
+                className={`px-2 py-0.5 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'legal'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+                title="2. Legal Size (340mm width, 210mm height)"
+              >
+                2. Legal (340×210mm)
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => {
                 if (reportRef.current) {
-                  executeReportPrint(reportRef.current, getTabTitle());
+                  executeReportPrint(reportRef.current, getTabTitle(), paperSize);
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              title={`Print in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
             >
               <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">ಮುದ್ರಿಸಿ (Print)</span>
+              <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
             </button>
             <button
               type="button"
               onClick={async () => {
                 if (reportRef.current) {
-                  await downloadElementAsPdf(reportRef.current, `CCE_Report_${activeTab}.pdf`);
+                  await downloadElementAsPdf(reportRef.current, `CCE_Report_${activeTab}_Class${selectedClass}_${paperSize.toUpperCase()}.pdf`, paperSize);
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              title={`Download PDF in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">PDF</span>
+              <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
             </button>
           </div>
         </div>

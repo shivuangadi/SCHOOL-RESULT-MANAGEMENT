@@ -24,6 +24,8 @@ import { getClassesFromRange } from '../utils/studentStore';
 import { getRealMarksFromLocal, getStudentCalculatedResult } from '../utils/marksStore';
 import { ACADEMIC_YEARS } from './SchoolDashboard';
 import { calculateGrade, calculateSubjectGrade } from '../data/demoData';
+import { getSavedClassTeacher } from '../utils/teacherHelper';
+import { executeReportPrint, downloadElementAsPdf, ReportPaperSize } from '../utils/printPdfHelper';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
 import html2canvas from 'html2canvas';
@@ -89,17 +91,13 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
   const schoolName = schoolRecord?.schoolName?.trim() || (isKn ? 'ಸರ್ಕಾರಿ ಹಿರಿಯ ಪ್ರಾಥಮಿಕ ಶಾಲೆ' : 'GOVERNMENT HIGHER PRIMARY SCHOOL');
   const workingDays = (schoolRecord as any)?.workingDays || (selectedYear.includes('2026-27') ? 220 : 220);
 
-  // Dynamic Class Teacher Name from School Profile
+  // Paper Size 2 options: 1. A4 size (295mm × 210mm) | 2. Legal size (340mm × 210mm)
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
+
+  // Dynamic Class Teacher Name from School Profile (if not saved, left blank to edit across the app 1-10)
   const classTeacherName = useMemo(() => {
-    const teachers = schoolRecord?.classTeachers || {};
-    const divKey = `${selectedClass}-${selectedDivision}`;
-    return (
-      teachers[divKey] ||
-      teachers[selectedClass] ||
-      schoolRecord?.headmasterName ||
-      (isKn ? 'ಶ್ರೀ. ಎಂ. ಐ. ನಿಲಾಜಿ' : 'SHRI. M I NILAJI')
-    );
-  }, [schoolRecord?.classTeachers, schoolRecord?.headmasterName, selectedClass, selectedDivision, isKn]);
+    return getSavedClassTeacher(schoolRecord, selectedClass, selectedDivision);
+  }, [schoolRecord, selectedClass, selectedDivision]);
 
   // Headmaster Name from School Profile
   const headmasterName = schoolRecord?.headmasterName?.trim() || (isKn ? 'ಮುಖ್ಯ ಗುರುಗಳು' : 'Head Master');
@@ -226,7 +224,7 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
   if (!isOpen) return null;
 
   // Print Action
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (isDemo && onOpenPaymentModal) {
       onOpenPaymentModal();
       return;
@@ -235,95 +233,8 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
     const printContent = printableRef.current;
     if (!printContent) return;
 
-    // Use isolated iframe printing with exact Legal Landscape page CSS
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${schoolName} - CCE Consolidated Report - Class ${selectedClass}</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-          <style>
-            @page {
-              size: legal landscape;
-              margin: 5mm 10mm 0.75mm 20mm;
-            }
-            *, *::before, *::after {
-              box-sizing: border-box;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
-              color: #000000;
-              font-family: 'Plus Jakarta Sans', 'Noto Sans Kannada', sans-serif;
-              font-size: 11px;
-              line-height: 1.35;
-            }
-            .print-sheet {
-              width: 100%;
-              max-width: 100%;
-              margin: 0;
-              padding: 0;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid #1e293b;
-              padding: 3.5px 4px;
-              vertical-align: middle;
-            }
-            thead {
-              display: table-header-group;
-            }
-            tr {
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-            .no-print {
-              display: none !important;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-sheet">
-            ${printContent.innerHTML}
-          </div>
-          <script>
-            window.addEventListener('load', function() {
-              setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 300);
-            });
-          </script>
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 15000);
+    const title = `${schoolName} - CCE Consolidated Report - Class ${selectedClass}`;
+    await executeReportPrint(printContent, title, paperSize);
   };
 
   // Download PDF Action
@@ -338,110 +249,8 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
 
     setIsExportingPdf(true);
     try {
-      let imgData: string | null = null;
-      let imgWidthPx = 0;
-      let imgHeightPx = 0;
-
-      try {
-        imgData = await toPng(printElement, {
-          quality: 0.98,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          skipFonts: true,
-          fontEmbedCSS: '',
-          filter: (node) => {
-            if (node instanceof HTMLElement && (node.classList.contains('no-print') || node.tagName === 'BUTTON')) {
-              return false;
-            }
-            return true;
-          },
-        });
-        const img = new Image();
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
-          img.src = imgData!;
-        });
-        imgWidthPx = img.naturalWidth || 1200;
-        imgHeightPx = img.naturalHeight || 800;
-      } catch (e) {
-        console.warn('html-to-image fallback:', e);
-      }
-
-      if (!imgData) {
-        const canvas = await html2canvas(printElement, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 1400,
-        });
-        imgData = canvas.toDataURL('image/jpeg', 0.98);
-        imgWidthPx = canvas.width;
-        imgHeightPx = canvas.height;
-      }
-
-      if (!imgData) throw new Error('Could not render image for PDF');
-
-      // Legal Landscape: 355.6mm x 215.9mm
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'legal',
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 355.6
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 215.9
-
-      // Left 20mm, Right 10mm, Top 5mm, Bottom 0.75mm
-      const marginLeft = 20;
-      const marginRight = 10;
-      const marginTop = 5;
-      const marginBottom = 0.75;
-
-      const printableWidth = pdfWidth - marginLeft - marginRight;
-      const printableHeight = pdfHeight - marginTop - marginBottom;
-
-      const ratio = imgHeightPx / imgWidthPx;
-      const renderedHeight = printableWidth * ratio;
-
-      if (renderedHeight <= printableHeight) {
-        pdf.addImage(imgData, 'PNG', marginLeft, marginTop, printableWidth, renderedHeight);
-      } else {
-        // Multi-page slicing for large lists
-        let yOffset = 0;
-        const pageCanvasHeight = (printableHeight / printableWidth) * imgWidthPx;
-
-        while (yOffset < imgHeightPx) {
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = imgWidthPx;
-          sliceCanvas.height = Math.min(pageCanvasHeight, imgHeightPx - yOffset);
-          const ctx = sliceCanvas.getContext('2d');
-          if (ctx) {
-            const tempImg = new Image();
-            tempImg.src = imgData;
-            ctx.drawImage(
-              tempImg,
-              0,
-              yOffset,
-              imgWidthPx,
-              sliceCanvas.height,
-              0,
-              0,
-              imgWidthPx,
-              sliceCanvas.height
-            );
-            const sliceData = sliceCanvas.toDataURL('image/png');
-            if (yOffset > 0) pdf.addPage('legal', 'landscape');
-            const sliceRenderHeight = (sliceCanvas.height / imgWidthPx) * printableWidth;
-            pdf.addImage(sliceData, 'PNG', marginLeft, marginTop, printableWidth, sliceRenderHeight);
-          }
-          yOffset += pageCanvasHeight;
-        }
-      }
-
-      const fileName = `CCE_Consolidated_Report_Class_${selectedClass}_${selectedYear}.pdf`;
-      pdf.save(fileName);
+      const filename = `CCE_Consolidated_Report_Class_${selectedClass}_${selectedYear}_${paperSize.toUpperCase()}.pdf`;
+      await downloadElementAsPdf(printElement, filename, paperSize);
     } catch (err) {
       console.error('PDF export error:', err);
       alert('PDF generation notice. Please use the Print button and choose "Save as PDF".');
@@ -534,15 +343,44 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
               </button>
             )}
 
+            {/* Paper Size 2 Options: 1. A4 size (295mm × 210mm) & 2. Legal size (340mm × 210mm) */}
+            <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700 text-xs">
+              <span className="font-bold text-slate-300 px-1 text-[11px]">ಸೈಜ್:</span>
+              <button
+                type="button"
+                onClick={() => setPaperSize('a4')}
+                className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'a4'
+                    ? 'bg-amber-400 text-slate-950 shadow-xs'
+                    : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                }`}
+                title="1. A4 Size (295mm width, 210mm height)"
+              >
+                1. A4 (295×210mm)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('legal')}
+                className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                  paperSize === 'legal'
+                    ? 'bg-amber-400 text-slate-950 shadow-xs'
+                    : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                }`}
+                title="2. Legal Size (340mm width, 210mm height)"
+              >
+                2. Legal (340×210mm)
+              </button>
+            </div>
+
             {/* Print Button */}
             <button
               type="button"
               onClick={handlePrint}
               className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition transform hover:-translate-y-0.5 cursor-pointer"
-              title="Print directly on Legal Landscape Paper"
+              title={`Print directly on ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
             >
               <Printer className="w-4 h-4 text-slate-950" />
-              <span>{isKn ? 'ಮುದ್ರಣ (Print)' : 'Print'}</span>
+              <span>{isKn ? `ಮುದ್ರಣ (${paperSize === 'a4' ? 'A4' : 'Legal'})` : `Print (${paperSize.toUpperCase()})`}</span>
             </button>
 
             {/* Download PDF Button */}
@@ -551,10 +389,10 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition cursor-pointer disabled:opacity-50"
-              title="Download Legal Landscape PDF"
+              title={`Download ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'} PDF`}
             >
               <Download className="w-4 h-4" />
-              <span>{isExportingPdf ? 'PDF ಸಿದ್ಧವಾಗುತ್ತಿದೆ...' : isKn ? 'PDF ಡೌನ್‌ಲೋಡ್' : 'Download PDF'}</span>
+              <span>{isExportingPdf ? 'PDF ಸಿದ್ಧವಾಗುತ್ತಿದೆ...' : isKn ? `PDF (${paperSize === 'a4' ? 'A4' : 'Legal'})` : `PDF (${paperSize.toUpperCase()})`}</span>
             </button>
 
             {/* Close Button */}
@@ -642,7 +480,7 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
                   <span>{isKn ? 'ತರಗತಿ:' : 'Class:'} <strong className="text-slate-950 font-extrabold">{getFormattedClassName(selectedClass, medium)}</strong></span>
                 </div>
                 <div className="flex justify-center items-center">
-                  <span>{isKn ? 'ವರ್ಗ ಶಿಕ್ಷಕರು:' : 'Class Teacher:'} <span className="font-extrabold underline decoration-slate-400 decoration-1 underline-offset-4">{classTeacherName}</span></span>
+                  <span>{isKn ? 'ವರ್ಗ ಶಿಕ್ಷಕರು:' : 'Class Teacher:'} <span className="font-extrabold underline decoration-slate-400 decoration-1 underline-offset-4">{classTeacherName || '____________________'}</span></span>
                 </div>
                 <div className="flex justify-center items-center">
                   <span>{isKn ? 'ಶಾಲೆಯ ಕಾರ್ಯದಿನಗಳ ಸಂಖ್ಯೆ:' : 'No. of School Working Days:'} <span className="font-mono font-extrabold">{workingDays}</span></span>
@@ -771,36 +609,36 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
                           <td className="border border-slate-900 py-1 px-1 font-sans font-bold">{r.category}</td>
 
                           {/* Kannada Mark & Grade */}
-                          <td className="border border-slate-900 py-1 px-1 font-bold bg-blue-50/20">{r.kannada.mark}</td>
-                          <td className="border border-slate-900 py-1 px-1 font-black text-blue-900 bg-blue-50/30">{r.kannada.grade}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-bold bg-blue-50/20 text-[12px]">{r.kannada.mark}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-black text-blue-900 bg-blue-50/30 text-[12px]">{r.kannada.grade}</td>
 
                           {/* English Mark & Grade */}
-                          <td className="border border-slate-900 py-1 px-1 font-bold bg-purple-50/20">{r.english.mark}</td>
-                          <td className="border border-slate-900 py-1 px-1 font-black text-purple-900 bg-purple-50/30">{r.english.grade}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-bold bg-purple-50/20 text-[12px]">{r.english.mark}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-black text-purple-900 bg-purple-50/30 text-[12px]">{r.english.grade}</td>
 
                           {/* Math Mark & Grade */}
-                          <td className="border border-slate-900 py-1 px-1 font-bold bg-amber-50/20">{r.mathematics.mark}</td>
-                          <td className="border border-slate-900 py-1 px-1 font-black text-amber-900 bg-amber-50/30">{r.mathematics.grade}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-bold bg-amber-50/20 text-[12px]">{r.mathematics.mark}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-black text-amber-900 bg-amber-50/30 text-[12px]">{r.mathematics.grade}</td>
 
                           {/* EVS Mark & Grade */}
-                          <td className="border border-slate-900 py-1 px-1 font-bold bg-emerald-50/20">{r.evs.mark}</td>
-                          <td className="border border-slate-900 py-1 px-1 font-black text-emerald-900 bg-emerald-50/30">{r.evs.grade}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-bold bg-emerald-50/20 text-[12px]">{r.evs.mark}</td>
+                          <td className="border border-slate-900 py-1 px-1 font-black text-emerald-900 bg-emerald-50/30 text-[12px]">{r.evs.grade}</td>
 
                           {/* TOTAL */}
-                          <td className="border border-slate-900 py-1 px-1 font-black text-slate-950 bg-slate-100 font-mono text-[11px]">
+                          <td className="border border-slate-900 py-1 px-1 font-black text-slate-950 bg-slate-100 font-mono text-[12px]">
                             {r.totalMarks}
                           </td>
 
                           {/* PERCENTAGE */}
-                          <td className="border border-slate-900 py-1 px-1 font-bold text-slate-900">{r.percentage}%</td>
+                          <td className="border border-slate-900 py-1 px-1 font-bold text-slate-900 text-[12px]">{r.percentage}%</td>
 
                           {/* OVERALL GRADE */}
-                          <td className="border border-slate-900 py-1 px-1 font-black text-slate-950 bg-slate-100">
+                          <td className="border border-slate-900 py-1 px-1 font-black text-slate-950 bg-slate-100 text-[12px]">
                             {r.overallGrade}
                           </td>
 
                           {/* CO-SCHOLASTIC ACTIVITIES */}
-                          <td className="border border-slate-900 py-1 px-1 font-black text-indigo-900">
+                          <td className="border border-slate-900 py-1 px-1 font-black text-indigo-900 text-[12px]">
                             {r.coScholasticGrade}
                           </td>
 
@@ -829,7 +667,7 @@ export const CceConsolidatedReportModal: React.FC<CceConsolidatedReportModalProp
                   {isKn ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ' : 'Class Teacher sign'}
                 </p>
                 <p className="font-bold text-slate-800">
-                  {classTeacherName}
+                  {classTeacherName || ''}
                 </p>
               </div>
 

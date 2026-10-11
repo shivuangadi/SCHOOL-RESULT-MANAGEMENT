@@ -252,7 +252,7 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                   </td>
 
                   {/* FL (100) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : onUpdateSubject100 ? (
                       <input
                         type="number"
@@ -260,17 +260,17 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                         max="100"
                         value={fl.total100 !== null && fl.total100 !== undefined ? fl.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'FL', Number(e.target.value))}
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         placeholder="-"
                       />
                     ) : (
                       fl.total100 !== null && fl.total100 !== undefined ? fl.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{isExempted ? 'Exempt' : fl.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{isExempted ? 'Exempt' : fl.grade}</td>
 
                   {/* SL (100) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : onUpdateSubject100 ? (
                       <input
                         type="number"
@@ -278,17 +278,17 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                         max="100"
                         value={sl.total100 !== null && sl.total100 !== undefined ? sl.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'SL', Number(e.target.value))}
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         placeholder="-"
                       />
                     ) : (
                       sl.total100 !== null && sl.total100 !== undefined ? sl.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{isExempted ? 'Exempt' : sl.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{isExempted ? 'Exempt' : sl.grade}</td>
 
                   {/* TL (100) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : onUpdateSubject100 ? (
                       <input
                         type="number"
@@ -296,17 +296,17 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                         max="100"
                         value={tl.total100 !== null && tl.total100 !== undefined ? tl.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'TL', Number(e.target.value))}
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         placeholder="-"
                       />
                     ) : (
                       tl.total100 !== null && tl.total100 !== undefined ? tl.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{isExempted ? 'Exempt' : tl.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{isExempted ? 'Exempt' : tl.grade}</td>
 
                   {/* MATHS (100) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : onUpdateSubject100 ? (
                       <input
                         type="number"
@@ -314,17 +314,17 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                         max="100"
                         value={maths.total100 !== null && maths.total100 !== undefined ? maths.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'MATHS', Number(e.target.value))}
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         placeholder="-"
                       />
                     ) : (
                       maths.total100 !== null && maths.total100 !== undefined ? maths.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{isExempted ? 'Exempt' : maths.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{isExempted ? 'Exempt' : maths.grade}</td>
 
                   {/* EVS (100) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : onUpdateSubject100 ? (
                       <input
                         type="number"
@@ -332,23 +332,23 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                         max="100"
                         value={evs.total100 !== null && evs.total100 !== undefined ? evs.total100 : ''}
                         onChange={(e) => onUpdateSubject100(st.id, 'EVS', Number(e.target.value))}
-                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none"
+                        className="w-full text-center bg-transparent focus:bg-white font-mono font-bold text-slate-900 focus:outline-none text-[12px]"
                         placeholder="-"
                       />
                     ) : (
                       evs.total100 !== null && evs.total100 !== undefined ? evs.total100 : '-'
                     )}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-black">{isExempted ? 'Exempt' : evs.grade}</td>
+                  <td className="border border-slate-900 p-0.5 font-black text-[12px]">{isExempted ? 'Exempt' : evs.grade}</td>
 
                   {/* TOTAL MARKS SECURED (500) */}
-                  <td className="border border-slate-900 p-0.5 font-mono font-black bg-amber-50 text-slate-950">
+                  <td className="border border-slate-900 p-0.5 font-mono font-black bg-amber-50 text-slate-950 text-[12px]">
                     {isExempted ? '-' : (cSt.totalMarks500 && cSt.totalMarks500 > 0 ? cSt.totalMarks500 : '-')}
                   </td>
-                  <td className="border border-slate-900 p-0.5 font-mono font-bold">
+                  <td className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                     {isExempted ? '-' : (cSt.totalMarks500 && cSt.totalMarks500 > 0 ? `${cSt.percentage}%` : '-')}
                   </td>
-                  <td className={`border border-slate-900 p-0.5 font-black ${
+                  <td className={`border border-slate-900 p-0.5 font-black text-[12px] ${
                     cSt.overallGrade === 'A+' ? 'text-emerald-700 bg-emerald-50' :
                     cSt.overallGrade === 'A' ? 'text-emerald-600' :
                     cSt.overallGrade === 'Exempt' ? 'text-purple-700 bg-purple-50' : ''
@@ -358,12 +358,12 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
 
                   {/* 5 CO-SCHOLASTIC GRADES */}
                   {MARATHI_URDU_CO_ACTIVITIES.map((act) => (
-                    <td key={act.key} className="border border-slate-900 p-0.5 font-mono font-bold">
+                    <td key={act.key} className="border border-slate-900 p-0.5 font-mono font-bold text-[12px]">
                       {onUpdateFinalCoGrade ? (
                         <select
                           value={finalCo[act.key] || ''}
                           onChange={(e) => onUpdateFinalCoGrade(st.id, act.key, e.target.value)}
-                          className="w-full text-center font-bold bg-transparent focus:bg-white text-[8px] focus:outline-none"
+                          className="w-full text-center font-bold bg-transparent focus:bg-white text-[12px] focus:outline-none"
                         >
                           <option value="">-</option>
                           <option value="A">A</option>

@@ -284,6 +284,10 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
       [key]: teacherNameInput.trim(),
     };
 
+    if (schoolRecord?.diseCode) {
+      localStorage.setItem(`kseab_ct_name_${schoolRecord.diseCode}_${teacherAssignClass}`, teacherNameInput.trim());
+    }
+
     if (updateSchoolRecord) {
       await updateSchoolRecord({ classTeachers: updatedTeachers });
     }
@@ -297,6 +301,10 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
   const handleRemoveClassTeacher = async (classKey: string) => {
     const currentTeachers = { ...(schoolRecord?.classTeachers || {}) };
     delete currentTeachers[classKey];
+    if (schoolRecord?.diseCode) {
+      const cls = classKey.split('-')[0];
+      localStorage.removeItem(`kseab_ct_name_${schoolRecord.diseCode}_${cls}`);
+    }
     if (updateSchoolRecord) {
       await updateSchoolRecord({ classTeachers: currentTeachers });
     }

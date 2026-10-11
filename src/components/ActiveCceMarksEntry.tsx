@@ -16,6 +16,7 @@ import {
   ComputedStudentCce,
   exportHtmlTableToExcel,
   distribute100MarksIntoSubject,
+  calculatePartBAverageGrade,
 } from '../utils/primaryCceHelper';
 import {
   loadSchoolMarks,
@@ -27,7 +28,9 @@ import {
   downloadElementAsPdf,
   exportElementAsImage,
   shareReportToWhatsApp,
+  ReportPaperSize,
 } from '../utils/printPdfHelper';
+import { getSavedClassTeacher, persistClassTeacherLocally } from '../utils/teacherHelper';
 import {
   Printer,
   Download,
@@ -99,6 +102,15 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   // Active Tab: 1 to 6
   const [activeTab, setActiveTab] = useState<CceTabKey>('page1');
 
+  // Wing Selection: 'primary' (Classes 1-5) or 'higherPrimary' (Classes 6-8)
+  // Kept in separate tabs for all mediums
+  const [activeWing, setActiveWing] = useState<'primary' | 'higherPrimary'>(() => {
+    if (initialClass && initialClass >= 6 && initialClass <= 8) {
+      return 'higherPrimary';
+    }
+    return 'primary';
+  });
+
   // Selected Class (1 to 8)
   const [selectedClass, setSelectedClass] = useState<string>(() => {
     if (initialClass && initialClass >= 1 && initialClass <= 8) {
@@ -107,15 +119,60 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     return '3';
   });
 
-  const isHp = selectedClass === '6' || selectedClass === '7' || selectedClass === '8';
+  const isHp = activeWing === 'higherPrimary';
+
+  // Synchronize when initialClass prop changes
+  useEffect(() => {
+    if (initialClass && initialClass >= 1 && initialClass <= 8) {
+      setSelectedClass(String(initialClass));
+      if (initialClass >= 6) {
+        setActiveWing('higherPrimary');
+      } else {
+        setActiveWing('primary');
+      }
+    }
+  }, [initialClass]);
+
+  const handleSwitchWing = (wing: 'primary' | 'higherPrimary') => {
+    setActiveWing(wing);
+    if (wing === 'higherPrimary') {
+      if (!['6', '7', '8'].includes(selectedClass)) {
+        setSelectedClass('6');
+      }
+    } else {
+      if (!['1', '2', '3', '4', '5'].includes(selectedClass)) {
+        setSelectedClass('3');
+      }
+    }
+    if (activeTab === 'sats') {
+      setActiveTab('page1');
+    }
+  };
+
+  const handleSelectClass = (cls: string) => {
+    setSelectedClass(cls);
+    if (['6', '7', '8'].includes(cls)) {
+      setActiveWing('higherPrimary');
+    } else {
+      setActiveWing('primary');
+    }
+  };
 
   // Selected Subject for Page 1
   const [selectedSubject, setSelectedSubject] = useState<PrimarySubjectCode>('FL');
 
-  // Class Teacher Name & Working Days state
+  // Class Teacher Name & Working Days state (Fetched from School Profile; if not saved, left blank to edit)
   const [classTeacherName, setClassTeacherName] = useState<string>(() => {
-    return localStorage.getItem(`kseab_ct_name_${diseCode}_${selectedClass}`) || 'ಶ್ರೀ ಎಸ್ ಆರ್ ಅಂಗಡಿ';
+    return getSavedClassTeacher(schoolRecord, selectedClass);
   });
+
+  // Paper Size state: 1. A4 size (295mm × 210mm) | 2. Legal size (340mm × 210mm)
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
+
+  // Automatically update class teacher name when selected class or school profile changes
+  useEffect(() => {
+    setClassTeacherName(getSavedClassTeacher(schoolRecord, selectedClass));
+  }, [schoolRecord, selectedClass]);
 
   const [workingDays, setWorkingDays] = useState<number>(() => {
     const saved = localStorage.getItem(`kseab_working_days_${diseCode}_${academicYear}`);
@@ -125,7 +182,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   // Save changes to localStorage
   const handleTeacherNameChange = (name: string) => {
     setClassTeacherName(name);
-    localStorage.setItem(`kseab_ct_name_${diseCode}_${selectedClass}`, name);
+    persistClassTeacherLocally(diseCode, selectedClass, name);
   };
 
   const handleWorkingDaysChange = (days: number) => {
@@ -596,7 +653,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   const handleHpUpdatePartBMarks = (
     studentId: string,
     subjectKey: string,
-    sem: 'sem1' | 'sem2',
+    sem: 'sem1' | 'sem2' | 'total',
     val: number | null
   ) => {
     const st = students.find((s) => s.id === studentId);
@@ -630,8 +687,14 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   const handleSaveAllMarks = async () => {
     setIsSaving(true);
     try {
-      for (const st of currentClassComputedList) {
-        const m = marksMap[st.student.id] || generateDefaultPrimaryMarks(st.student);
+      const listToSave = isHp
+        ? currentClassHpList.map((c) => c.student)
+        : isMarathiOrUrdu
+        ? currentClassMarathiUrduList.map((c) => c.student)
+        : currentClassComputedList.map((c) => c.student);
+
+      for (const st of listToSave) {
+        const m = marksMap[st.id] || generateDefaultPrimaryMarks(st);
         await saveStudentMarks(diseCode, diseCode, m, academicYear);
       }
       setSaveSuccessMsg('✓ ಎಲ್ಲಾ ಅಂಕಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ (Saved)!');
@@ -646,14 +709,14 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   // Print Handler
   const handlePrint = async () => {
     const title = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}`;
-    await executeReportPrint(reportRef.current, title);
+    await executeReportPrint(reportRef.current, title, paperSize);
   };
 
   // PDF Export
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
-    const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}.pdf`;
-    await downloadElementAsPdf(reportRef.current, filename);
+    const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}_${paperSize.toUpperCase()}.pdf`;
+    await downloadElementAsPdf(reportRef.current, filename, paperSize);
   };
 
   // Excel Export
@@ -665,7 +728,12 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
 
   // WhatsApp Share
   const handleShareWhatsApp = async () => {
-    const caption = `*${schoolRecord?.schoolName || 'Karnataka School'}*\n*${activeTab.toUpperCase()} CCE Report - Class ${selectedClass}*\nAcademic Year: ${academicYear}\nStudents: ${currentClassComputedList.length}\nHM: ${schoolRecord?.headmasterName || 'Headmaster'}`;
+    const totalStudents = isHp
+      ? currentClassHpList.length
+      : isMarathiOrUrdu
+      ? currentClassMarathiUrduList.length
+      : currentClassComputedList.length;
+    const caption = `*${schoolRecord?.schoolName || 'Karnataka School'}*\n*${activeTab.toUpperCase()} CCE Report - Class ${selectedClass}*\nAcademic Year: ${academicYear}\nStudents: ${totalStudents}\nHM: ${schoolRecord?.headmasterName || 'Headmaster'}`;
     if (reportRef.current) {
       await shareReportToWhatsApp(reportRef.current, caption, schoolRecord?.mobile);
     } else {
@@ -704,6 +772,67 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
       ) : null}
 
       {/* ========================================================
+          1. WING / SECTION SELECTOR: 1-5th vs 6-8th RESULT ENTRY SEPARATE TABS
+          Distinct separate tabs for all mediums (Kannada, English, Marathi, Urdu)
+          ======================================================== */}
+      <div className="bg-slate-900 text-white rounded-3xl p-3 sm:p-4 shadow-xl border-2 border-indigo-900/60">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-blue-600/30 border border-blue-400/40 text-amber-300">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                <span>ಫಲಿತಾಂಶ ದಾಖಲಾತಿ ಹಂತ ಆಯ್ಕೆ (Result Entry Section)</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-emerald-300 border border-emerald-500/30 font-black">
+                  {schoolMedium} Medium
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 font-medium">
+                ೧-೫ನೇ ತರಗತಿ (ಪ್ರಾಥಮಿಕ) ಮತ್ತು ೬-೮ನೇ ತರಗತಿ (ಹಿರಿಯ ಪ್ರಾಥಮಿಕ) ಪ್ರತ್ಯೇಕ ಟ್ಯಾಬ್‌ಗಳು • ಎಲ್ಲಾ ಮಾಧ್ಯಮಗಳು
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shrink-0">
+            {/* Tab 1: 1-5th Class Result Entry */}
+            <button
+              type="button"
+              onClick={() => handleSwitchWing('primary')}
+              className={`px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer ${
+                activeWing === 'primary'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg ring-2 ring-blue-300'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 text-amber-300" />
+              <span>೧-೫ನೇ ತರಗತಿ ಫಲಿತಾಂಶ ದಾಖಲಾತಿ</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-950 text-blue-200">
+                1–5th Std
+              </span>
+            </button>
+
+            {/* Tab 2: 6-8th Class Result Entry */}
+            <button
+              type="button"
+              onClick={() => handleSwitchWing('higherPrimary')}
+              className={`px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer ${
+                activeWing === 'higherPrimary'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg ring-2 ring-emerald-300'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Layers className="w-4 h-4 text-amber-300" />
+              <span>೬-೮ನೇ ತರಗತಿ ಫಲಿತಾಂಶ ದಾಖಲಾತಿ</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-200">
+                6–8th Std
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================
           2. HEADER TITLE BAR & DYNAMIC SCHOOL PROFILE
           ======================================================== */}
       <div className="bg-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-slate-700 space-y-4">
@@ -722,6 +851,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               <span>• ಕ್ಲಸ್ಟರ್: <span className="text-blue-300">{schoolRecord?.cluster || 'ನಿಂಗ್ಯಾನಟ್ಟಿ'}</span></span>
               <span>• ತಾಲೂಕು: <span className="text-blue-300">{schoolRecord?.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ'}</span></span>
               <span>• ಮಾಧ್ಯಮ: <span className="text-emerald-300">{schoolMedium}</span></span>
+              <span>• ವಿಭಾಗ: <span className="text-amber-300">{isHp ? '೬-೮ನೇ ತರಗತಿ (Higher Primary)' : '೧-೫ನೇ ತರಗತಿ (Primary)'}</span></span>
             </div>
           </div>
 
@@ -751,7 +881,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 onClick={() => setActiveTab('page1')}
                 className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'page1'
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -761,10 +891,10 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               {/* Format 2: 100 Marks Consolidation */}
               <button
                 type="button"
-                onClick={() => setActiveTab('page3')}
+                onClick={() => setActiveTab('page2')}
                 className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page3'
-                    ? 'bg-emerald-600 text-white shadow-md'
+                  activeTab === 'page2'
+                    ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -774,10 +904,10 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               {/* Format 3: 9-Line Consolidation */}
               <button
                 type="button"
-                onClick={() => setActiveTab('page2')}
+                onClick={() => setActiveTab('page3')}
                 className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page2'
-                    ? 'bg-indigo-600 text-white shadow-md'
+                  activeTab === 'page3'
+                    ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -803,7 +933,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 onClick={() => setActiveTab('page5')}
                 className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'page5'
-                    ? 'bg-purple-600 text-white shadow-md'
+                    ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -816,7 +946,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 onClick={() => setActiveTab('page6')}
                 className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'page6'
-                    ? 'bg-rose-600 text-white shadow-md'
+                    ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`}
               >
@@ -907,82 +1037,6 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 }`}
               >
                 <span className="font-black">⭐ SATS REPORT</span>
-              </button>
-            </>
-          ) : isHp ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setActiveTab('page1')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page1'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                <span>೧. ಅಂಕ ನಮೂದು (Page 1: Part A & B)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('page2')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page2'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                <span>೨. 100 ಅಂಕ ಕ್ರೋಢೀಕರಣ ವಹಿ (Page 2: 700 ಅಂಕ)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('page3')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page3'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                <span>೩. SATS ಗ್ರೇಡ್ ನಮೂನೆ (Page 3)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('page4')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page4'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                <span>೪. All subject Consolidation 9lines (700marks)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('page5')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page5'
-                    ? 'bg-amber-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-                title="6-8 Class Grade Abstract"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>೫. 1-8 ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ (Page 5)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('page6')}
-                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'page6'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                <span>೬. ೬-೮ ಮಹಾ ಘೋಷವಾರ (Page 6: ಪ್ರವರ್ಗವಾರು)</span>
               </button>
             </>
           ) : (
@@ -1081,25 +1135,43 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
           3. DYNAMIC CONTROLS & ACTIONS TOOLBAR
           ======================================================== */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        {/* Left Side: Selectors (Class 1-5, Subject, Teacher Name, Working Days) */}
+        {/* Left Side: Selectors (Class 1-5 or 6-8, Subject, Teacher Name, Working Days) */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Class Dropdown - Applies to Pages 1, 2, 3, 4, sats */}
-          {(activeTab === 'page1' || activeTab === 'page2' || activeTab === 'page3' || activeTab === 'page4' || activeTab === 'sats') && (
-            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300">
-              <span className="text-xs font-black text-slate-700">ತರಗತಿ:</span>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="bg-transparent font-black text-xs text-blue-900 focus:outline-none cursor-pointer"
-              >
-                {['1', '2', '3', '4', '5', '6', '7', '8'].map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls}ನೇ ತರಗತಿ ({cls}th Std)
-                  </option>
-                ))}
-              </select>
+          {/* Class Buttons & Dropdown - Distinct for 1-5 vs 6-8 */}
+          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300">
+            <span className="text-xs font-black text-slate-700">
+              {isHp ? '೬-೮ ತರಗತಿ:' : '೧-೫ ತರಗತಿ:'}
+            </span>
+            <div className="flex items-center gap-1">
+              {(isHp ? ['6', '7', '8'] : ['1', '2', '3', '4', '5']).map((cls) => (
+                <button
+                  key={cls}
+                  type="button"
+                  onClick={() => handleSelectClass(cls)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                    selectedClass === cls
+                      ? isHp
+                        ? 'bg-emerald-600 text-white shadow-xs ring-1 ring-emerald-400'
+                        : 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-400'
+                      : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {cls}ನೇ
+                </button>
+              ))}
             </div>
-          )}
+            <select
+              value={selectedClass}
+              onChange={(e) => handleSelectClass(e.target.value)}
+              className="bg-transparent font-black text-xs text-blue-900 focus:outline-none cursor-pointer ml-1"
+            >
+              {(isHp ? ['6', '7', '8'] : ['1', '2', '3', '4', '5']).map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}ನೇ ತರಗತಿ ({cls}th Std)
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Subject Dropdown - Only for Page 1 */}
           {activeTab === 'page1' && (
@@ -1149,8 +1221,37 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Action Buttons (Print Legal, PDF, Excel, WhatsApp, Save) */}
+        {/* Right Side: Paper Size Options + Action Buttons (Print, PDF, Excel, WhatsApp, Save) */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Paper Size 2 Options: 1. A4 size (295mm × 210mm) & 2. Legal size (340mm × 210mm) */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-300 text-xs mr-1">
+            <span className="font-bold text-slate-700 px-1">ಸೈಜ್:</span>
+            <button
+              type="button"
+              onClick={() => setPaperSize('a4')}
+              className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                paperSize === 'a4'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200'
+              }`}
+              title="1. A4 Size (295mm width, 210mm height)"
+            >
+              1. A4 (295×210mm)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaperSize('legal')}
+              className={`px-2 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                paperSize === 'legal'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-200'
+              }`}
+              title="2. Legal Size (340mm width, 210mm height)"
+            >
+              2. Legal (340×210mm)
+            </button>
+          </div>
+
           {activeTab === 'page1' && (
             <button
               type="button"
@@ -1167,19 +1268,20 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
             type="button"
             onClick={handlePrint}
             className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            title="Print in Official Legal Size format"
+            title={`Print in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>ಮುದ್ರಿಸಿ (Print Legal)</span>
+            <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
           </button>
 
           <button
             type="button"
             onClick={handleDownloadPdf}
             className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title={`Download PDF in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
           >
             <Download className="w-3.5 h-3.5" />
-            <span>PDF ಡೌನ್‌ಲೋಡ್</span>
+            <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
           </button>
 
           <button
@@ -1252,21 +1354,18 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               reportRef={reportRef}
               onUpdateSubject100={handleUpdateSubject100 as any}
               onUpdateAttendance={handleUpdateAttendance}
+              onUpdateCoGrade={(stId, sem, key, val) => {
+                const target = sem === 'sem1' ? 'sem1Co' : sem === 'sem2' ? 'sem2Co' : 'finalCo';
+                const ex = marksMap[stId] || { studentId: stId, diseCode, classStandard: selectedClass as any, academicYear, subjects: {} };
+                const cur = (ex as any)[target] || {};
+                const upd = { ...ex, [target]: { ...cur, [key]: val } };
+                setMarksMap((p) => ({ ...p, [stId]: upd }));
+                saveStudentMarks(diseCode, diseCode, upd, academicYear);
+              }}
             />
           )}
 
-          {(activeTab === 'page3' || activeTab === 'sats') && (
-            <HpCcePage4SatsGrade
-              computedList={currentClassHpList}
-              schoolRecord={schoolRecord}
-              academicYear={academicYear}
-              selectedClass={selectedClass}
-              onSelectClass={setSelectedClass}
-              reportRef={reportRef}
-            />
-          )}
-
-          {activeTab === 'page4' && (
+          {activeTab === 'page3' && (
             <HpCcePage2Register9Line
               computedList={currentClassHpList}
               schoolRecord={schoolRecord}
@@ -1279,6 +1378,27 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               onUpdateExamPct={handleUpdateExamPct as any}
               onUpdateSubject100={handleUpdateSubject100 as any}
               onUpdateAttendance={handleUpdateAttendance}
+              onUpdateSemAttendance={handleUpdateSemAttendance}
+              onUpdateCoGrade={(stId, sem, key, val) => {
+                const target = sem === 'sem1' ? 'sem1Co' : sem === 'sem2' ? 'sem2Co' : 'finalCo';
+                const ex = marksMap[stId] || { studentId: stId, diseCode, classStandard: selectedClass as any, academicYear, subjects: {} };
+                const cur = (ex as any)[target] || {};
+                const upd = { ...ex, [target]: { ...cur, [key]: val } };
+                setMarksMap((p) => ({ ...p, [stId]: upd }));
+                saveStudentMarks(diseCode, diseCode, upd, academicYear);
+              }}
+              onUpdatePartBMarks={handleHpUpdatePartBMarks}
+            />
+          )}
+
+          {(activeTab === 'page4' || activeTab === 'sats') && (
+            <HpCcePage4SatsGrade
+              computedList={currentClassHpList}
+              schoolRecord={schoolRecord}
+              academicYear={academicYear}
+              selectedClass={selectedClass}
+              onSelectClass={setSelectedClass}
+              reportRef={reportRef}
             />
           )}
 

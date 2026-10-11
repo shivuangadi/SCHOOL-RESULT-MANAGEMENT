@@ -10,13 +10,36 @@ import { toPng } from 'html-to-image';
  * - Direct PDF downloads with Unicode and Kannada text rendering
  */
 
+export type ReportPaperSize = 'a4' | 'legal';
+
+export const REPORT_PAPER_SIZES: Record<
+  ReportPaperSize,
+  { widthMm: number; heightMm: number; label: string; labelKn: string }
+> = {
+  a4: {
+    widthMm: 295,
+    heightMm: 210,
+    label: 'A4 Size (295mm × 210mm)',
+    labelKn: 'A4 ಸೈಜ್ (295mm × 210mm)',
+  },
+  legal: {
+    widthMm: 340,
+    heightMm: 210,
+    label: 'Legal Size (340mm × 210mm)',
+    labelKn: 'Legal ಸೈಜ್ (340mm × 210mm)',
+  },
+};
+
 /**
  * Clean and prepare HTML string for isolated printing with full CSS formatting
  */
 export const buildPrintableHtmlDocument = (
   elementHtml: string,
-  title: string = 'Karnataka School Report'
+  title: string = 'Karnataka School Report',
+  paperSize: ReportPaperSize = 'legal'
 ): string => {
+  const chosenSize = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
+
   // Extract existing style and link tags from page for fidelity
   let pageStyles = '';
   try {
@@ -24,8 +47,8 @@ export const buildPrintableHtmlDocument = (
     pageStyles = styleEls.map((el) => el.outerHTML).join('\n');
   } catch (_) {}
 
-  // Check if document is intended for legal landscape layout
-  const isLandscape = elementHtml.includes('legal-landscape') || elementHtml.includes('report-page-sheet');
+  // Check if document is intended for landscape layout
+  const isLandscape = true;
 
   return `<!DOCTYPE html>
 <html lang="kn">
@@ -50,19 +73,19 @@ export const buildPrintableHtmlDocument = (
       background-color: #ffffff !important;
       color: #020617 !important;
       font-family: 'Anek Kannada', 'Noto Sans Kannada', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      font-size: ${isLandscape ? '9px' : '13px'};
+      font-size: ${paperSize === 'a4' ? '8.5px' : '9.5px'};
       line-height: 1.35;
     }
     @page {
-      size: ${isLandscape ? 'legal landscape' : 'A4 portrait'};
-      margin: ${isLandscape ? '4mm 4mm 4mm 20mm' : '8mm 10mm'};
+      size: ${chosenSize.widthMm}mm ${chosenSize.heightMm}mm;
+      margin: 4mm 4mm 4mm 10mm;
     }
     .print-sheet {
-      width: 100%;
-      max-width: ${isLandscape ? '100%' : '820px'};
+      width: ${chosenSize.widthMm}mm;
+      max-width: 100%;
       margin: 0 auto;
       background: #ffffff;
-      padding: ${isLandscape ? '0' : '16px'};
+      padding: 0;
     }
     .report-page-sheet {
       page-break-after: always !important;
@@ -275,7 +298,8 @@ export const buildPrintableHtmlDocument = (
  */
 export const printElementViaIframe = (
   element: HTMLElement,
-  title: string = 'Report'
+  title: string = 'Report',
+  paperSize: ReportPaperSize = 'legal'
 ): Promise<boolean> => {
   return new Promise((resolve) => {
     try {
@@ -301,7 +325,7 @@ export const printElementViaIframe = (
         }
       });
 
-      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title);
+      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize);
 
       // Create hidden iframe
       const iframe = document.createElement('iframe');
@@ -359,7 +383,8 @@ export const printElementViaIframe = (
  */
 export const openCleanPrintWindow = (
   element: HTMLElement,
-  title: string = 'Karnataka School Report'
+  title: string = 'Karnataka School Report',
+  paperSize: ReportPaperSize = 'legal'
 ): boolean => {
   try {
     const clone = element.cloneNode(true) as HTMLElement;
@@ -380,7 +405,7 @@ export const openCleanPrintWindow = (
       el.parentNode?.replaceChild(span, el);
     });
 
-    const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title);
+    const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize);
     const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
     const blobUrl = URL.createObjectURL(blob);
 
@@ -522,19 +547,22 @@ const captureCleanReportCanvas = async (
  */
 export const downloadElementAsPdf = async (
   element: HTMLElement,
-  filename: string = 'School_Document.pdf'
+  filename: string = 'School_Document.pdf',
+  paperSize: ReportPaperSize = 'legal'
 ): Promise<boolean> => {
   try {
+    const chosenSize = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
+    const pdfFormat: [number, number] = [chosenSize.widthMm, chosenSize.heightMm];
+
     // 1. Check if the element contains designated page sheets (.report-page-sheet) or is a sheet itself
     const pageSheets = element.classList.contains('report-page-sheet')
       ? [element]
       : Array.from(element.querySelectorAll<HTMLElement>('.report-page-sheet'));
     if (pageSheets.length > 0) {
-      const isLandscape = element.classList.contains('legal-landscape') || !element.classList.contains('legal-portrait');
       const pdf = new jsPDF({
-        orientation: isLandscape ? 'landscape' : 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
-        format: 'legal',
+        format: pdfFormat,
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -547,7 +575,7 @@ export const downloadElementAsPdf = async (
         const capturedSheet = await captureCleanReportCanvas(sheet);
         if (!capturedSheet) continue;
         if (sIdx > 0) {
-          pdf.addPage('legal', isLandscape ? 'landscape' : 'portrait');
+          pdf.addPage(pdfFormat, 'landscape');
         }
         const sheetRatio = capturedSheet.height / capturedSheet.width;
         let sheetPdfW = maxW;
@@ -574,13 +602,10 @@ export const downloadElementAsPdf = async (
 
     const { dataUrl: imgData, width: imgWidthPx, height: imgHeightPx } = captured;
 
-    // Use legal size for table reports so all columns of Part B fit on one sheet
-    const isLandscape = imgWidthPx > imgHeightPx * 1.05 || element.classList.contains('legal-landscape');
-
     const pdf = new jsPDF({
-      orientation: isLandscape ? 'landscape' : 'portrait',
+      orientation: 'landscape',
       unit: 'mm',
-      format: isLandscape ? 'legal' : 'a4',
+      format: pdfFormat,
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -613,7 +638,7 @@ export const downloadElementAsPdf = async (
 
       while (renderedPx < imgHeightPx) {
         if (pageNum > 0) {
-          pdf.addPage(isLandscape ? 'legal' : 'a4', isLandscape ? 'landscape' : 'portrait');
+          pdf.addPage(pdfFormat, 'landscape');
         }
 
         const sliceH = Math.min(pageCanvasHeight, imgHeightPx - renderedPx);
@@ -642,7 +667,7 @@ export const downloadElementAsPdf = async (
     try {
       const clone = element.cloneNode(true) as HTMLElement;
       clone.querySelectorAll('.print\\:hidden, button').forEach((el) => el.remove());
-      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, filename);
+      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, filename, paperSize);
       const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -666,7 +691,8 @@ export const downloadElementAsPdf = async (
  */
 export const executeReportPrint = async (
   element: HTMLElement | null,
-  title: string = 'Karnataka School Report'
+  title: string = 'Karnataka School Report',
+  paperSize: ReportPaperSize = 'legal'
 ): Promise<boolean> => {
   if (!element) {
     window.focus();
@@ -674,19 +700,12 @@ export const executeReportPrint = async (
     return true;
   }
 
-  // 1. Try isolated iframe print (most reliable in iframes)
-  const iframeSuccess = await printElementViaIframe(element, title);
+  // 1. Try isolated iframe print with custom paper size
+  const iframeSuccess = await printElementViaIframe(element, title, paperSize);
   if (iframeSuccess) return true;
 
-  // 2. Try direct window.print()
-  try {
-    window.focus();
-    window.print();
-    return true;
-  } catch (_) {}
-
-  // 3. Fallback: open clean print window
-  return openCleanPrintWindow(element, title);
+  // 2. Fallback: open clean print window with custom paper size
+  return openCleanPrintWindow(element, title, paperSize);
 };
 
 /**

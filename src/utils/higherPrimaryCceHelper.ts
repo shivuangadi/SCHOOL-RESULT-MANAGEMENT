@@ -274,6 +274,56 @@ export const calculateHpGrade = (score: number | null | undefined, maxMarks: num
 };
 
 /**
+ * Official Part B Grade Average Rule:
+ * - If sem1 & sem2 both are A grade -> average grade should be A
+ * - If both are B -> average grade should be B
+ * - If both are different -> default it should be B
+ * - And it should be editable (if user explicitly provided a saved final grade, return that)
+ */
+export const calculatePartBAverageGrade = (
+  sem1Grade?: string | null,
+  sem2Grade?: string | null,
+  savedFinalGrade?: string | null
+): string => {
+  // If explicitly edited / saved by user, keep the edited value
+  if (savedFinalGrade && typeof savedFinalGrade === 'string' && savedFinalGrade.trim() && savedFinalGrade.trim() !== '-') {
+    return savedFinalGrade.trim().toUpperCase();
+  }
+
+  const s1 = (sem1Grade || '').trim().toUpperCase();
+  const s2 = (sem2Grade || '').trim().toUpperCase();
+
+  if ((!s1 || s1 === '-') && (!s2 || s2 === '-')) {
+    return '';
+  }
+
+  const isA1 = s1 === 'A' || s1 === 'A+';
+  const isA2 = s2 === 'A' || s2 === 'A+';
+  const isB1 = s1 === 'B' || s1 === 'B+';
+  const isB2 = s2 === 'B' || s2 === 'B+';
+
+  // If sem1 & sem2 both are A grade -> average grade should be A
+  if (isA1 && isA2) {
+    return 'A';
+  }
+  // If both are B -> average grade should be B
+  if (isB1 && isB2) {
+    return 'B';
+  }
+
+  // If both are different, default it should be B
+  if (s1 && s2 && s1 !== '-' && s2 !== '-') {
+    return 'B';
+  }
+
+  // If only one is entered so far
+  if (isA1 || isA2) return 'A';
+  if (isB1 || isB2) return 'B';
+
+  return 'B';
+};
+
+/**
  * Normalizes exam raw mark into weightage % for Class 6-8:
  * FA1, FA2, FA3, FA4: 20 marks converted to 10 (rounded down, no decimal)
  * SA1, SA2: 50 marks converted to 30 (rounded down, no decimal)
@@ -397,7 +447,14 @@ export const computeHpStudentCce = (
   // Co-scholastic Part B
   const sem1Co = rawMarks?.sem1Co || {};
   const sem2Co = rawMarks?.sem2Co || {};
-  const finalCo = rawMarks?.finalCo || {};
+  const rawFinalCo = rawMarks?.finalCo || {};
+
+  const finalCo: Record<string, string> = { ...rawFinalCo };
+  HP_CO_ACTIVITIES.forEach((act) => {
+    const s1 = getHpCoGradeValue(sem1Co, act.key);
+    const s2 = getHpCoGradeValue(sem2Co, act.key);
+    finalCo[act.key] = calculatePartBAverageGrade(s1, s2, rawFinalCo[act.key]);
+  });
 
   // Part B Subjects (Art Edu / Work Exp & ICT / Computer Edu)
   // Direct sem1-50m & sem2-50m, graded same as other subjects
@@ -418,13 +475,18 @@ export const computeHpStudentCce = (
     const hasAny = sem1Val !== null || sem2Val !== null;
     const totalVal = hasAny ? (sem1Val || 0) + (sem2Val || 0) : null;
 
+    const s1Grade = isExempted ? 'Exempt' : (sem1Val !== null ? calculateHpGrade(sem1Val, subDef.maxSem1) : '-');
+    const s2Grade = isExempted ? 'Exempt' : (sem2Val !== null ? calculateHpGrade(sem2Val, subDef.maxSem2) : '-');
+    const avgGrade = calculatePartBAverageGrade(s1Grade, s2Grade, rawSub.grade);
+    const finalGrade = isExempted ? 'Exempt' : (rawSub.grade ? rawSub.grade : (avgGrade || (totalVal !== null ? calculateHpGrade(totalVal, subDef.maxTotal) : '-')));
+
     computedPartB[subDef.key] = {
       sem1: sem1Val,
-      sem1_grade: isExempted ? 'Exempt' : (sem1Val !== null ? calculateHpGrade(sem1Val, subDef.maxSem1) : '-'),
+      sem1_grade: s1Grade,
       sem2: sem2Val,
-      sem2_grade: isExempted ? 'Exempt' : (sem2Val !== null ? calculateHpGrade(sem2Val, subDef.maxSem2) : '-'),
+      sem2_grade: s2Grade,
       total: totalVal,
-      grade: isExempted ? 'Exempt' : (totalVal !== null ? calculateHpGrade(totalVal, subDef.maxTotal) : '-'),
+      grade: finalGrade,
     };
   });
 

@@ -42,6 +42,56 @@ export const CO_SCHOLASTIC_ACTIVITIES: CoScholasticItem[] = [
 export type GradeLevel = 'A+' | 'A' | 'B+' | 'B' | 'C';
 export const GRADE_LEVELS: GradeLevel[] = ['A+', 'A', 'B+', 'B', 'C'];
 
+/**
+ * Official Part B Grade Average Rule:
+ * - If sem1 & sem2 both are A grade -> average grade should be A
+ * - If both are B -> average grade should be B
+ * - If both are different -> default it should be B
+ * - And it should be editable (if user explicitly provided a saved final grade, return that)
+ */
+export const calculatePartBAverageGrade = (
+  sem1Grade?: string | null,
+  sem2Grade?: string | null,
+  savedFinalGrade?: string | null
+): string => {
+  // If explicitly edited / saved by user, keep the edited value
+  if (savedFinalGrade && typeof savedFinalGrade === 'string' && savedFinalGrade.trim() && savedFinalGrade.trim() !== '-') {
+    return savedFinalGrade.trim().toUpperCase();
+  }
+
+  const s1 = (sem1Grade || '').trim().toUpperCase();
+  const s2 = (sem2Grade || '').trim().toUpperCase();
+
+  if ((!s1 || s1 === '-') && (!s2 || s2 === '-')) {
+    return '';
+  }
+
+  const isA1 = s1 === 'A' || s1 === 'A+';
+  const isA2 = s2 === 'A' || s2 === 'A+';
+  const isB1 = s1 === 'B' || s1 === 'B+';
+  const isB2 = s2 === 'B' || s2 === 'B+';
+
+  // If sem1 & sem2 both are A grade -> average grade should be A
+  if (isA1 && isA2) {
+    return 'A';
+  }
+  // If both are B -> average grade should be B
+  if (isB1 && isB2) {
+    return 'B';
+  }
+
+  // If both are different, default it should be B
+  if (s1 && s2 && s1 !== '-' && s2 !== '-') {
+    return 'B';
+  }
+
+  // If only one is entered so far
+  if (isA1 || isA2) return 'A';
+  if (isB1 || isB2) return 'B';
+
+  return 'B';
+};
+
 export interface ComputedSubjectMarks {
   code: PrimarySubjectCode;
   fa1: number;
@@ -437,11 +487,11 @@ export const computeStudentCceDetails = (
     moral: (examMarks as any)?.sem2Co?.moral || co?.values || '',
   };
   const finalCo = {
-    pe: (examMarks as any)?.finalCo?.pe || sem2Co.pe || sem1Co.pe || '',
-    art: (examMarks as any)?.finalCo?.art || sem2Co.art || sem1Co.art || '',
-    music: (examMarks as any)?.finalCo?.music || sem2Co.music || sem1Co.music || '',
-    supw: (examMarks as any)?.finalCo?.supw || sem2Co.supw || sem1Co.supw || '',
-    moral: (examMarks as any)?.finalCo?.moral || sem2Co.moral || sem1Co.moral || '',
+    pe: calculatePartBAverageGrade(sem1Co.pe, sem2Co.pe, (examMarks as any)?.finalCo?.pe),
+    art: calculatePartBAverageGrade(sem1Co.art, sem2Co.art, (examMarks as any)?.finalCo?.art),
+    music: calculatePartBAverageGrade(sem1Co.music, sem2Co.music, (examMarks as any)?.finalCo?.music),
+    supw: calculatePartBAverageGrade(sem1Co.supw, sem2Co.supw, (examMarks as any)?.finalCo?.supw),
+    moral: calculatePartBAverageGrade(sem1Co.moral, sem2Co.moral, (examMarks as any)?.finalCo?.moral),
   };
 
   return {
