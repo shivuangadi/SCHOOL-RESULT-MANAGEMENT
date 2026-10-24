@@ -18,6 +18,7 @@ import {
   ArrowDown,
 } from 'lucide-react';
 import { openCleanPrintWindow, shareReportToWhatsApp, downloadElementAsPdf } from '../utils/printPdfHelper';
+import { formatSatsNo } from '../utils/kannadaTransliterator';
 import { CwsnBadge } from './CwsnBadge';
 import { StudentPhotoImg } from './StudentPhotoImg';
 
@@ -376,7 +377,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
               {schoolName} (DISE: {diseCode})
             </div>
             <div className="text-xs font-bold text-slate-800 underline uppercase tracking-wide">
-              {title} • ಶೈಕ್ಷಣಿಕ ಸಾಲು: ೨೦೨೫-೨೬
+              {title} • ಶೈಕ್ಷಣಿಕ ಸಾಲು: {schoolRecord?.academicYear || students[0]?.academicYear || '2026-27'}
             </div>
           </div>
 
@@ -408,7 +409,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                     </th>
                     <th
                       onClick={() => handleHeaderSort('sats')}
-                      className="py-2.5 px-3 border-r border-slate-300 font-mono w-28 cursor-pointer select-none hover:bg-slate-200 transition"
+                      className="py-2.5 px-3 border-r border-slate-300 font-mono whitespace-nowrap min-w-[130px] cursor-pointer select-none hover:bg-slate-200 transition"
                       title="Click to sort by SATS Number"
                     >
                       <span>SATS Number</span>
@@ -497,8 +498,14 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                           <CwsnBadge status={st.cwsnStatus} />
                         </div>
                       </td>
-                      <td className="py-2 px-3 border-r border-slate-200 font-mono text-blue-900 font-bold">
-                        {st.satsNo || '-'}
+                      <td className="py-2 px-3 border-r border-slate-200 font-mono whitespace-nowrap min-w-[130px]">
+                        <div className="text-red-600 font-bold tracking-wider whitespace-nowrap">{formatSatsNo(st.satsNo) || '-'}</div>
+                        {st.penNo && st.penNo !== 'N/A' && st.penNo !== '-' && (
+                          <div className="text-[10px] whitespace-nowrap">
+                            <span className="text-slate-900 font-bold">PEN:&nbsp;</span>
+                            <span className="text-red-600 font-bold tracking-wider whitespace-nowrap">{st.penNo}</span>
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 px-3 border-r border-slate-200 font-mono text-slate-700 whitespace-nowrap">
                         {st.dob || st.dateOfBirth || '-'}
@@ -521,10 +528,10 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                       <td className="py-2 px-2.5 border-r border-slate-200 font-bold text-slate-800">
                         {st.caste || 'GM'}
                       </td>
-                      <td className="py-2 px-3 border-r border-slate-200 text-slate-800">
+                      <td className="py-2 px-3 border-r border-slate-200 font-bold text-slate-900">
                         {st.fatherName || '-'}
                       </td>
-                      <td className="py-2 px-3 border-r border-slate-200 text-slate-800">
+                      <td className="py-2 px-3 border-r border-slate-200 font-bold text-slate-900">
                         {st.motherName || '-'}
                       </td>
                       <td className="py-2 px-2.5 font-mono text-slate-700 text-[11px]">

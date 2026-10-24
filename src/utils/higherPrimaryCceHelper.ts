@@ -361,39 +361,68 @@ export const computeHpStudentCce = (
   let grandTotal = 0;
   let subjectsCounted = 0;
 
+  // Strict normalization to ensure no mark ever exceeds the prescribed max:
+  // FA1, FA2, FA3, FA4: Max 10 marks (10%)
+  // SA1, SA2: Max 30 marks (30%)
+  const normalizeHpExam = (exam: 'fa1' | 'fa2' | 'sa1' | 'fa3' | 'fa4' | 'sa2', rawVal: any, pctVal: any): number | null => {
+    const isSa = exam === 'sa1' || exam === 'sa2';
+    const prescribedMax = isSa ? 30 : 10;
+
+    if (pctVal !== undefined && pctVal !== null && pctVal !== '' && !isNaN(Number(pctVal))) {
+      const p = Math.floor(Number(pctVal));
+      if (p < 0) return 0;
+      // If raw marks out of 20 or 50 were inadvertently stored in pctVal, convert them
+      if (!isSa && p > 10 && p <= 20) {
+        return Math.min(10, Math.floor(p / 2));
+      }
+      if (isSa && p > 30 && p <= 50) {
+        return Math.min(30, Math.floor((p * 30) / 50));
+      }
+      return Math.min(prescribedMax, p);
+    }
+
+    if (rawVal !== undefined && rawVal !== null && rawVal !== '' && !isNaN(Number(rawVal))) {
+      return computeHpExamPct(exam, Number(rawVal));
+    }
+
+    return null;
+  };
+
   subjectsList.forEach((subInfo) => {
     const rawSub = subjectRecords[subInfo.code] || subjectRecords[subInfo.satsKey] || {};
 
-    let fa1_pct = rawSub.fa1_pct ?? (rawSub.fa1 !== undefined && rawSub.fa1 !== null ? computeHpExamPct('fa1', rawSub.fa1) : null);
-    let fa2_pct = rawSub.fa2_pct ?? (rawSub.fa2 !== undefined && rawSub.fa2 !== null ? computeHpExamPct('fa2', rawSub.fa2) : null);
-    let sa1_pct = rawSub.sa1_pct ?? (rawSub.sa1 !== undefined && rawSub.sa1 !== null ? computeHpExamPct('sa1', rawSub.sa1) : null);
+    const fa1_pct = normalizeHpExam('fa1', rawSub.fa1, rawSub.fa1_pct);
+    const fa2_pct = normalizeHpExam('fa2', rawSub.fa2, rawSub.fa2_pct);
+    const sa1_pct = normalizeHpExam('sa1', rawSub.sa1, rawSub.sa1_pct);
 
-    let fa3_pct = rawSub.fa3_pct ?? (rawSub.fa3 !== undefined && rawSub.fa3 !== null ? computeHpExamPct('fa3', rawSub.fa3) : null);
-    let fa4_pct = rawSub.fa4_pct ?? (rawSub.fa4 !== undefined && rawSub.fa4 !== null ? computeHpExamPct('fa4', rawSub.fa4) : null);
-    let sa2_pct = rawSub.sa2_pct ?? (rawSub.sa2 !== undefined && rawSub.sa2 !== null ? computeHpExamPct('sa2', rawSub.sa2) : null);
+    const fa3_pct = normalizeHpExam('fa3', rawSub.fa3, rawSub.fa3_pct);
+    const fa4_pct = normalizeHpExam('fa4', rawSub.fa4, rawSub.fa4_pct);
+    const sa2_pct = normalizeHpExam('sa2', rawSub.sa2, rawSub.sa2_pct);
 
-    // Sem totals
-    const sem1Parts = [fa1_pct, fa2_pct, sa1_pct].filter((v): v is number => v !== null && v !== undefined);
-    const sem1_total = sem1Parts.length > 0 ? sem1Parts.reduce((a, b) => a + b, 0) : null;
+    // Sem 1 total (Prescribed Max: 50 = 10 + 10 + 30)
+    const hasSem1 = fa1_pct !== null || fa2_pct !== null || sa1_pct !== null;
+    const sem1_total = hasSem1 ? Math.min(50, (fa1_pct || 0) + (fa2_pct || 0) + (sa1_pct || 0)) : null;
 
-    const sem2Parts = [fa3_pct, fa4_pct, sa2_pct].filter((v): v is number => v !== null && v !== undefined);
-    const sem2_total = sem2Parts.length > 0 ? sem2Parts.reduce((a, b) => a + b, 0) : null;
+    // Sem 2 total (Prescribed Max: 50 = 10 + 10 + 30)
+    const hasSem2 = fa3_pct !== null || fa4_pct !== null || sa2_pct !== null;
+    const sem2_total = hasSem2 ? Math.min(50, (fa3_pct || 0) + (fa4_pct || 0) + (sa2_pct || 0)) : null;
 
-    // Total 100
-    let total100: number | null = rawSub.total ?? null;
-    if (total100 === null) {
-      if (sem1_total !== null || sem2_total !== null) {
-        total100 = (sem1_total || 0) + (sem2_total || 0);
-      }
+    // Total 100: Must consistently equal Sem 1 + Sem 2 when either exists (Prescribed Max: 100)
+    // If marks in FA/SA exist, dynamically calculate; otherwise fallback to rawSub.total if directly provided
+    let total100: number | null = null;
+    if (hasSem1 || hasSem2) {
+      total100 = Math.min(100, (sem1_total || 0) + (sem2_total || 0));
+    } else if (rawSub.total !== undefined && rawSub.total !== null && !isNaN(Number(rawSub.total))) {
+      total100 = Math.min(100, Math.max(0, Math.floor(Number(rawSub.total))));
     }
 
-    let grade = isExempted ? 'EXEMPT' : (total100 !== null && total100 > 0 ? calculateHpGrade(total100, 100) : '-');
-    let fa1_grade = isExempted ? 'EXEMPT' : (fa1_pct !== null ? calculateHpGrade(fa1_pct, 10) : '-');
-    let fa2_grade = isExempted ? 'EXEMPT' : (fa2_pct !== null ? calculateHpGrade(fa2_pct, 10) : '-');
-    let sa1_grade = isExempted ? 'EXEMPT' : (sa1_pct !== null ? calculateHpGrade(sa1_pct, 30) : '-');
-    let fa3_grade = isExempted ? 'EXEMPT' : (fa3_pct !== null ? calculateHpGrade(fa3_pct, 10) : '-');
-    let fa4_grade = isExempted ? 'EXEMPT' : (fa4_pct !== null ? calculateHpGrade(fa4_pct, 10) : '-');
-    let sa2_grade = isExempted ? 'EXEMPT' : (sa2_pct !== null ? calculateHpGrade(sa2_pct, 30) : '-');
+    const grade = isExempted ? 'EXEMPT' : (total100 !== null ? calculateHpGrade(total100, 100) : '-');
+    const fa1_grade = isExempted ? 'EXEMPT' : (fa1_pct !== null ? calculateHpGrade(fa1_pct, 10) : '-');
+    const fa2_grade = isExempted ? 'EXEMPT' : (fa2_pct !== null ? calculateHpGrade(fa2_pct, 10) : '-');
+    const sa1_grade = isExempted ? 'EXEMPT' : (sa1_pct !== null ? calculateHpGrade(sa1_pct, 30) : '-');
+    const fa3_grade = isExempted ? 'EXEMPT' : (fa3_pct !== null ? calculateHpGrade(fa3_pct, 10) : '-');
+    const fa4_grade = isExempted ? 'EXEMPT' : (fa4_pct !== null ? calculateHpGrade(fa4_pct, 10) : '-');
+    const sa2_grade = isExempted ? 'EXEMPT' : (sa2_pct !== null ? calculateHpGrade(sa2_pct, 30) : '-');
 
     if (!isExempted && total100 !== null) {
       grandTotal += total100;
@@ -432,7 +461,7 @@ export const computeHpStudentCce = (
   const percentage = isExempted ? 0 : Number(((grandTotal / 700) * 100).toFixed(1));
   const overallGrade = isExempted ? 'EXEMPT' : (grandTotal > 0 ? calculateHpGrade(grandTotal, 700) : '-');
 
-  const isPassed = isExempted || hasCwsnMarksAllowed || (percentage >= 35 && grandTotal > 0);
+  const isPassed = isExempted || hasCwsnMarksAllowed || (percentage >= 30 && grandTotal > 0);
   let resultStatus = isPassed ? 'ಉತ್ತೀರ್ಣ (PROMOTED)' : 'ಅನುತ್ತೀರ್ಣ (DETAINED)';
   if (isExempted) {
     resultStatus = 'CWSN (ವಿನಾಯಿತಿ)';
@@ -473,7 +502,8 @@ export const computeHpStudentCce = (
     const sem1Val = rawSub.sem1 !== undefined && rawSub.sem1 !== null && (rawSub.sem1 as any) !== '' && !isNaN(Number(rawSub.sem1)) ? Math.min(subDef.maxSem1, Math.max(0, Math.floor(Number(rawSub.sem1)))) : null;
     const sem2Val = rawSub.sem2 !== undefined && rawSub.sem2 !== null && (rawSub.sem2 as any) !== '' && !isNaN(Number(rawSub.sem2)) ? Math.min(subDef.maxSem2, Math.max(0, Math.floor(Number(rawSub.sem2)))) : null;
     const hasAny = sem1Val !== null || sem2Val !== null;
-    const totalVal = hasAny ? (sem1Val || 0) + (sem2Val || 0) : null;
+    const directTotal = rawSub.total !== undefined && rawSub.total !== null && (rawSub.total as any) !== '' && !isNaN(Number(rawSub.total)) ? Math.min(subDef.maxTotal, Math.max(0, Math.floor(Number(rawSub.total)))) : null;
+    const totalVal = directTotal !== null ? directTotal : (hasAny ? (sem1Val || 0) + (sem2Val || 0) : null);
 
     const s1Grade = isExempted ? 'Exempt' : (sem1Val !== null ? calculateHpGrade(sem1Val, subDef.maxSem1) : '-');
     const s2Grade = isExempted ? 'Exempt' : (sem2Val !== null ? calculateHpGrade(sem2Val, subDef.maxSem2) : '-');

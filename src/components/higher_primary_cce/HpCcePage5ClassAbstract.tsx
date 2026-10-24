@@ -1,15 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { Student, SchoolRecord, isCwsnExempted } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Student, SchoolRecord } from '../../types';
 import {
-  HpSubjectInfo,
-  getHpSubjectsForMedium,
+  computeHpStudentCce,
+  HpSubjectCode,
+  HP_SUBJECTS_KANNADA,
 } from '../../utils/higherPrimaryCceHelper';
+import { extractLastWordOfSchoolName } from '../../utils/primaryCceHelper';
+import { getSavedClassTeacher, persistClassTeacherLocally } from '../../utils/teacherHelper';
 import {
   Printer,
   Download,
   FileSpreadsheet,
+  FileCode,
+  Share2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import {
+  printClassAbstractReport,
+  exportClassAbstractPdf,
+  downloadElementAsHtml,
+  shareReportToWhatsApp,
+  ReportPaperSize,
+} from '../../utils/printPdfHelper';
 
 interface HpCcePage5ClassAbstractProps {
   students: Student[];
@@ -17,27 +29,36 @@ interface HpCcePage5ClassAbstractProps {
   schoolRecord: SchoolRecord | null;
   academicYear: string;
   reportRef?: React.RefObject<HTMLDivElement | null>;
+  initialClass?: string;
 }
 
-interface GradeCount {
+interface GenderBreakdown {
   boys: number;
   girls: number;
   total: number;
 }
 
-interface SubjectGradeSummary {
-  subjectName: string;
-  subjectCode: string;
-  aPlus: GradeCount;
-  a: GradeCount;
-  bPlus: GradeCount;
-  b: GradeCount;
-  cPlus: GradeCount;
-  c: GradeCount;
-  d: GradeCount;
-  exempt: GradeCount;
-  total: GradeCount;
+interface GradeRowData {
+  grade: 'A+' | 'A' | 'B+' | 'B' | 'C' | 'TOTAL';
+  subjectCounts: Record<HpSubjectCode, GenderBreakdown>;
 }
+
+interface ClassAbstractData {
+  classNum: string;
+  label: string;
+  rows: GradeRowData[];
+  totalCounts: Record<HpSubjectCode, GenderBreakdown>;
+}
+
+const SUBJECT_HEADERS: Array<{ code: HpSubjectCode; nameKn: string }> = [
+  { code: 'FL', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ' },
+  { code: 'SL', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ' },
+  { code: 'TL', nameKn: 'ತೃತೀಯ ಭಾಷೆ' },
+  { code: 'MATHS', nameKn: 'ಗಣಿತ' },
+  { code: 'SCI', nameKn: 'ವಿಜ್ಞಾನ' },
+  { code: 'SOC', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
+  { code: 'VPE', nameKn: 'ದೈಹಿಕ ಶಿಕ್ಷಣ' },
+];
 
 export const HpCcePage5ClassAbstract: React.FC<HpCcePage5ClassAbstractProps> = ({
   students,
@@ -45,292 +66,633 @@ export const HpCcePage5ClassAbstract: React.FC<HpCcePage5ClassAbstractProps> = (
   schoolRecord,
   academicYear,
   reportRef,
+  initialClass = 'all',
 }) => {
-  // Dropdown for CLASS 1-8
-  const [selectedClassOption, setSelectedClassOption] = useState<string>('ALL');
+  // View selector: 'all' (Class 6, 7, 8 Consolidated as in official PDF) or single class '6', '7', '8'
+  const [selectedView, setSelectedView] = useState<string>(
+    ['all', '6', '7', '8'].includes(initialClass) ? initialClass : 'all'
+  );
+  const [paperSize, setPaperSize] = useState<ReportPaperSize>('a4');
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const medium = schoolRecord?.schoolMedium || 'Kannada';
-  const schoolName = schoolRecord?.schoolName || 'ಸರ್ಕಾರಿ ಹಿರಿಯ ಪ್ರಾಥಮಿಕ ಶಾಲೆ';
+  const schoolName = schoolRecord?.schoolName || 'ಸರಕಾರಿ ಹಿರಿಯ ಪ್ರಾಥಮಿಕ ಕನ್ನಡ ಶಾಲೆ ನಿಂಗ್ಯಾನಟ್ಟಿ';
   const diseCode = schoolRecord?.diseCode || '';
   const clusterName = schoolRecord?.cluster || schoolRecord?.crcCluster || '';
-  const talukName = schoolRecord?.taluk || '';
+  const talukName = schoolRecord?.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ';
+  const defaultPlace = extractLastWordOfSchoolName(schoolRecord?.schoolName);
+  const [placeName, setPlaceName] = useState<string>(defaultPlace);
+  const schoolMedium = schoolRecord?.schoolMedium || 'Kannada';
 
-  // Filter students based on dropdown
-  const filteredStudents = useMemo(() => {
-    if (selectedClassOption === 'ALL') {
-      return students.filter((s) => {
-        const c = Number(s.classStandard);
-        return c >= 1 && c <= 8;
+  // Fetch Class Teacher Name strictly from school profile or local storage for single class view
+  const activeClassForTeacher = selectedView === 'all' ? '6' : selectedView;
+  const [classTeacherName, setClassTeacherName] = useState<string>(() => {
+    return getSavedClassTeacher(schoolRecord, activeClassForTeacher);
+  });
+
+  useEffect(() => {
+    setClassTeacherName(getSavedClassTeacher(schoolRecord, activeClassForTeacher));
+  }, [schoolRecord, activeClassForTeacher]);
+
+  // Compute stats for all 3 classes (6, 7, 8)
+  const classesData: ClassAbstractData[] = useMemo(() => {
+    const targetClasses = ['6', '7', '8'];
+
+    return targetClasses.map((cls) => {
+      const classStudents = (students || []).filter(
+        (s) =>
+          String(s.classStandard) === cls &&
+          (!s.academicYear || s.academicYear === academicYear)
+      );
+
+      const computed = classStudents.map((st) => {
+        const raw = marksMap?.[st.id] || null;
+        return computeHpStudentCce(st, schoolMedium, raw);
       });
-    }
-    return students.filter((s) => String(s.classStandard) === selectedClassOption);
-  }, [students, selectedClassOption]);
 
-  // Compute grade summary for subjects
-  const subjects = useMemo(() => {
-    return getHpSubjectsForMedium(medium);
-  }, [medium]);
-
-  const summaryData: SubjectGradeSummary[] = useMemo(() => {
-    const list: SubjectGradeSummary[] = subjects.map((sub) => {
-      const initialCount = (): GradeCount => ({ boys: 0, girls: 0, total: 0 });
-
-      const sum: SubjectGradeSummary = {
-        subjectName: sub.nameKn,
-        subjectCode: sub.code,
-        aPlus: initialCount(),
-        a: initialCount(),
-        bPlus: initialCount(),
-        b: initialCount(),
-        cPlus: initialCount(),
-        c: initialCount(),
-        d: initialCount(),
-        exempt: initialCount(),
-        total: initialCount(),
+      const grades: Array<'A+' | 'A' | 'B+' | 'B' | 'C'> = ['A+', 'A', 'B+', 'B', 'C'];
+      const counts: Record<'A+' | 'A' | 'B+' | 'B' | 'C' | 'TOTAL', Record<HpSubjectCode, GenderBreakdown>> = {
+        'A+': {} as any,
+        'A': {} as any,
+        'B+': {} as any,
+        'B': {} as any,
+        'C': {} as any,
+        'TOTAL': {} as any,
       };
 
-      filteredStudents.forEach((st) => {
-        const isGirl = st.gender === 'Girl';
-        const isExempt = isCwsnExempted(st.cwsnStatus);
-
-        sum.total.total++;
-        if (isGirl) sum.total.girls++;
-        else sum.total.boys++;
-
-        if (isExempt) {
-          sum.exempt.total++;
-          if (isGirl) sum.exempt.girls++;
-          else sum.exempt.boys++;
-          return;
-        }
-
-        const stMarks = marksMap[st.id]?.subjects?.[sub.code] || marksMap[st.id]?.subjects?.[sub.satsKey];
-        const total100 = stMarks?.total ?? (
-          (stMarks?.sem1_total || 0) + (stMarks?.sem2_total || 0)
-        );
-
-        let g = 'C';
-        if (total100 >= 90) g = 'A+';
-        else if (total100 >= 80) g = 'A';
-        else if (total100 >= 70) g = 'B+';
-        else if (total100 >= 60) g = 'B';
-        else if (total100 >= 50) g = 'C+';
-        else if (total100 >= 35) g = 'C';
-        else g = 'D';
-
-        const addG = (gc: GradeCount) => {
-          gc.total++;
-          if (isGirl) gc.girls++;
-          else gc.boys++;
-        };
-
-        if (g === 'A+') addG(sum.aPlus);
-        else if (g === 'A') addG(sum.a);
-        else if (g === 'B+') addG(sum.bPlus);
-        else if (g === 'B') addG(sum.b);
-        else if (g === 'C+') addG(sum.cPlus);
-        else if (g === 'C') addG(sum.c);
-        else addG(sum.d);
+      SUBJECT_HEADERS.forEach((sub) => {
+        ['A+', 'A', 'B+', 'B', 'C', 'TOTAL'].forEach((g) => {
+          counts[g as keyof typeof counts][sub.code] = { boys: 0, girls: 0, total: 0 };
+        });
       });
 
-      return sum;
+      computed.forEach((cSt) => {
+        const isGirl = cSt.student.gender === 'Girl';
+        SUBJECT_HEADERS.forEach((sub) => {
+          const subData = cSt.subjects[sub.code];
+          const grade = subData?.grade;
+          if (grade && ['A+', 'A', 'B+', 'B', 'C'].includes(grade)) {
+            const gKey = grade as 'A+' | 'A' | 'B+' | 'B' | 'C';
+            if (isGirl) {
+              counts[gKey][sub.code].girls++;
+              counts[gKey][sub.code].total++;
+              counts['TOTAL'][sub.code].girls++;
+              counts['TOTAL'][sub.code].total++;
+            } else {
+              counts[gKey][sub.code].boys++;
+              counts[gKey][sub.code].total++;
+              counts['TOTAL'][sub.code].boys++;
+              counts['TOTAL'][sub.code].total++;
+            }
+          }
+        });
+      });
+
+      const rows: GradeRowData[] = grades.map((g) => ({
+        grade: g,
+        subjectCounts: counts[g],
+      }));
+
+      rows.push({
+        grade: 'TOTAL',
+        subjectCounts: counts['TOTAL'],
+      });
+
+      return {
+        classNum: cls,
+        label: `${cls}TH STD`,
+        rows,
+        totalCounts: counts['TOTAL'],
+      };
+    });
+  }, [students, marksMap, academicYear, schoolMedium]);
+
+  // Compute Grand Total across 6th to 8th STD
+  const grandTotalCounts = useMemo(() => {
+    const total: Record<HpSubjectCode, GenderBreakdown> = {} as any;
+    SUBJECT_HEADERS.forEach((sub) => {
+      total[sub.code] = { boys: 0, girls: 0, total: 0 };
     });
 
-    return list;
-  }, [subjects, filteredStudents, marksMap]);
+    classesData.forEach((cd) => {
+      SUBJECT_HEADERS.forEach((sub) => {
+        total[sub.code].boys += cd.totalCounts[sub.code].boys;
+        total[sub.code].girls += cd.totalCounts[sub.code].girls;
+        total[sub.code].total += cd.totalCounts[sub.code].total;
+      });
+    });
 
+    return total;
+  }, [classesData]);
+
+  // Total student counts across 6-8
+  const totalStudentsCount = useMemo(() => {
+    return SUBJECT_HEADERS.length > 0 ? grandTotalCounts[SUBJECT_HEADERS[0].code].total : 0;
+  }, [grandTotalCounts]);
+
+  // Filtered classes based on selected view
+  const visibleClasses = useMemo(() => {
+    if (selectedView === 'all') return classesData;
+    return classesData.filter((c) => c.classNum === selectedView);
+  }, [classesData, selectedView]);
+
+  const docTitle = `${schoolName.replace(/\s+/g, '_')}_Class_6-8_Subjectwise_Gradewise_Abstract_${academicYear}`;
+
+  // Export to Excel (.xlsx) matching official structure
   const handleExportExcel = () => {
-    const wsData: any[][] = [
-      [schoolName],
-      [`DISE: ${diseCode} | TALUK: ${talukName} | ACADEMIC YEAR: ${academicYear}`],
-      [`ABSTRACT OF GRADES (ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ) - CLASS: ${selectedClassOption === 'ALL' ? 'CLASSES 1 TO 8' : `CLASS ${selectedClassOption}`}`],
-      [],
-      [
-        'ವಿಷಯ (Subject)',
-        'A+ (90-100) B', 'A+ G', 'A+ Total',
-        'A (80-89) B', 'A G', 'A Total',
-        'B+ (70-79) B', 'B+ G', 'B+ Total',
-        'B (60-69) B', 'B G', 'B Total',
-        'C+ (50-59) B', 'C+ G', 'C+ Total',
-        'C (35-49) B', 'C G', 'C Total',
-        'D (<35) B', 'D G', 'D Total',
-        'Exempt',
-        'Grand Total B', 'Grand Total G', 'Grand Total',
-      ],
-    ];
+    try {
+      const rows: any[][] = [];
+      rows.push([`ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಹಾಗೂ ಕ್ಷೇತ್ರ ಸಮನ್ವಯಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ ${talukName}`]);
+      rows.push([`${academicYear} ನೇ ಸಾಲಿನ ವಾರ್ಷಿಕ ಪರಿಣಾಮ ಪತ್ರಿಕೆಯ ಘೋಷವಾರ`]);
+      rows.push([`ತರಗತಿವಾರು, ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ 6-8`]);
+      rows.push([`ಶಾಲೆಯ ಹೆಸರು : ${schoolName}`, '', '', '', '', '', '', '', '', '', `ಕ್ಲಸ್ಟರ್ ಹೆಸರು :- ${clusterName}`]);
+      rows.push([]);
 
-    summaryData.forEach((row) => {
-      wsData.push([
-        row.subjectName,
-        row.aPlus.boys, row.aPlus.girls, row.aPlus.total,
-        row.a.boys, row.a.girls, row.a.total,
-        row.bPlus.boys, row.bPlus.girls, row.bPlus.total,
-        row.b.boys, row.b.girls, row.b.total,
-        row.cPlus.boys, row.cPlus.girls, row.cPlus.total,
-        row.c.boys, row.c.girls, row.c.total,
-        row.d.boys, row.d.girls, row.d.total,
-        row.exempt.total,
-        row.total.boys, row.total.girls, row.total.total,
+      // Multi-tier header
+      const headerRow1: any[] = ['CLASS', 'ಶ್ರೇಣಿ'];
+      SUBJECT_HEADERS.forEach((sub) => {
+        headerRow1.push(sub.nameKn, '', '');
+      });
+      rows.push(headerRow1);
+
+      const headerRow2: any[] = ['', ''];
+      SUBJECT_HEADERS.forEach(() => {
+        headerRow2.push('ಗಂ', 'ಹೆ', 'ಒ');
+      });
+      rows.push(headerRow2);
+
+      visibleClasses.forEach((cd) => {
+        cd.rows.forEach((r, rIdx) => {
+          const rowVals: any[] = [rIdx === 0 ? cd.label : '', r.grade];
+          SUBJECT_HEADERS.forEach((sub) => {
+            const c = r.subjectCounts[sub.code];
+            rowVals.push(c.boys || '-', c.girls || '-', c.total || '-');
+          });
+          rows.push(rowVals);
+        });
+      });
+
+      if (selectedView === 'all') {
+        const grandVals: any[] = ['6TH TO 8TH STD TOTAL', ''];
+        SUBJECT_HEADERS.forEach((sub) => {
+          const c = grandTotalCounts[sub.code];
+          grandVals.push(c.boys || '-', c.girls || '-', c.total || '-');
+        });
+        rows.push(grandVals);
+      }
+
+      rows.push([]);
+      rows.push([
+        `ಮುಖ್ಯ ಶಿಕ್ಷಕರ ಸಹಿ`, '', '', '', '',
+        `ಸಮೂಹ ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಯ ಸಹಿ`, '', '', '', '',
+        `ಶಿಕ್ಷಣ ಸಂಯೋಜಕರ ಸಹಿ`
       ]);
-    });
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Grade_Abstract');
-    XLSX.writeFile(wb, `Grade_Abstract_Class_${selectedClassOption}.xlsx`);
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `6-8_Abstract`);
+      XLSX.writeFile(wb, `${docTitle}.xlsx`);
+    } catch (err) {
+      console.error('Export Excel error:', err);
+    }
   };
 
   return (
     <div className="space-y-4">
-      {/* Control Toolbar with Dropdown for CLASS 1-8 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-300 shadow-sm print:hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black text-slate-800">ತರಗತಿ ಆಯ್ಕೆಮಾಡಿ (Class Dropdown 1-8):</span>
-          <select
-            value={selectedClassOption}
-            onChange={(e) => setSelectedClassOption(e.target.value)}
-            className="px-3 py-1.5 bg-blue-50 border border-blue-400 font-black text-xs text-blue-950 rounded-xl focus:outline-blue-500 cursor-pointer shadow-xs"
-          >
-            <option value="ALL">CLASS 1-8 (ಎಲ್ಲಾ ತರಗತಿಗಳು 1 ರಿಂದ 8)</option>
-            <option value="1">1ನೇ ತರಗತಿ (Class 1)</option>
-            <option value="2">2ನೇ ತರಗತಿ (Class 2)</option>
-            <option value="3">3ನೇ ತರಗತಿ (Class 3)</option>
-            <option value="4">4ನೇ ತರಗತಿ (Class 4)</option>
-            <option value="5">5ನೇ ತರಗತಿ (Class 5)</option>
-            <option value="6">6ನೇ ತರಗತಿ (Class 6)</option>
-            <option value="7">7ನೇ ತರಗತಿ (Class 7)</option>
-            <option value="8">8ನೇ ತರಗತಿ (Class 8)</option>
-          </select>
+      {/* Scoped Print and Margin Styles */}
+      <style>{`
+        @page {
+          size: ${paperSize === 'a4' ? '297mm 210mm' : '355.6mm 215.9mm'} landscape;
+          margin: 5mm 2mm 5mm 0mm;
+        }
+        @media print {
+          html, body {
+            color: #000000 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .report-page-sheet {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            margin: 0 auto !important;
+            padding: 4mm 0 4mm 0 !important;
+            box-shadow: none !important;
+            border: 2px solid #000000 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            box-sizing: border-box !important;
+          }
+          .report-page-sheet > div,
+          .cce-sheet-container {
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      {/* Top Configuration & Actions Bar (Hidden in Print) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900 text-white p-3.5 rounded-2xl print:hidden shadow-sm text-xs">
+        {/* Left: View Selector (All 6-8 vs Individual Class) */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <span className="font-bold text-amber-300 px-1.5">ತರಗತಿ:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedView('all')}
+              className={`px-3 py-1 rounded-lg font-black transition cursor-pointer text-xs ${
+                selectedView === 'all'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+              title="6-8 All Classes (Consolidated as shown in official PDF)"
+            >
+              6-8 ಎಲ್ಲ ತರಗತಿಗಳು (All 6-8)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedView('6')}
+              className={`px-2.5 py-1 rounded-lg font-black transition cursor-pointer text-xs ${
+                selectedView === '6'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              6ನೇ
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedView('7')}
+              className={`px-2.5 py-1 rounded-lg font-black transition cursor-pointer text-xs ${
+                selectedView === '7'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              7ನೇ
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedView('8')}
+              className={`px-2.5 py-1 rounded-lg font-black transition cursor-pointer text-xs ${
+                selectedView === '8'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              8ನೇ
+            </button>
+          </div>
+
+          {/* Paper Size Preview: A4 vs Legal */}
+          <div className="flex items-center gap-1 bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setPaperSize('a4')}
+              className={`px-2.5 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                paperSize === 'a4'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              A4 Landscape
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaperSize('legal')}
+              className={`px-2.5 py-1 rounded-lg font-black transition cursor-pointer text-[11px] ${
+                paperSize === 'legal'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              Legal Landscape
+            </button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          <span>Excel ಡೌನ್‌ಲೋಡ್</span>
-        </button>
+        {/* Right: Actions (Excel, HTML, Print, WhatsApp, PDF) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {statusMessage && (
+            <span className="text-amber-300 font-bold animate-pulse">{statusMessage}</span>
+          )}
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+            title="Download formatted Excel (.xlsx) file"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Excel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (reportRef?.current) {
+                downloadElementAsHtml(reportRef.current, docTitle, paperSize);
+                setStatusMessage('HTML ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!');
+                setTimeout(() => setStatusMessage(null), 3000);
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+            title="Download standalone printable HTML file (to adjust margins manually)"
+          >
+            <FileCode className="w-3.5 h-3.5" />
+            <span>HTML ಡೌನ್‌ಲೋಡ್</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              if (reportRef?.current) {
+                const summary = `*${schoolName}*\n*ತರಗತಿವಾರು, ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ 6-8 (${academicYear})*\nಒಟ್ಟು ವಿದ್ಯಾರ್ಥಿಗಳು: ${totalStudentsCount}\nದಿನಾಂಕ: ${new Date().toLocaleDateString('kn-IN')}`;
+                await shareReportToWhatsApp(reportRef.current, summary, docTitle);
+                setStatusMessage('WhatsApp ತೆರೆಯಲಾಗಿದೆ!');
+                setTimeout(() => setStatusMessage(null), 3000);
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+            title="Share report image & summary to WhatsApp"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (reportRef?.current) {
+                printClassAbstractReport(reportRef.current, docTitle, paperSize, 'landscape');
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+            title={`Print in ${paperSize.toUpperCase()} Landscape`}
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>ಮುದ್ರಿಸಿ (Print)</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={isExportingPdf}
+            onClick={async () => {
+              if (reportRef?.current) {
+                setIsExportingPdf(true);
+                setStatusMessage('PDF ಸಿದ್ಧವಾಗುತ್ತಿದೆ...');
+                try {
+                  await exportClassAbstractPdf(reportRef.current, docTitle, paperSize, 'landscape');
+                  setStatusMessage('PDF ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!');
+                } catch (err) {
+                  console.error('PDF error:', err);
+                  setStatusMessage('PDF ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಗಿದೆ');
+                } finally {
+                  setIsExportingPdf(false);
+                  setTimeout(() => setStatusMessage(null), 3000);
+                }
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+            title={`Download PDF in ${paperSize.toUpperCase()}`}
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExportingPdf ? 'ರಚಿಸಲಾಗುತ್ತಿದೆ...' : 'PDF ಡೌನ್‌ಲೋಡ್'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Abstract Sheet */}
+      {/* Main Official Printable Report Sheet matching the PDF */}
       <div
         ref={reportRef}
-        className="bg-white p-6 rounded-2xl border border-slate-300 shadow-md space-y-4 legal-landscape print:p-2 print:border-none print:shadow-none"
+        style={{
+          boxSizing: 'border-box',
+          width: paperSize === 'a4' ? '282mm' : '338mm',
+          maxWidth: '100%',
+          margin: '0 auto',
+        }}
+        className="report-page-sheet bg-white rounded-xl border-2 border-black p-4 sm:p-5 shadow-md mx-auto my-2 flex flex-col justify-between print:border-2 print:border-black print:p-4 print:m-0 print:shadow-none"
       >
-        <div className="text-center space-y-1 border-b-2 border-slate-900 pb-3">
-          <p className="text-xs font-black text-slate-900 uppercase tracking-wide">
-            ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ, {talukName}
-          </p>
-          <h2 className="text-base font-black text-slate-950 font-serif">
-            {schoolName} • DISE: {diseCode}
-          </h2>
-          <h3 className="text-xs font-black text-blue-950">
-            {academicYear} ನೇ ಸಾಲಿನ ವಾರ್ಷಿಕ ಪರೀಕ್ಷೆಯ ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಫಲಿತಾಂಶ ಘೋಷವಾರ (Page 5: Abstract of Grades)
-          </h3>
-          <p className="text-xs font-bold text-slate-700">
-            ಆಯ್ಕೆಮಾಡಲಾದ ತರಗತಿ: <span className="font-black text-slate-950">{selectedClassOption === 'ALL' ? '1 ರಿಂದ 8 ನೇ ತರಗತಿಗಳು (CLASS 1-8)' : `${selectedClassOption}ನೇ ತರಗತಿ (Class ${selectedClassOption})`}</span> • ಒಟ್ಟು ವಿದ್ಯಾರ್ಥಿಗಳು: <span className="font-mono font-black text-blue-700">{filteredStudents.length}</span>
-          </p>
-        </div>
+        <div>
+          {/* Header matching the PDF Screenshot */}
+          <div className="text-center space-y-0.5 text-black pb-1.5">
+            <h2 className="text-[13px] sm:text-[14px] font-black text-black tracking-wide leading-tight">
+              ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಹಾಗೂ ಕ್ಷೇತ್ರ ಸಮನ್ವಯಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ {talukName}
+            </h2>
 
-        {/* Abstract Table */}
-        <div className="overflow-x-auto print:overflow-visible">
-          <table className="w-full text-[9px] text-center border-collapse border border-slate-900 table-fixed">
-            <thead>
-              <tr className="bg-slate-100 font-black text-slate-950 border-b border-slate-900">
-                <th rowSpan={2} className="border border-slate-900 p-1 w-[120px] text-left">ವಿಷಯಗಳು (Subjects)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-emerald-100 text-emerald-950">A+ (90-100)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-emerald-50 text-emerald-900">A (80-89)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-blue-100 text-blue-950">B+ (70-79)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-blue-50 text-blue-900">B (60-69)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-yellow-100 text-yellow-950">C+ (50-59)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-yellow-50 text-yellow-900">C (35-49)</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-red-100 text-red-950">D (&lt;35)</th>
-                <th rowSpan={2} className="border border-slate-900 p-0.5 bg-purple-100 text-purple-950 w-[35px]">Exempt</th>
-                <th colSpan={3} className="border border-slate-900 p-0.5 bg-slate-200 text-slate-950 font-black">ಒಟ್ಟು (Total)</th>
-              </tr>
-              <tr className="bg-slate-50 text-[8px] font-bold text-slate-800 border-b border-slate-900">
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾ</th>
-                <th className="border border-slate-900 p-0.5">ಬಾಕಿ</th>
-                <th className="border border-slate-900 p-0.5 font-black">ಒ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summaryData.map((row) => (
-                <tr key={row.subjectCode} className="border-b border-slate-300 hover:bg-slate-50 font-mono">
-                  <td className="border border-slate-900 p-1 text-left font-sans font-bold text-slate-900">
-                    {row.subjectName}
-                  </td>
-                  {/* A+ */}
-                  <td className="border border-slate-900 p-0.5">{row.aPlus.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.aPlus.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-emerald-50">{row.aPlus.total}</td>
-                  {/* A */}
-                  <td className="border border-slate-900 p-0.5">{row.a.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.a.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-emerald-50">{row.a.total}</td>
-                  {/* B+ */}
-                  <td className="border border-slate-900 p-0.5">{row.bPlus.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.bPlus.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-blue-50">{row.bPlus.total}</td>
-                  {/* B */}
-                  <td className="border border-slate-900 p-0.5">{row.b.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.b.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-blue-50">{row.b.total}</td>
-                  {/* C+ */}
-                  <td className="border border-slate-900 p-0.5">{row.cPlus.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.cPlus.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-yellow-50">{row.cPlus.total}</td>
-                  {/* C */}
-                  <td className="border border-slate-900 p-0.5">{row.c.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.c.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-yellow-50">{row.c.total}</td>
-                  {/* D */}
-                  <td className="border border-slate-900 p-0.5">{row.d.boys}</td>
-                  <td className="border border-slate-900 p-0.5">{row.d.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-red-50">{row.d.total}</td>
-                  {/* Exempt */}
-                  <td className="border border-slate-900 p-0.5 font-black bg-purple-50 text-purple-900">{row.exempt.total}</td>
-                  {/* Total */}
-                  <td className="border border-slate-900 p-0.5 font-bold">{row.total.boys}</td>
-                  <td className="border border-slate-900 p-0.5 font-bold">{row.total.girls}</td>
-                  <td className="border border-slate-900 p-0.5 font-black bg-slate-100">{row.total.total}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            <h3 className="text-[12px] sm:text-[13px] font-bold text-black tracking-tight leading-tight">
+              {academicYear} ನೇ ಸಾಲಿನ ವಾರ್ಷಿಕ ಪರಿಣಾಮ ಪತ್ರಿಕೆಯ ಘೋಷವಾರ
+            </h3>
 
-        {/* Signatures */}
-        <div className="grid grid-cols-2 text-center text-xs font-bold text-slate-900 pt-6 border-t border-slate-300">
-          <div className="text-left pl-6">
-            ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ<br />
-            <span className="text-[10px] text-slate-600 font-normal">Class Teacher Sign</span>
+            <h3 className="text-[12px] sm:text-[13px] font-black text-black tracking-tight leading-tight">
+              ತರಗತಿವಾರು, ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ 6-8
+            </h3>
+
+            {/* School Name (Left) & Cluster (Right) */}
+            <div className="flex flex-row items-center justify-between text-[11px] sm:text-[12px] font-bold text-black pt-1 px-1 whitespace-nowrap overflow-hidden">
+              <div>
+                ಶಾಲೆಯ ಹೆಸರು : <span className="font-black text-black">{schoolName}</span>
+              </div>
+              <div>
+                ಕ್ಲಸ್ಟರ್ ಹೆಸರು :- <span className="font-black text-black">{clusterName || talukName}</span>
+              </div>
+            </div>
           </div>
-          <div className="text-right pr-6">
-            ಮುಖ್ಯೋಪಾಧ್ಯಾಯರ ಸಹಿ & ಮೊಹರು<br />
-            <span className="text-[10px] text-slate-600 font-normal">Head Master Sign & Seal</span>
+
+          {/* 23-Column Official Abstract Table matching the PDF Screenshot */}
+          <div className="w-full mt-1 overflow-x-auto print:overflow-visible">
+            <table className="w-full text-center border-collapse border-2 border-black table-fixed text-[11px] text-black">
+              <colgroup>
+                {/* 1. CLASS Column */}
+                <col style={{ width: '6.0%' }} />
+                {/* 2. Grade Column */}
+                <col style={{ width: '6.0%' }} />
+                {/* 21 Subject breakdown columns (7 subjects * 3 cols: ಗಂ, ಹೆ, ಒ = 21 cols @ ~4.19%) */}
+                {Array.from({ length: 21 }).map((_, i) => (
+                  <col key={i} style={{ width: '4.19%' }} />
+                ))}
+              </colgroup>
+              <thead>
+                {/* Tier 1 Header: CLASS, ಶ್ರೇಣಿ, 7 Subjects */}
+                <tr className="bg-amber-100/70 font-black text-black border-b border-black text-center" style={{ height: '9mm' }}>
+                  <th
+                    rowSpan={2}
+                    className="border border-black p-0.5 text-center align-middle font-black text-[11px]"
+                    style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                  >
+                    CLASS
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="border border-black p-0.5 text-center align-middle font-black text-[11px]"
+                    style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                  >
+                    ಶ್ರೇಣಿ
+                  </th>
+                  {SUBJECT_HEADERS.map((sub) => (
+                    <th
+                      key={sub.code}
+                      colSpan={3}
+                      className="border border-black p-0.5 text-center align-middle text-black font-black text-[11px] leading-tight"
+                      style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                    >
+                      {sub.nameKn}
+                    </th>
+                  ))}
+                </tr>
+
+                {/* Tier 2 Header: 7 repeats of (ಗಂ, ಹೆ, ಒ) */}
+                <tr className="bg-amber-50/70 font-bold text-black border-b-2 border-black text-[10px] text-center" style={{ height: '6mm' }}>
+                  {SUBJECT_HEADERS.map((sub) => (
+                    <React.Fragment key={sub.code}>
+                      <th className="border border-black p-0 text-center align-middle font-bold" style={{ verticalAlign: 'middle', textAlign: 'center' }}>ಗಂ</th>
+                      <th className="border border-black p-0 text-center align-middle font-bold" style={{ verticalAlign: 'middle', textAlign: 'center' }}>ಹೆ</th>
+                      <th className="border border-black p-0 text-center align-middle font-bold bg-amber-100/50" style={{ verticalAlign: 'middle', textAlign: 'center' }}>ಒ</th>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleClasses.map((cd) => (
+                  <React.Fragment key={cd.classNum}>
+                    {cd.rows.map((row, rIdx) => {
+                      const isClassTotal = row.grade === 'TOTAL';
+                      const rowBg = isClassTotal
+                        ? 'bg-blue-100 font-black border-t border-black text-black text-[11px]'
+                        : 'hover:bg-slate-50 font-bold text-[11px]';
+
+                      return (
+                        <tr
+                          key={`${cd.classNum}-${row.grade}`}
+                          className={`border-b border-black text-center ${rowBg}`}
+                          style={{ height: '6.5mm' }}
+                        >
+                          {/* CLASS Cell with vertical rotated text matching PDF */}
+                          {rIdx === 0 && (
+                            <td
+                              rowSpan={cd.rows.length}
+                              className="border border-black font-black text-center align-middle bg-slate-50 text-black text-[11px] p-0.5 tracking-wider"
+                              style={{
+                                verticalAlign: 'middle',
+                                textAlign: 'center',
+                                writingMode: 'vertical-rl',
+                                transform: 'rotate(180deg)',
+                              }}
+                            >
+                              {cd.label}
+                            </td>
+                          )}
+
+                          {/* Grade Label */}
+                          <td
+                            className={`border border-black p-0.5 text-center align-middle font-black ${
+                              isClassTotal ? 'bg-blue-200 text-black font-black' : 'text-black'
+                            }`}
+                            style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                          >
+                            {row.grade}
+                          </td>
+
+                          {/* 7 Subjects x 3 (Boys, Girls, Total) */}
+                          {SUBJECT_HEADERS.map((sub) => {
+                            const counts = row.subjectCounts[sub.code];
+                            return (
+                              <React.Fragment key={sub.code}>
+                                <td
+                                  className="border border-black p-0.5 font-mono text-center align-middle text-[11px]"
+                                  style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                                >
+                                  {counts.boys || '-'}
+                                </td>
+                                <td
+                                  className="border border-black p-0.5 font-mono text-center align-middle text-[11px]"
+                                  style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                                >
+                                  {counts.girls || '-'}
+                                </td>
+                                <td
+                                  className={`border border-black p-0.5 font-mono font-black text-center align-middle text-[11px] ${
+                                    isClassTotal ? 'bg-blue-200 text-black' : 'bg-slate-50 text-black'
+                                  }`}
+                                  style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                                >
+                                  {counts.total || '-'}
+                                </td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+
+                {/* Bottom Grand Total Row: 6TH TO 8TH STD TOTAL matching the PDF screenshot */}
+                {selectedView === 'all' && (
+                  <tr
+                    className="bg-emerald-100 font-black border-t-2 border-black text-black text-[11px]"
+                    style={{ height: '7.5mm' }}
+                  >
+                    <td
+                      colSpan={2}
+                      className="border border-black p-1 text-center align-middle font-black bg-emerald-200 text-black tracking-wide"
+                      style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                    >
+                      6TH TO 8TH STD TOTAL
+                    </td>
+
+                    {SUBJECT_HEADERS.map((sub) => {
+                      const counts = grandTotalCounts[sub.code];
+                      return (
+                        <React.Fragment key={sub.code}>
+                          <td
+                            className="border border-black p-0.5 font-mono font-black text-center align-middle text-[11px]"
+                            style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                          >
+                            {counts.boys || '-'}
+                          </td>
+                          <td
+                            className="border border-black p-0.5 font-mono font-black text-center align-middle text-[11px]"
+                            style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                          >
+                            {counts.girls || '-'}
+                          </td>
+                          <td
+                            className="border border-black p-0.5 font-mono font-black text-center align-middle text-[11px] bg-emerald-200 text-black"
+                            style={{ verticalAlign: 'middle', textAlign: 'center' }}
+                          >
+                            {counts.total || '-'}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 3 Signatures matching the PDF Screenshot */}
+        <div className="pt-6 pb-1">
+          <div className="grid grid-cols-3 text-center text-[12px] font-black text-black w-full px-4">
+            <div className="text-center">
+              <span>ಮುಖ್ಯ ಶಿಕ್ಷಕರ ಸಹಿ</span>
+            </div>
+            <div className="text-center">
+              <span>ಸಮೂಹ ಸಂಪನ್ಮೂಲ ವ್ಯಕ್ತಿಯ ಸಹಿ</span>
+            </div>
+            <div className="text-center">
+              <span>ಶಿಕ್ಷಣ ಸಂಯೋಜಕರ ಸಹಿ</span>
+            </div>
           </div>
         </div>
       </div>

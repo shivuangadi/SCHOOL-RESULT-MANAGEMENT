@@ -17,6 +17,7 @@ import { CceConsolidatedReportModal } from './CceConsolidatedReportModal';
 import { CceConsolidatedReportMarathiUrduModal } from './CceConsolidatedReportMarathiUrduModal';
 import { PrimaryCceReportsModal, PrimaryReportTabKey } from './PrimaryCceReportsModal';
 import { HigherPrimaryCceReportsModal, HpReportTabKey } from './HigherPrimaryCceReportsModal';
+import { SatsGradeUploadModal } from './SatsGradeUploadModal';
 import { StudentDropboxModal } from './StudentDropboxModal';
 import { StudentListDetailsModal } from './StudentListDetailsModal';
 import { SubjectStructureModal } from './SubjectStructureModal';
@@ -147,6 +148,8 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
     }
     openCallback();
   };
+
+  const [isSatsGradeUploadModalOpen, setIsSatsGradeUploadModalOpen] = useState(false);
   const [isCasteBirthModalOpen, setIsCasteBirthModalOpen] = useState(false);
   const [isProgressCardModalOpen, setIsProgressCardModalOpen] = useState(false);
   const [isMarksCardModalOpen, setIsMarksCardModalOpen] = useState(false);
@@ -388,8 +391,11 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
             setActiveSubView('cceEngine');
           }}
           onNavigateToProfile={() => handleNavigateCategory('schoolProfile')}
-          onNavigateToCceReport={() => {
-            if (schoolRecord?.schoolMedium === 'Marathi' || schoolRecord?.schoolMedium === 'Urdu') {
+          onNavigateToCceReport={(cls) => {
+            if (cls === '6' || cls === '7' || cls === '8') {
+              setHigherPrimaryInitialTab('consolidation_100');
+              setIsHigherPrimaryReportsOpen(true);
+            } else if (schoolRecord?.schoolMedium === 'Marathi' || schoolRecord?.schoolMedium === 'Urdu') {
               setIsCceMarathiUrduModalOpen(true);
             } else {
               setIsCceConsolidatedModalOpen(true);
@@ -610,44 +616,6 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                 </button>
               )}
 
-              {/* SATS REPORT FOR SATS RESULT ENTRY: ONLY MEANT FOR MARATHI & URDU MEDIUMS (CLASSES 1-5). INVISIBLE FOR KANNADA AND ENGLISH */}
-              {(schoolRecord?.schoolMedium === 'Marathi' ||
-                schoolRecord?.schoolMedium === 'Urdu' ||
-                students.some(
-                  (s) => s.medium?.toLowerCase() === 'marathi' || s.medium?.toLowerCase() === 'urdu'
-                )) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleOpenReport(() => {
-                      setPrimaryCceInitialTab('sats');
-                      setIsPrimaryCceReportsOpen(true);
-                    });
-                  }}
-                  className="p-4 bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-2xl text-left space-y-1.5 transition cursor-pointer shadow-md border-2 border-amber-300 ring-2 ring-amber-400/40 transform hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1 xl:col-span-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="p-1.5 bg-slate-950 text-amber-300 rounded-lg font-black shadow-xs">
-                        <Award className="w-4 h-4" />
-                      </span>
-                      <span className="font-black text-slate-950 text-sm">
-                        SATS REPORT (ಗ್ರೇಡ್ ನಮೂನೆ)
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-slate-950 text-amber-300 font-black text-[10px] rounded-full uppercase tracking-wider shadow-xs">
-                      Legal Portrait
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-slate-950 leading-snug">
-                    SATS Grade Entry Report (Classes 1–5 • FA1–SA2)
-                  </p>
-                  <p className="text-[11px] text-amber-950 font-medium">
-                    Extracts only exam grades for quick Karnataka SATS portal result entry. Class & Exam dropdowns.
-                  </p>
-                </button>
-              )}
-
               {/* 1. All Consolidation */}
               <button
                 type="button"
@@ -685,6 +653,37 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   <GraduationCap className="w-4 h-4 text-emerald-600" />
                 </div>
                 <p className="text-[11px] text-emerald-700">Study & Bonafide Certificate with Seal</p>
+              </button>
+
+              {/* 7th DOM Button: SATS GRADE UPLOAD REPORT (CLASSES 1-5 / 1-8 • KANNADA & ENGLISH MEDIUM) */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleOpenReport(() => {
+                    setIsSatsGradeUploadModalOpen(true);
+                  });
+                }}
+                className="p-4 bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-2xl text-left space-y-1.5 transition cursor-pointer shadow-md border-2 border-amber-300 ring-4 ring-amber-400/40 transform hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1 xl:col-span-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-slate-950 text-amber-300 rounded-lg font-black shadow-xs">
+                      <Award className="w-4 h-4" />
+                    </span>
+                    <span className="font-black text-slate-950 text-sm">
+                      SATS ಗ್ರೇಡ್ ಅಪ್‌ಲೋಡ್ (SATS Grade Report)
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-slate-950 text-amber-300 font-black text-[10px] rounded-full uppercase tracking-wider shadow-xs">
+                    Classes 1–8 • Multi-Tab Excel
+                  </span>
+                </div>
+                <p className="text-xs font-black text-slate-950 leading-snug tracking-tight flex items-center gap-1.5 drop-shadow-xs">
+                  ೧-೮ನೇ ತರಗತಿ SATS Grade Entry (Classes 1–8 • ಕನ್ನಡ & English Medium)
+                </p>
+                <p className="text-[11px] text-amber-950 font-bold">
+                  ಕರ್ನಾಟಕ SATS ಪೋರ್ಟಲ್‌ಗೆ ಕೇವಲ ಗ್ರೇಡ್‌ಗಳು • 1 ರಿಂದ 8ನೇ ತರಗತಿ Dropdown • ಎಲ್ಲಾ ಪರೀಕ್ಷೆಗಳ Multi-Tab Excel (ನಿಖರ ವಿದ್ಯಾರ್ಥಿಗಳ ಸಂಖ್ಯೆ).
+                </p>
               </button>
 
               {/* 4. Caste / Birth Certificate */}
@@ -1248,6 +1247,17 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           isDemo={isDemo}
           onOpenPaymentModal={onOpenPaymentModal}
           onSwitchToKannadaEnglish={undefined}
+        />
+      )}
+
+      {/* SATS GRADE UPLOAD MODAL (CLASSES 1-5 / 1-8 • KANNADA & ENGLISH MEDIUM • MULTI-TAB EXCEL) */}
+      {isSatsGradeUploadModalOpen && (
+        <SatsGradeUploadModal
+          isOpen={isSatsGradeUploadModalOpen}
+          onClose={() => setIsSatsGradeUploadModalOpen(false)}
+          students={students}
+          schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 

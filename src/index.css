@@ -134,6 +134,34 @@ button.cursor-not-allowed {
   }
 }
 
+/* Default hidden state for isolated print portal on screen */
+#cce-isolated-print-portal {
+  display: none;
+}
+
+/* PDF Mode and Screen Inputs switching */
+.cce-pdf-text {
+  display: none;
+}
+.cce-screen-input {
+  display: block;
+}
+
+.cce-pdf-capture-active .cce-screen-input,
+.cce-pdf-mode .cce-screen-input {
+  display: none !important;
+}
+.cce-pdf-capture-active .cce-pdf-text,
+.cce-pdf-mode .cce-pdf-text {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  line-height: 1 !important;
+}
+
 @media print {
   /* Hide non-printable UI elements */
   nav, header, footer, button, .print\:hidden {
@@ -147,6 +175,19 @@ button.cursor-not-allowed {
     padding: 0 !important;
     overflow: visible !important;
     height: auto !important;
+  }
+
+  /* Isolated Print Portal Support: ensures print button works in all browsers and iframes */
+  body.cce-print-mode-active > *:not(#cce-isolated-print-portal) {
+    display: none !important;
+  }
+  body.cce-print-mode-active #cce-isolated-print-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
 
   /* Make sure background app isn't covering or distorting print */
@@ -173,28 +214,72 @@ button.cursor-not-allowed {
   }
 
   @page {
-    size: legal;
-    margin: 6mm 8mm;
+    size: legal landscape;
+    margin: 5mm 2mm 5mm 0mm !important;
   }
 
-  /* Wide analytical reports and broadsheet (2cm left margin for binding) */
+  /* Wide analytical reports and broadsheet */
   .legal-landscape {
     page: legal-landscape;
   }
 
   @page legal-landscape {
     size: legal landscape;
-    margin: 4mm 4mm 4mm 20mm; /* 2cm (20mm) left binding margin */
+    margin: 5mm 2mm 5mm 0mm !important;
+  }
+
+  @page a4-landscape {
+    size: A4 landscape;
+    margin: 5mm 2mm 5mm 0mm !important;
+  }
+
+  .report-page-sheet {
+    page-break-after: always !important;
+    break-after: page !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .report-page-sheet > div,
+  .cce-sheet-container {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .report-page-sheet table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    box-sizing: border-box !important;
   }
 
   /* Portrait mode legal reports (Page 5: 1-5 all class grade consolidation) */
-  .legal-portrait {
-    page: legal-portrait;
+  .legal-portrait,
+  .portrait-page {
+    page: portrait-page;
   }
 
-  @page legal-portrait {
-    size: legal portrait;
-    margin: 6mm 6mm;
+  @page portrait-page {
+    size: portrait;
+    margin: 5mm 6mm;
+  }
+
+  .landscape-page {
+    page: landscape-page;
+  }
+
+  @page landscape-page {
+    size: landscape;
+    margin: 5mm 6mm;
   }
 }
 

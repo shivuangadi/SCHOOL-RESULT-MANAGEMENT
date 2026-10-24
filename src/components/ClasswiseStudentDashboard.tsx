@@ -150,11 +150,11 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
     () => [
       { key: 'SC', nameEn: 'SC', nameKn: 'ಪರಿಶಿಷ್ಟ ಜಾತಿ (SC)' },
       { key: 'ST', nameEn: 'ST', nameKn: 'ಪರಿಶಿಷ್ಟ ಪಂಗಡ (ST)' },
-      { key: 'Cat-1', nameEn: 'Cat-1', nameKn: 'ಪ್ರವರ್ಗ-೧ (Cat-1)' },
-      { key: '2A', nameEn: '2A', nameKn: 'ಪ್ರವರ್ಗ-೨ಎ (2A)' },
-      { key: '2B', nameEn: '2B', nameKn: 'ಪ್ರವರ್ಗ-೨ಬಿ (2B / Muslim)' },
-      { key: '3A', nameEn: '3A', nameKn: 'ಪ್ರವರ್ಗ-೩ಎ (3A)' },
-      { key: '3B', nameEn: '3B', nameKn: 'ಪ್ರವರ್ಗ-೩ಬಿ (3B)' },
+      { key: 'Cat-1', nameEn: 'Cat-1', nameKn: 'ಪ್ರವರ್ಗ-1 (Cat-1)' },
+      { key: '2A', nameEn: '2A', nameKn: 'ಪ್ರವರ್ಗ-2A (2A)' },
+      { key: '2B', nameEn: '2B', nameKn: 'ಪ್ರವರ್ಗ-2B (2B / Muslim)' },
+      { key: '3A', nameEn: '3A', nameKn: 'ಪ್ರವರ್ಗ-3A (3A)' },
+      { key: '3B', nameEn: '3B', nameKn: 'ಪ್ರವರ್ಗ-3B (3B)' },
       { key: 'GM', nameEn: 'GM / Others', nameKn: 'ಸಾಮಾನ್ಯ / ಇತರೆ (GM)' },
     ],
     []
@@ -504,10 +504,10 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
                 type="button"
                 onClick={() => onNavigateToCceReport()}
                 className="px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition transform hover:-translate-y-0.5 cursor-pointer ring-1 ring-amber-400/50 mr-1"
-                title="Open CCE Consolidated Report for Classes 1 to 5"
+                title="Open CCE Consolidated Reports"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-slate-950" />
-                <span>{isKn ? 'ಸಿಸಿಇ ಸಂಯೋಜಿತ ವರದಿ (1–5)' : 'CCE Consolidated Report'}</span>
+                <span>{isKn ? 'ಸಿಸಿಇ ಸಂಯೋಜಿತ ವರದಿ (1–8)' : 'CCE Consolidated Reports (1-8)'}</span>
               </button>
             )}
 

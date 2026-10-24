@@ -189,7 +189,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     <Download className="w-4 h-4" />
                   </div>
                   <span className="font-black text-emerald-950 text-sm">
-                    ೧. ಬ್ಯಾಕಪ್ ಡೌನ್‌ಲೋಡ್ (Backup)
+                    1. ಬ್ಯಾಕಪ್ ಡೌನ್‌ಲೋಡ್ (Backup)
                   </span>
                 </div>
                 <p className="text-xs text-emerald-900 leading-relaxed">
@@ -216,7 +216,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     <Upload className="w-4 h-4" />
                   </div>
                   <span className="font-black text-indigo-950 text-sm">
-                    ೨. ಪುನಃಸ್ಥಾಪನೆ (Restore Data)
+                    2. ಪುನಃಸ್ಥಾಪನೆ (Restore Data)
                   </span>
                 </div>
                 <p className="text-xs text-indigo-900 leading-relaxed">

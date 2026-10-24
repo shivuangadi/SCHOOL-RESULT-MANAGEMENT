@@ -499,7 +499,7 @@ export const HpCcePage1Entry: React.FC<HpCcePage1EntryProps> = ({
           </span>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-[11px] font-bold text-amber-300 bg-purple-950/80 px-2.5 py-0.5 rounded-lg border border-purple-500">
-              ಕಲಾ ಶಿಕ್ಷಣ & ಕಂಪ್ಯೂಟರ್ (ಪ್ರತ್ಯೇಕ ೫೦+೫೦ ಅಂಕಗಳು) • ಸಹಪಠ್ಯ ಶ್ರೇಣಿಗಳು (A, B, C)
+              ಕಲಾ ಶಿಕ್ಷಣ & ಕಂಪ್ಯೂಟರ್ (ಪ್ರತ್ಯೇಕ 50+50 ಅಂಕಗಳು) • ಸಹಪಠ್ಯ ಶ್ರೇಣಿಗಳು (A, B, C)
             </span>
           </div>
         </div>

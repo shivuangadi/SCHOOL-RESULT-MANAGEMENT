@@ -6,6 +6,7 @@ import {
   CO_SCHOLASTIC_ACTIVITIES,
   ComputedStudentCce,
 } from '../../utils/primaryCceHelper';
+import { handleTableGridNavigation } from '../../utils/tableNavigationHelper';
 
 interface CcePage1EntryProps {
   students: Student[];
@@ -64,7 +65,10 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-xs text-center border-collapse">
+          <table
+            className="w-full min-w-[1050px] text-xs text-center border-collapse"
+            onKeyDown={handleTableGridNavigation}
+          >
             <thead>
               <tr className="bg-blue-100/80 text-blue-950 font-bold border-b border-slate-300">
                 <th rowSpan={2} className="border border-slate-300 p-1 w-10">ಕ್ರ.ಸಂ</th>
@@ -520,7 +524,10 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-xs text-center border-collapse">
+          <table
+            className="w-full min-w-[850px] text-xs text-center border-collapse"
+            onKeyDown={handleTableGridNavigation}
+          >
             <thead>
               <tr className="bg-indigo-50 text-indigo-950 font-bold border-b border-slate-300">
                 <th className="border border-slate-300 p-1.5 w-10">ಕ್ರ.ಸಂ</th>
@@ -531,8 +538,17 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
                 <th className="border border-slate-300 p-1.5 min-w-[90px]">ಹಾಜರಿದ್ದ ದಿನಗಳು</th>
                 {CO_SCHOLASTIC_ACTIVITIES.map((act) => (
                   <th key={act.key} className="border border-slate-300 p-1.5 min-w-[110px]">
-                    {act.nameKn}
-                    <div className="text-[10px] text-slate-500 font-normal">{act.nameEn}</div>
+                    {act.key === 'supw' ? (
+                      <div>
+                        <div className="font-black text-xs text-indigo-950 uppercase leading-tight">SOCIAL USEFUL PRODUCTIVE WORK</div>
+                        <div className="text-[10px] text-slate-500 font-normal mt-0.5">ಸಾ.ಉ.ಉ.ಕಾ (SUPW)</div>
+                      </div>
+                    ) : (
+                      <>
+                        {act.nameKn}
+                        <div className="text-[10px] text-slate-500 font-normal">{act.nameEn}</div>
+                      </>
+                    )}
                   </th>
                 ))}
               </tr>

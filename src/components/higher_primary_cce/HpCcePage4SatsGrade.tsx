@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { SchoolRecord } from '../../types';
+import { SchoolRecord, formatClassStd } from '../../types';
 import {
   ComputedHpStudent,
   HpSubjectInfo,
@@ -105,7 +105,7 @@ export const HpCcePage4SatsGrade: React.FC<HpCcePage4SatsGradeProps> = ({
       cluster: clusterName,
       taluk: talukName,
       academicYear,
-      className: `${selectedClass}th Std`,
+      className: formatClassStd(selectedClass),
       examType: selectedExam,
       students: sortedStudents,
       subjects: satsSubjects,
@@ -136,7 +136,7 @@ export const HpCcePage4SatsGrade: React.FC<HpCcePage4SatsGradeProps> = ({
   const handleWhatsApp = async () => {
     if (reportRef?.current) {
       showStatus('📱 WhatsApp ಫೋಟೋ ತಯಾರಿಸಲಾಗುತ್ತಿದೆ...');
-      const summary = `*SATS GRADE REPORT*\n🏫 ${schoolName}\nDISE: ${diseCode}\nತರಗತಿ: ${selectedClass}th Std | ಪರೀಕ್ಷೆ: ${selectedExam}\n📅 ${academicYear}`;
+      const summary = `*SATS GRADE REPORT*\n🏫 ${schoolName}\nDISE: ${diseCode}\nತರಗತಿ: ${formatClassStd(selectedClass)} | ಪರೀಕ್ಷೆ: ${selectedExam}\n📅 ${academicYear}`;
       await shareReportToWhatsApp(
         reportRef.current,
         summary,
@@ -263,7 +263,7 @@ export const HpCcePage4SatsGrade: React.FC<HpCcePage4SatsGradeProps> = ({
             SATS GRADE ENTRY SHEET (ಕರ್ನಾಟಕ SATS ಪೋರ್ಟಲ್ ಗ್ರೇಡ್ ನಮೂನೆ) • {academicYear}
           </div>
           <div className="flex justify-between items-center text-xs font-black text-slate-900 pt-2 border-t border-slate-200">
-            <span>CLASS: {selectedClass}th Std ({selectedClass}ನೇ ತರಗತಿ)</span>
+            <span>CLASS: {formatClassStd(selectedClass)} ({selectedClass}ನೇ ತರಗತಿ)</span>
             <span>EXAM TYPE: <span className="text-blue-700 uppercase font-black">{selectedExam}</span></span>
             <span>MEDIUM: {medium}</span>
           </div>

@@ -14,19 +14,39 @@ export type ReportPaperSize = 'a4' | 'legal';
 
 export const REPORT_PAPER_SIZES: Record<
   ReportPaperSize,
-  { widthMm: number; heightMm: number; label: string; labelKn: string }
+  {
+    widthMm: number;
+    heightMm: number;
+    marginTopMm: number;
+    marginBottomMm: number;
+    marginLeftMm: number;
+    marginRightMm: number;
+    printableWidthMm: number;
+    label: string;
+    labelKn: string;
+  }
 > = {
   a4: {
-    widthMm: 295,
+    widthMm: 297,
     heightMm: 210,
-    label: 'A4 Size (295mm × 210mm)',
-    labelKn: 'A4 ಸೈಜ್ (295mm × 210mm)',
+    marginTopMm: 5,
+    marginBottomMm: 5,
+    marginLeftMm: 0, // 0mm left margin as requested
+    marginRightMm: 2, // 2mm right safe margin
+    printableWidthMm: 295, // 297 - 0 - 2 = 295mm
+    label: 'A4 Landscape (297mm × 210mm)',
+    labelKn: 'A4 ಲ್ಯಾಂಡ್‌ಸ್ಕೇಪ್ (297mm × 210mm)',
   },
   legal: {
-    widthMm: 340,
-    heightMm: 210,
-    label: 'Legal Size (340mm × 210mm)',
-    labelKn: 'Legal ಸೈಜ್ (340mm × 210mm)',
+    widthMm: 355.6,
+    heightMm: 215.9,
+    marginTopMm: 5,
+    marginBottomMm: 5,
+    marginLeftMm: 0, // 0mm left margin as requested
+    marginRightMm: 2, // 2mm right safe margin
+    printableWidthMm: 353.6, // 355.6 - 0 - 2 = 353.6mm
+    label: 'Legal Landscape (355.6mm × 215.9mm)',
+    labelKn: 'Legal ಲ್ಯಾಂಡ್‌ಸ್ಕೇಪ್ (355.6mm × 215.9mm)',
   },
 };
 
@@ -36,9 +56,11 @@ export const REPORT_PAPER_SIZES: Record<
 export const buildPrintableHtmlDocument = (
   elementHtml: string,
   title: string = 'Karnataka School Report',
-  paperSize: ReportPaperSize = 'legal'
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape'
 ): string => {
   const chosenSize = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
+  const isLandscape = orientation === 'landscape';
 
   // Extract existing style and link tags from page for fidelity
   let pageStyles = '';
@@ -46,9 +68,6 @@ export const buildPrintableHtmlDocument = (
     const styleEls = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
     pageStyles = styleEls.map((el) => el.outerHTML).join('\n');
   } catch (_) {}
-
-  // Check if document is intended for landscape layout
-  const isLandscape = true;
 
   return `<!DOCTYPE html>
 <html lang="kn">
@@ -77,21 +96,72 @@ export const buildPrintableHtmlDocument = (
       line-height: 1.35;
     }
     @page {
-      size: ${chosenSize.widthMm}mm ${chosenSize.heightMm}mm;
-      margin: 4mm 4mm 4mm 10mm;
+      size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
+      margin: 5mm ${chosenSize.marginRightMm}mm 5mm ${chosenSize.marginLeftMm}mm;
+    }
+    @page :left {
+      size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
+    }
+    @page :right {
+      size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
     }
     .print-sheet {
-      width: ${chosenSize.widthMm}mm;
-      max-width: 100%;
-      margin: 0 auto;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
       background: #ffffff;
-      padding: 0;
+      box-sizing: border-box !important;
     }
     .report-page-sheet {
       page-break-after: always !important;
       break-after: page !important;
-      margin-bottom: ${isLandscape ? '0' : '20px'};
+      page-break-before: avoid !important;
+      break-before: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      margin: 0 !important;
       padding: 0 !important;
+      box-sizing: border-box !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+    }
+    .report-page-sheet > div,
+    .cce-sheet-container {
+      padding-left: 0 !important;
+      margin-left: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .cce-9line-container,
+    .cce-9line-container *,
+    .cce-9line-sheet,
+    .cce-9line-sheet *,
+    .cce-pdf-bw-mode,
+    .cce-pdf-bw-mode * {
+      background-color: #ffffff !important;
+      background-image: none !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
+      border-color: #000000 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    .cce-badge, .cce-banner-tag {
+      border: 1px solid #000000 !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+    .report-page-sheet:last-child {
+      page-break-after: auto !important;
+      break-after: auto !important;
     }
     tbody.break-inside-avoid, tbody, tr {
       page-break-inside: avoid !important;
@@ -125,6 +195,19 @@ export const buildPrintableHtmlDocument = (
       padding: ${isLandscape ? '2px 3px' : '6px 10px'} !important;
       text-align: center !important;
       vertical-align: middle !important;
+    }
+    .cce-9line-sheet table {
+      margin: 0 !important;
+    }
+    .cce-9line-sheet th,
+    .cce-9line-sheet td {
+      padding: 0 !important;
+      line-height: 1.1 !important;
+      box-sizing: border-box !important;
+    }
+    .cce-9line-sheet .cce-page-footer {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     th {
       background-color: #f1f5f9 !important;
@@ -299,33 +382,54 @@ export const buildPrintableHtmlDocument = (
 export const printElementViaIframe = (
   element: HTMLElement,
   title: string = 'Report',
-  paperSize: ReportPaperSize = 'legal'
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape'
 ): Promise<boolean> => {
   return new Promise((resolve) => {
     try {
       // Clean clone: remove non-printable elements
       const clone = element.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll('.print\\:hidden, button, select').forEach((el) => {
-        // If it's a select element with selected text, replace with bold span
-        if (el.tagName === 'SELECT') {
-          const sel = el as HTMLSelectElement;
-          const text = sel.options[sel.selectedIndex]?.text || sel.value;
-          const span = document.createElement('span');
-          span.className = 'font-bold';
-          span.textContent = text;
-          el.parentNode?.replaceChild(span, el);
-        } else if (el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'text') {
-          const inp = el as HTMLInputElement;
-          const span = document.createElement('span');
-          span.className = 'font-bold';
-          span.textContent = inp.value;
-          el.parentNode?.replaceChild(span, el);
-        } else {
-          el.remove();
+      clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button').forEach((el) => el.remove());
+      clone.querySelectorAll('select').forEach((el) => {
+        const sel = el as HTMLSelectElement;
+        const parent = sel.parentElement;
+        if (parent && parent.querySelector('.cce-pdf-text')) {
+          sel.remove();
+          return;
         }
+        const text = sel.options[sel.selectedIndex]?.text || sel.value;
+        const span = document.createElement('span');
+        span.className = 'font-bold text-center block w-full';
+        span.style.textAlign = 'center';
+        span.textContent = text;
+        el.parentNode?.replaceChild(span, el);
+      });
+      clone.querySelectorAll('input').forEach((el) => {
+        const inp = el as HTMLInputElement;
+        const parent = inp.parentElement;
+        if (parent && parent.querySelector('.cce-pdf-text')) {
+          const pdfEl = parent.querySelector('.cce-pdf-text') as HTMLElement;
+          if (inp.value && inp.value.trim() !== '') {
+            pdfEl.textContent = inp.value.trim();
+          }
+          inp.remove();
+          return;
+        }
+        const span = document.createElement('span');
+        span.className = 'font-bold font-mono text-center block w-full';
+        span.style.textAlign = 'center';
+        span.textContent = inp.value || '-';
+        el.parentNode?.replaceChild(span, el);
+      });
+      // Strip inline padding and width from sheets so ONLY @page controls margins during printing
+      clone.querySelectorAll<HTMLElement>('.report-page-sheet').forEach((sheet) => {
+        sheet.style.padding = '0';
+        sheet.style.margin = '0';
+        sheet.style.width = '100%';
+        sheet.style.maxWidth = '100%';
       });
 
-      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize);
+      const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize, orientation);
 
       // Create hidden iframe
       const iframe = document.createElement('iframe');
@@ -384,28 +488,52 @@ export const printElementViaIframe = (
 export const openCleanPrintWindow = (
   element: HTMLElement,
   title: string = 'Karnataka School Report',
-  paperSize: ReportPaperSize = 'legal'
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape'
 ): boolean => {
   try {
     const clone = element.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('.print\\:hidden, button').forEach((el) => el.remove());
+    clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button').forEach((el) => el.remove());
     clone.querySelectorAll('select').forEach((el) => {
       const sel = el as HTMLSelectElement;
+      const parent = sel.parentElement;
+      if (parent && parent.querySelector('.cce-pdf-text')) {
+        sel.remove();
+        return;
+      }
       const text = sel.options[sel.selectedIndex]?.text || sel.value;
       const span = document.createElement('span');
-      span.className = 'font-bold';
+      span.className = 'font-bold text-center block w-full';
+      span.style.textAlign = 'center';
       span.textContent = text;
       el.parentNode?.replaceChild(span, el);
     });
-    clone.querySelectorAll('input[type="text"]').forEach((el) => {
+    clone.querySelectorAll('input').forEach((el) => {
       const inp = el as HTMLInputElement;
+      const parent = inp.parentElement;
+      if (parent && parent.querySelector('.cce-pdf-text')) {
+        const pdfEl = parent.querySelector('.cce-pdf-text') as HTMLElement;
+        if (inp.value && inp.value.trim() !== '') {
+          pdfEl.textContent = inp.value.trim();
+        }
+        inp.remove();
+        return;
+      }
       const span = document.createElement('span');
-      span.className = 'font-bold';
-      span.textContent = inp.value;
+      span.className = 'font-bold font-mono text-center block w-full';
+      span.style.textAlign = 'center';
+      span.textContent = inp.value || '-';
       el.parentNode?.replaceChild(span, el);
     });
+    // Strip inline padding and width from sheets so ONLY @page controls margins during printing
+    clone.querySelectorAll<HTMLElement>('.report-page-sheet').forEach((sheet) => {
+      sheet.style.padding = '0';
+      sheet.style.margin = '0';
+      sheet.style.width = '100%';
+      sheet.style.maxWidth = '100%';
+    });
 
-    const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize);
+    const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, title, paperSize, orientation);
     const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
     const blobUrl = URL.createObjectURL(blob);
 
@@ -437,7 +565,7 @@ export const openCleanPrintWindow = (
  * - Suppresses all scrollbars completely so right/bottom window navigation bars never appear in PDF/image
  * - Uses Legal landscape dimensions when wide
  */
-const captureCleanReportCanvas = async (
+export const captureCleanReportCanvas = async (
   element: HTMLElement
 ): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   // 1. Temporarily inject style to completely hide all browser scrollbars
@@ -449,83 +577,146 @@ const captureCleanReportCanvas = async (
   `;
   document.head.appendChild(styleEl);
 
-  // 2. Temporarily expand overflow containers
-  const restoredElements: Array<{ el: HTMLElement; overflowX: string; maxWidth: string }> = [];
-  const overflowNodes = element.querySelectorAll<HTMLElement>('.overflow-x-auto, .overflow-y-auto, .overflow-auto');
-  overflowNodes.forEach((node) => {
-    restoredElements.push({
-      el: node,
-      overflowX: node.style.overflowX,
-      maxWidth: node.style.maxWidth,
-    });
-    node.style.overflowX = 'visible';
-    node.style.maxWidth = 'none';
-  });
+  const isSheet = element.classList.contains('report-page-sheet');
 
-  const targetWidth = Math.max(element.scrollWidth, element.offsetWidth, 1400);
+  // 2. Temporarily expand overflow containers only on external wrapper containers, NOT on fixed sheets
+  const restoredElements: Array<{ el: HTMLElement; overflowX: string; maxWidth: string }> = [];
+  if (!isSheet) {
+    const overflowNodes: HTMLElement[] = [
+      element,
+      ...Array.from(element.querySelectorAll<HTMLElement>('.overflow-x-auto, .overflow-y-auto, .overflow-auto, .overflow-hidden'))
+    ];
+    overflowNodes.forEach((node) => {
+      restoredElements.push({
+        el: node,
+        overflowX: node.style.overflowX,
+        maxWidth: node.style.maxWidth,
+      });
+      node.style.overflowX = 'visible';
+      node.style.maxWidth = 'none';
+    });
+  }
+
+  // Activate PDF clean text mode on element to convert inputs to centered text
+  element.classList.add('cce-pdf-mode');
 
   let dataUrl: string | null = null;
   let width = 0;
   let height = 0;
 
+  const rect = element.getBoundingClientRect();
+  const targetWidth = isSheet ? (element.offsetWidth || Math.ceil(rect.width)) : undefined;
+  const targetHeight = isSheet ? (element.offsetHeight || Math.ceil(rect.height)) : undefined;
+
   try {
-    // Attempt 1: toPng from html-to-image
+    // 1. Primary: toPng (Native browser rendering via SVG foreignObject, fontEmbedCSS: '' to avoid Google Fonts CORS errors)
     try {
-      dataUrl = await toPng(element, {
+      const p = toPng(element, {
         quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        cacheBust: false,
         skipFonts: true,
         fontEmbedCSS: '',
-        filter: (node) => {
-          if (node instanceof HTMLElement && (node.classList.contains('print:hidden') || node.tagName === 'BUTTON')) {
-            return false;
+        width: targetWidth,
+        height: targetHeight,
+        filter: (node: Node) => {
+          if (node instanceof HTMLElement) {
+            if (
+              node.classList.contains('cce-screen-input') ||
+              node.classList.contains('cce-print-hidden') ||
+              node.classList.contains('print:hidden') ||
+              node.tagName === 'BUTTON'
+            ) {
+              return false;
+            }
           }
           return true;
         },
       });
+      // Timeout after 8s so toPng has ample time on complex sheets without hanging indefinitely
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+      dataUrl = (await Promise.race([p, timeout])) as string | null;
+    } catch (primaryErr) {
+      console.warn('toPng primary capture failed, falling back to html2canvas:', primaryErr);
+    }
 
+    // 2. High-reliability fallback: html2canvas with oklch color conversion to prevent parsing errors
+    if (!dataUrl) {
+      try {
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          onclone: (clonedDoc: Document) => {
+            // Convert all oklch() color occurrences in cloned document stylesheets and inline styles to standard rgb/hex
+            const tempCanvas = clonedDoc.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            const convertOklchToRgb = (colorStr: string): string => {
+              if (!tempCtx) return '#000000';
+              try {
+                tempCtx.fillStyle = '#000000';
+                tempCtx.fillStyle = colorStr;
+                return tempCtx.fillStyle || '#000000';
+              } catch {
+                return '#000000';
+              }
+            };
+
+            // Sanitize style tags (e.g. Tailwind v4 theme variables)
+            clonedDoc.querySelectorAll('style').forEach((st) => {
+              if (st.textContent && st.textContent.includes('oklch')) {
+                st.textContent = st.textContent.replace(/oklch\([^)]+\)/gi, (m) => convertOklchToRgb(m));
+              }
+            });
+
+            // Sanitize element inline styles
+            clonedDoc.querySelectorAll<HTMLElement>('*').forEach((el) => {
+              if (el.style && el.style.cssText && el.style.cssText.includes('oklch')) {
+                el.style.cssText = el.style.cssText.replace(/oklch\([^)]+\)/gi, (m) => convertOklchToRgb(m));
+              }
+            });
+          },
+          ignoreElements: (node) => {
+            if (node instanceof HTMLElement) {
+              if (
+                node.classList.contains('cce-screen-input') ||
+                node.classList.contains('cce-print-hidden') ||
+                node.classList.contains('print:hidden') ||
+                node.tagName === 'BUTTON'
+              ) {
+                return true;
+              }
+            }
+            return false;
+          },
+        });
+        dataUrl = canvas.toDataURL('image/png');
+        width = canvas.width;
+        height = canvas.height;
+      } catch (canvasErr) {
+        console.error('html2canvas fallback also failed:', canvasErr);
+      }
+    }
+
+    if (dataUrl && (!width || !height)) {
       const img = new Image();
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve) => {
         img.onload = () => resolve();
-        img.onerror = reject;
+        img.onerror = () => {
+          console.warn('Canvas image loading warned, using sheet fallback dimensions');
+          resolve();
+        };
         img.src = dataUrl!;
       });
-      width = img.naturalWidth || targetWidth;
-      height = img.naturalHeight || 800;
-    } catch (pngErr) {
-      console.warn('html-to-image capture fallback notice:', pngErr);
+      width = img.naturalWidth || img.width || (isSheet ? 1400 : element.scrollWidth);
+      height = img.naturalHeight || img.height || (isSheet ? 900 : element.scrollHeight);
     }
-
-    // Attempt 2: html2canvas
-    if (!dataUrl) {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: targetWidth + 50,
-        onclone: (clonedDoc) => {
-          const s = clonedDoc.createElement('style');
-          s.innerHTML = `
-            * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
-            ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
-            .overflow-x-auto, .overflow-y-auto, .overflow-auto { overflow: visible !important; max-width: none !important; }
-          `;
-          clonedDoc.head.appendChild(s);
-          clonedDoc.querySelectorAll<HTMLElement>('.overflow-x-auto').forEach((el) => {
-            el.style.overflow = 'visible';
-            el.style.maxWidth = 'none';
-          });
-        },
-      });
-      dataUrl = canvas.toDataURL('image/png', 0.98);
-      width = canvas.width;
-      height = canvas.height;
-    }
+  } catch (outerErr) {
+    console.error('captureCleanReportCanvas outer error:', outerErr);
   } finally {
+    element.classList.remove('cce-pdf-mode');
     // Restore overflow styles
     restoredElements.forEach(({ el, overflowX, maxWidth }) => {
       el.style.overflowX = overflowX;
@@ -542,8 +733,8 @@ const captureCleanReportCanvas = async (
 };
 
 /**
- * Strategy 3: Client-side High-Resolution PDF Download using html-to-image/html2canvas & jsPDF
- * Fits all columns on one Legal landscape sheet without cropping Part B or showing window scrollbars.
+ * Strategy 3: Client-side High-Resolution PDF Download using html-to-image & jsPDF
+ * Fits all columns cleanly on the selected paper size preserving aspect ratio and preventing overflow.
  */
 export const downloadElementAsPdf = async (
   element: HTMLElement,
@@ -559,6 +750,9 @@ export const downloadElementAsPdf = async (
       ? [element]
       : Array.from(element.querySelectorAll<HTMLElement>('.report-page-sheet'));
     if (pageSheets.length > 0) {
+      element.classList.add('cce-pdf-mode');
+      pageSheets.forEach(s => s.classList.add('cce-pdf-mode'));
+
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -566,32 +760,59 @@ export const downloadElementAsPdf = async (
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 4;
-      const maxW = pageWidth - margin * 2;
-      const maxH = pageHeight - margin * 2;
 
-      for (let sIdx = 0; sIdx < pageSheets.length; sIdx++) {
-        const sheet = pageSheets[sIdx];
-        const capturedSheet = await captureCleanReportCanvas(sheet);
-        if (!capturedSheet) continue;
-        if (sIdx > 0) {
-          pdf.addPage(pdfFormat, 'landscape');
+      let renderedAny = false;
+      try {
+        for (let sIdx = 0; sIdx < pageSheets.length; sIdx++) {
+          const sheet = pageSheets[sIdx];
+          try {
+            const capturedSheet = await captureCleanReportCanvas(sheet);
+            if (!capturedSheet) continue;
+            if (renderedAny) {
+              pdf.addPage(pdfFormat, 'landscape');
+            }
+
+            // Render sheet directly at 0mm left margin, scaled cleanly to fit within page bounds
+            const scale = Math.min(
+              pageWidth / (capturedSheet.width || 1),
+              pageHeight / (capturedSheet.height || 1)
+            );
+            const renderW = capturedSheet.width * scale;
+            const renderH = capturedSheet.height * scale;
+            const offsetX = 0; // Starts at 0mm left edge
+            const offsetY = Math.max(0, (pageHeight - renderH) / 2);
+            pdf.addImage(capturedSheet.dataUrl, 'PNG', offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+            renderedAny = true;
+          } catch (sheetErr) {
+            console.warn(`Error capturing sheet ${sIdx + 1}:`, sheetErr);
+          }
         }
-        const sheetRatio = capturedSheet.height / capturedSheet.width;
-        let sheetPdfW = maxW;
-        let sheetPdfH = sheetPdfW * sheetRatio;
-        if (sheetPdfH > maxH) {
-          sheetPdfH = maxH;
-          sheetPdfW = sheetPdfH / sheetRatio;
-        }
-        const xOffset = margin + (maxW - sheetPdfW) / 2;
-        const yOffset = margin + (maxH - sheetPdfH) / 2;
-        pdf.addImage(capturedSheet.dataUrl, 'PNG', xOffset, yOffset, sheetPdfW, sheetPdfH, undefined, 'FAST');
+      } finally {
+        element.classList.remove('cce-pdf-mode');
+        pageSheets.forEach(s => s.classList.remove('cce-pdf-mode'));
       }
 
-      const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-      pdf.save(cleanFilename);
-      return true;
+      if (renderedAny) {
+        const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+        try {
+          pdf.save(cleanFilename);
+        } catch (saveErr) {
+          console.warn('pdf.save failed, falling back to blob anchor download:', saveErr);
+          const blob = pdf.output('blob');
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = cleanFilename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        }
+        return true;
+      }
+      // If canvas capture failed, fall back to native print dialog
+      console.warn('Canvas PDF export could not capture canvas, triggering native print dialog for Save as PDF');
+      return await executeReportPrint(element, filename, paperSize, 'landscape');
     }
 
     // 2. Fallback for single container elements
@@ -611,21 +832,25 @@ export const downloadElementAsPdf = async (
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    const margin = 4; // 4mm margin to maximize printable area and fit Part B
-    const maxW = pageWidth - margin * 2;
-    const maxH = pageHeight - margin * 2;
+    const marginLeftMm = 0; // 0mm left margin as requested
+    const marginRightMm = chosenSize.marginRightMm || 2;
+    const marginTopMm = chosenSize.marginTopMm || 5;
+    const marginBottomMm = chosenSize.marginBottomMm || 5;
 
-    // Always utilize full printable width so there are NO huge empty margins on left and right
-    const finalW = maxW;
-    const totalPdfH = (imgHeightPx / imgWidthPx) * finalW;
-
-    if (totalPdfH <= maxH * 1.05) {
-      // Single page document
-      const renderH = Math.min(maxH, totalPdfH);
-      pdf.addImage(imgData, 'PNG', margin, margin, finalW, renderH, undefined, 'FAST');
+    if (imgHeightPx / imgWidthPx <= (pageHeight / pageWidth) * 1.05) {
+      // Single page document: scale cleanly to fit page width and height starting at 0mm left margin
+      const scale = Math.min(
+        pageWidth / (imgWidthPx || 1),
+        pageHeight / (imgHeightPx || 1)
+      );
+      const renderW = imgWidthPx * scale;
+      const renderH = imgHeightPx * scale;
+      const offsetX = 0; // Starts at 0mm left margin
+      const offsetY = Math.max(0, (pageHeight - renderH) / 2);
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH, undefined, 'FAST');
     } else {
-      // Multi-page document: slice canvas cleanly by page height without shrinking width
-      const pageCanvasHeight = Math.floor((maxH / maxW) * imgWidthPx);
+      // Multi-page document: slice canvas cleanly by page aspect ratio
+      const pageCanvasHeight = Math.floor(imgWidthPx / (pageWidth / pageHeight));
       let renderedPx = 0;
       let pageNum = 0;
 
@@ -649,8 +874,15 @@ export const downloadElementAsPdf = async (
         if (ctx) {
           ctx.drawImage(img, 0, renderedPx, imgWidthPx, sliceH, 0, 0, imgWidthPx, sliceH);
           const sliceData = sliceCanvas.toDataURL('image/png', 0.98);
-          const pdfSliceH = (sliceH / imgWidthPx) * maxW;
-          pdf.addImage(sliceData, 'PNG', margin, margin, maxW, pdfSliceH, undefined, 'FAST');
+          const sliceScale = Math.min(
+            pageWidth / (imgWidthPx || 1),
+            pageHeight / (sliceH || 1)
+          );
+          const sliceW = imgWidthPx * sliceScale;
+          const sliceRenderH = sliceH * sliceScale;
+          const sliceOffX = 0; // 0mm left margin
+          const sliceOffY = Math.max(0, (pageHeight - sliceRenderH) / 2);
+          pdf.addImage(sliceData, 'PNG', sliceOffX, sliceOffY, sliceW, sliceRenderH, undefined, 'FAST');
         }
 
         renderedPx += sliceH;
@@ -686,13 +918,79 @@ export const downloadElementAsPdf = async (
 };
 
 /**
- * Master Print Trigger: Tries iframe printing, then window.print(),
- * and falls back to opening standalone window if both fail.
+ * Standalone Printable HTML file download:
+ * Allows user to download an exact self-contained HTML file to adjust margins manually if desired.
+ */
+export const downloadElementAsHtml = (
+  element: HTMLElement,
+  filename: string = 'School_Document.html',
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape'
+): boolean => {
+  try {
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button').forEach((el) => el.remove());
+    // Convert inputs to plain spans so values persist in saved HTML
+    clone.querySelectorAll('select').forEach((el) => {
+      const sel = el as HTMLSelectElement;
+      const parent = sel.parentElement;
+      if (parent && parent.querySelector('.cce-pdf-text')) {
+        sel.remove();
+        return;
+      }
+      const text = sel.options[sel.selectedIndex]?.text || sel.value;
+      const span = document.createElement('span');
+      span.className = 'font-bold text-center block w-full';
+      span.style.textAlign = 'center';
+      span.textContent = text;
+      sel.parentNode?.replaceChild(span, sel);
+    });
+    clone.querySelectorAll('input').forEach((el) => {
+      const inp = el as HTMLInputElement;
+      const parent = inp.parentElement;
+      if (parent && parent.querySelector('.cce-pdf-text')) {
+        const pdfEl = parent.querySelector('.cce-pdf-text') as HTMLElement;
+        if (inp.value && inp.value.trim() !== '') {
+          pdfEl.textContent = inp.value.trim();
+        }
+        inp.remove();
+        return;
+      }
+      const span = document.createElement('span');
+      span.className = 'font-bold font-mono text-center block w-full';
+      span.style.textAlign = 'center';
+      span.textContent = inp.value || '-';
+      inp.parentNode?.replaceChild(span, inp);
+    });
+
+    const fullHtml = buildPrintableHtmlDocument(clone.innerHTML, filename, paperSize, orientation);
+    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.endsWith('.html') ? filename : `${filename}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return true;
+  } catch (err) {
+    console.error('downloadElementAsHtml error:', err);
+    return false;
+  }
+};
+
+/**
+ * Master Print Trigger:
+ * Uses isolated print portal on the main document body + window.print()
+ * which works reliably across all browsers, iframes, and preview environments
+ * without popup blockers or iframe restrictions.
  */
 export const executeReportPrint = async (
   element: HTMLElement | null,
   title: string = 'Karnataka School Report',
-  paperSize: ReportPaperSize = 'legal'
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape'
 ): Promise<boolean> => {
   if (!element) {
     window.focus();
@@ -700,12 +998,136 @@ export const executeReportPrint = async (
     return true;
   }
 
-  // 1. Try isolated iframe print with custom paper size
-  const iframeSuccess = await printElementViaIframe(element, title, paperSize);
-  if (iframeSuccess) return true;
+  try {
+    const prevTitle = document.title;
+    if (title) document.title = title;
 
-  // 2. Fallback: open clean print window with custom paper size
-  return openCleanPrintWindow(element, title, paperSize);
+    // 1. Remove any leftover print portal
+    const existingPortal = document.getElementById('cce-isolated-print-portal');
+    if (existingPortal) {
+      existingPortal.remove();
+    }
+
+    // 2. Create isolated print portal container attached directly to document.body
+    const portal = document.createElement('div');
+    portal.id = 'cce-isolated-print-portal';
+    portal.setAttribute('data-paper-size', paperSize);
+    portal.setAttribute('data-orientation', orientation);
+
+    // 3. Clone element with full fidelity
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.classList.add('cce-pdf-mode');
+    clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button').forEach((btn) => btn.remove());
+
+    // Strip inline width, margin, and padding so ONLY @page controls margins during printing
+    clone.querySelectorAll<HTMLElement>('.report-page-sheet').forEach((s) => {
+      s.classList.add('cce-pdf-mode');
+      s.style.padding = '0';
+      s.style.paddingLeft = '0px';
+      s.style.paddingRight = '0px';
+      s.style.margin = '0';
+      s.style.marginLeft = '0px';
+      s.style.marginRight = '0px';
+      s.style.width = '100%';
+      s.style.maxWidth = '100%';
+      s.style.boxSizing = 'border-box';
+      s.querySelectorAll<HTMLElement>('div').forEach((d) => {
+        d.style.paddingLeft = '0px';
+        d.style.marginLeft = '0px';
+      });
+    });
+
+    // Sync live inputs from live DOM to clone
+    const originalInputs = element.querySelectorAll<HTMLInputElement>('input');
+    const clonedInputs = clone.querySelectorAll<HTMLInputElement>('input');
+    originalInputs.forEach((orig, idx) => {
+      const cloned = clonedInputs[idx];
+      if (cloned) {
+        cloned.value = orig.value;
+        const parent = cloned.parentElement;
+        const pdfEl = parent?.querySelector('.cce-pdf-text') as HTMLElement | null;
+        if (pdfEl && orig.value && orig.value.trim() !== '') {
+          pdfEl.textContent = orig.value.trim();
+        }
+      }
+    });
+
+    // Replace selects in clone with clean text
+    clone.querySelectorAll('select').forEach((el) => {
+      const sel = el as HTMLSelectElement;
+      const text = sel.options[sel.selectedIndex]?.text || sel.value;
+      const span = document.createElement('span');
+      span.className = 'font-bold';
+      span.textContent = text;
+      el.parentNode?.replaceChild(span, el);
+    });
+
+    const pageStyle = document.createElement('style');
+    pageStyle.textContent = `
+      @page {
+        size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
+        margin: 5mm 2mm 5mm 0mm !important;
+      }
+      #cce-isolated-print-portal .report-page-sheet {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      #cce-isolated-print-portal .report-page-sheet > div,
+      #cce-isolated-print-portal .cce-sheet-container {
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      #cce-isolated-print-portal table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        box-sizing: border-box !important;
+      }
+    `;
+    portal.appendChild(pageStyle);
+    portal.appendChild(clone);
+    document.body.appendChild(portal);
+
+    // 4. Activate print mode class on body (hiding everything else in print media via index.css)
+    document.body.classList.add('cce-print-mode-active');
+
+    // 5. Invoke native window.print() reliably
+    const cleanup = () => {
+      document.body.classList.remove('cce-print-mode-active');
+      if (document.body.contains(portal)) {
+        portal.remove();
+      }
+      document.title = prevTitle;
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    window.addEventListener('afterprint', cleanup);
+
+    // Small delay to ensure browser layout engine parses the portal
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    window.focus();
+    window.print();
+
+    // Safety timeout cleanup if afterprint doesn't fire
+    setTimeout(cleanup, 2500);
+    return true;
+  } catch (err) {
+    console.warn('Isolated portal print failed, falling back to iframe:', err);
+    try {
+      const printed = await printElementViaIframe(element, title, paperSize, orientation);
+      if (printed) return true;
+    } catch (e2) {
+      console.warn('printElementViaIframe also failed, opening window:', e2);
+    }
+    return openCleanPrintWindow(element, title, paperSize, orientation);
+  }
 };
 
 /**
@@ -797,3 +1219,6 @@ export const shareReportToWhatsApp = async (
     return false;
   }
 };
+
+// Re-export all dedicated report-specific print & PDF helpers
+export * from './reportPrintPdfHelpers';

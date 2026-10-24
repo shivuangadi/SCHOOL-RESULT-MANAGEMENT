@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Student, SchoolRecord, StudentExamMarks } from '../types';
+import { Student, SchoolRecord, StudentExamMarks, formatClassStd } from '../types';
 import {
   computeStudentCceDetails,
   generateDefaultPrimaryMarks,
@@ -17,6 +17,7 @@ import {
 import {
   executeReportPrint,
   downloadElementAsPdf,
+  downloadElementAsHtml,
   exportElementAsImage,
   shareReportToWhatsApp,
   ReportPaperSize,
@@ -26,6 +27,7 @@ import {
   Printer,
   Download,
   FileSpreadsheet,
+  FileCode,
   Share2,
   X,
   Calendar,
@@ -37,17 +39,20 @@ import {
 } from 'lucide-react';
 
 import { CcePage2Register } from './primary_cce/CcePage2Register';
-import { CcePage3ClassGrade } from './primary_cce/CcePage3ClassGrade';
 import { CcePage4Detailed400 } from './primary_cce/CcePage4Detailed400';
 import { CcePage5AllClassGrade } from './primary_cce/CcePage5AllClassGrade';
 import { CcePage6Abstract } from './primary_cce/CcePage6Abstract';
 import { MarathiUrduCcePage2Register } from './marathi_urdu_cce/MarathiUrduCcePage2Register';
-import { MarathiUrduCcePage3ClassGrade } from './marathi_urdu_cce/MarathiUrduCcePage3ClassGrade';
 import { MarathiUrduCcePage4Detailed500 } from './marathi_urdu_cce/MarathiUrduCcePage4Detailed500';
 import { MarathiUrduCcePage5AllClassGrade } from './marathi_urdu_cce/MarathiUrduCcePage5AllClassGrade';
 import { MarathiUrduCcePage6Abstract } from './marathi_urdu_cce/MarathiUrduCcePage6Abstract';
 import { SatsReport } from './marathi_urdu_cce/SatsReport';
+import { SatsGradeUploadContent } from './SatsGradeUploadModal';
 import { computeMarathiUrduStudentCce, ComputedMarathiUrduStudent } from '../utils/marathiUrduCceHelper';
+import {
+  printMarathiUrduCcePage2Register,
+  exportMarathiUrduCcePage2Pdf,
+} from '../utils/report_layouts/group2_marathi_urdu/marathiUrduPage2LayoutHelper';
 
 interface PrimaryCceReportsModalProps {
   isOpen: boolean;
@@ -462,6 +467,12 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
 
   // Print Handler
   const handlePrint = async () => {
+    if (!reportRef.current) return;
+    if (activeTab === 'page2' && isMarathiOrUrdu) {
+      const title = `CCE Page 2 100 Marks Consolidation (${marathiUrduMedium} Medium) - Class ${selectedClass}`;
+      await printMarathiUrduCcePage2Register(reportRef.current, title, paperSize);
+      return;
+    }
     const title = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}`;
     await executeReportPrint(reportRef.current, title, paperSize);
   };
@@ -469,6 +480,11 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
   // PDF Export
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
+    if (activeTab === 'page2' && isMarathiOrUrdu) {
+      const filename = `CCE_Page2_100Marks_${marathiUrduMedium}_Class_${selectedClass}_${academicYear}_${paperSize.toUpperCase()}_Landscape.pdf`;
+      await exportMarathiUrduCcePage2Pdf(reportRef.current, filename, paperSize);
+      return;
+    }
     const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}_${paperSize.toUpperCase()}.pdf`;
     await downloadElementAsPdf(reportRef.current, filename, paperSize);
   };
@@ -480,6 +496,13 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
     exportHtmlTableToExcel(reportRef.current, filename);
   };
 
+  // HTML Export
+  const handleDownloadHtml = () => {
+    if (!reportRef.current) return;
+    const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}.html`;
+    downloadElementAsHtml(reportRef.current, filename, paperSize);
+  };
+
   // WhatsApp Share
   const handleShareWhatsApp = async () => {
     const caption = `*${schoolRecord?.schoolName || 'Karnataka School'}*\n*${activeTab.toUpperCase()} CCE Official Report - Class ${selectedClass}*\nAcademic Year: ${academicYear}\nStudents: ${currentClassComputedList.length}\nHM: ${schoolRecord?.headmasterName || 'Headmaster'}`;
@@ -489,8 +512,8 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-7xl max-h-[96vh] flex flex-col overflow-hidden border border-slate-300 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-1 sm:p-3 overflow-y-auto">
+      <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-[99vw] xl:max-w-[98vw] max-h-[98vh] flex flex-col overflow-hidden border border-slate-300 animate-in fade-in zoom-in-95 duration-200">
         {/* Top Header Bar */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 shrink-0">
           <div className="space-y-1">
@@ -500,7 +523,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
               </span>
               <div>
                 <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                  <span>೧-೫ನೇ ತರಗತಿ ಅಧಿಕೃತ ಸಿ.ಸಿ.ಇ ವರದಿಗಳು (1-5th CCE Reports Suite)</span>
+                  <span>1-5ನೇ ತರಗತಿ ಅಧಿಕೃತ ಸಿ.ಸಿ.ಇ ವರದಿಗಳು (1-5th CCE Reports Suite)</span>
                   <span className="text-xs bg-amber-400 text-slate-950 font-mono font-bold px-2 py-0.5 rounded-full">
                     LEGAL SIZE
                   </span>
@@ -538,20 +561,9 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
             }`}
           >
-            <span>೨. 100 ಅಂಕ ಕ್ರೋಢೀಕರಣ ವಹಿ (Page 2)</span>
+            <span>{isMarathiOrUrdu ? '2. 100 Marks Consolidation (Page 2)' : '2. 100 ಅಂಕ ಕ್ರೋಢೀಕರಣ ವಹಿ (Page 2)'}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('page3')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'page3'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
-            }`}
-          >
-            <span>೩. ವಿಷಯ & ಶ್ರೇಣಿವಾರು (Page 3)</span>
-          </button>
 
           <button
             type="button"
@@ -562,7 +574,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
             }`}
           >
-            <span>{isMarathiOrUrdu ? '೪. All subject Consolidation 9lines (500marks)' : 'All subject Consolidation 9lines(400marks)'}</span>
+            <span>{isMarathiOrUrdu ? 'Report-3 (All subject Consolidation 9lines 500m)' : 'Report-3 (All subject Consolidation 9lines 400m)'}</span>
           </button>
 
           <button
@@ -574,7 +586,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
             }`}
           >
-            <span>{isMarathiOrUrdu ? '೫. All Class Abstract (Portrait)' : '೫. 1-5 ಎಲ್ಲಾ ತರಗತಿ ಶ್ರೇಣಿವಾರು (Page 5: ಭಾವಚಿತ್ರ)'}</span>
+            <span>Report-4 Grade Abbstract 1-5</span>
           </button>
 
           <button
@@ -586,29 +598,27 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
             }`}
           >
-            <span>{isMarathiOrUrdu ? '೬. Annual Result Abstract (Landscape)' : '೬. ಪರೀಕ್ಷೆ ಹಾಜರಾದ / ಉತ್ತೀರ್ಣ (Page 6: ಪ್ರವರ್ಗವಾರು)'}</span>
+            <span>{isMarathiOrUrdu ? '6. Annual Result Abstract (Landscape)' : '6. ಪರೀಕ್ಷೆ ಹಾಜರಾದ / ಉತ್ತೀರ್ಣ (Page 6: ಪ್ರವರ್ಗವಾರು)'}</span>
           </button>
 
-          {isMarathiOrUrdu && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('sats')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'sats'
-                  ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300'
-                  : 'bg-amber-900/60 text-amber-200 hover:bg-amber-800 hover:text-white border border-amber-600/40'
-              }`}
-            >
-              <span className="font-black">⭐ SATS REPORT</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('sats')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'sats'
+                ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300'
+                : 'bg-amber-900/60 text-amber-200 hover:bg-amber-800 hover:text-white border border-amber-600/40'
+            }`}
+          >
+            <span className="font-black">⭐ 7. SATS ಗ್ರೇಡ್ ನಮೂನೆ (SATS Grade Report)</span>
+          </button>
         </div>
 
         {/* Dynamic Controls Bar */}
         <div className="bg-white p-3 px-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-xs">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            {/* Class Dropdown (for page 2, 3, 4, sats) */}
-            {(activeTab === 'page2' || activeTab === 'page3' || activeTab === 'page4' || activeTab === 'sats') && (
+            {/* Class Dropdown (for page 2, 3, 4, 5, sats) */}
+            {(activeTab === 'page2' || activeTab === 'page3' || activeTab === 'page4' || activeTab === 'page5' || activeTab === 'sats') && (
               <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300">
                 <span className="font-black text-slate-700">ತರಗತಿ:</span>
                 <select
@@ -618,7 +628,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                 >
                   {['1', '2', '3', '4', '5'].map((cls) => (
                     <option key={cls} value={cls}>
-                      {cls}ನೇ ತರಗತಿ ({cls}th Std)
+                      {cls}ನೇ ತರಗತಿ ({formatClassStd(cls)})
                     </option>
                   ))}
                 </select>
@@ -687,24 +697,38 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
 
           {/* Action Buttons: Print, PDF, Excel, WhatsApp */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-              title={`Print in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
-            >
-              <Printer className="w-4 h-4" />
-              <span>ಮುದ್ರಣ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
-            </button>
+            {!(activeTab === 'page2' && isMarathiOrUrdu) && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  title={`Print in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>ಮುದ್ರಣ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  title={`Download PDF in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
+                >
+                  <Download className="w-4 h-4" />
+                  <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
+                </button>
+              </>
+            )}
 
             <button
               type="button"
-              onClick={handleDownloadPdf}
-              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-              title={`Download PDF in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
+              onClick={handleDownloadHtml}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              title="Download standalone HTML document"
             >
-              <Download className="w-4 h-4" />
-              <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
+              <FileCode className="w-4 h-4 text-amber-400" />
+              <span>HTML</span>
             </button>
 
             <button
@@ -728,8 +752,8 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
         </div>
 
         {/* Scrollable Report Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/80">
-          <div className="max-w-[1400px] mx-auto bg-white rounded-2xl shadow-md p-2">
+        <div className="flex-1 overflow-x-auto overflow-y-auto p-2 sm:p-6 bg-slate-200/80">
+          <div className="w-fit min-w-full mx-auto bg-white rounded-2xl shadow-md p-2">
             {activeTab === 'page2' && (
               isMarathiOrUrdu ? (
                 <MarathiUrduCcePage2Register
@@ -761,30 +785,6 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
               )
             )}
 
-            {activeTab === 'page3' && (
-              isMarathiOrUrdu ? (
-                <MarathiUrduCcePage3ClassGrade
-                  computedList={currentClassMarathiUrduList}
-                  schoolRecord={schoolRecord}
-                  academicYear={academicYear}
-                  selectedClass={selectedClass}
-                  medium={marathiUrduMedium}
-                  classTeacherName={classTeacherName}
-                  workingDays={workingDays}
-                  reportRef={reportRef}
-                />
-              ) : (
-                <CcePage3ClassGrade
-                  computedList={currentClassComputedList}
-                  schoolRecord={schoolRecord}
-                  academicYear={academicYear}
-                  selectedClass={selectedClass}
-                  classTeacherName={classTeacherName}
-                  workingDays={workingDays}
-                  reportRef={reportRef}
-                />
-              )
-            )}
 
             {activeTab === 'page4' && (
               isMarathiOrUrdu ? (
@@ -800,6 +800,9 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                   onUpdateSubject100={handleUpdateSubject100 as any}
                   onUpdateExamPct={handleUpdateExamPct as any}
                   onUpdateMarks={handleUpdateMarks as any}
+                  onUpdateAttendance={handleUpdateAttendance}
+                  onUpdateSemAttendance={handleUpdateSemAttendance}
+                  onUpdateCoScholastic={handleUpdateFinalCoGrade as any}
                 />
               ) : (
                 <CcePage4Detailed400
@@ -809,6 +812,8 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                   selectedClass={selectedClass}
                   classTeacherName={classTeacherName}
                   workingDays={workingDays}
+                  paperSize={paperSize}
+                  onPaperSizeChange={setPaperSize}
                   reportRef={reportRef}
                   onUpdateMarks={handleUpdateMarks}
                   onUpdateExamPct={handleUpdateExamPct}
@@ -826,6 +831,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                   studentsByClass={marathiUrduStudentsByClass}
                   schoolRecord={schoolRecord}
                   academicYear={academicYear}
+                  selectedClass={selectedClass}
                   reportRef={reportRef}
                 />
               ) : (
@@ -833,6 +839,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
                   studentsByClass={studentsByClass}
                   schoolRecord={schoolRecord}
                   academicYear={academicYear}
+                  selectedClass={selectedClass}
                   reportRef={reportRef}
                 />
               )
@@ -857,14 +864,24 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
             )}
 
             {activeTab === 'sats' && (
-              <SatsReport
-                studentsByClass={marathiUrduStudentsByClass}
-                schoolRecord={schoolRecord}
-                academicYear={academicYear}
-                reportRef={reportRef}
-                selectedClass={selectedClass}
-                onSelectClass={(cls) => setSelectedClass(cls)}
-              />
+              isMarathiOrUrdu ? (
+                <SatsReport
+                  studentsByClass={marathiUrduStudentsByClass}
+                  schoolRecord={schoolRecord}
+                  academicYear={academicYear}
+                  reportRef={reportRef}
+                  selectedClass={selectedClass}
+                  onSelectClass={(cls) => setSelectedClass(cls)}
+                />
+              ) : (
+                <SatsGradeUploadContent
+                  students={students}
+                  schoolRecord={schoolRecord}
+                  academicYear={academicYear}
+                  initialClass={selectedClass}
+                  isEmbedded={true}
+                />
+              )
             )}
           </div>
         </div>

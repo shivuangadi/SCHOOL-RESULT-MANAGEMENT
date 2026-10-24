@@ -10,11 +10,13 @@ import {
 } from '../types';
 import {
   saveBulkStudents,
+  deleteMultipleStudents,
   exportStudentsToExcel,
   getClassesFromRange,
   normalizeStudentDates,
 } from '../utils/studentStore';
 import { parseSatsExcel } from '../utils/satsExcelParser';
+import { containsKannada, transliterateEnglishToKannada, cleanAllWordsEnding } from '../utils/kannadaTransliterator';
 import {
   X,
   Save,
@@ -91,6 +93,7 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [deletedStudentIds, setDeletedStudentIds] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Initialize or reset rows when modal opens or initialStudents changes
@@ -99,6 +102,7 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
       // Deep clone initial students to allow edits without mutating props
       const cloned = initialStudents.map((s) => ({ ...s }));
       setRows(cloned);
+      setDeletedStudentIds([]);
       setFeedback(null);
     }
   }, [isOpen, initialStudents]);
@@ -163,7 +167,16 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
 
   // Delete row
   const handleDeleteRow = (id: string) => {
+    const target = rows.find((r) => r.id === id);
+    const targetName = target?.studentName || '';
+    setDeletedStudentIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setRows((prev) => prev.filter((r) => r.id !== id));
+    setFeedback({
+      type: 'success',
+      message: targetName
+        ? `✓ "${targetName}" ಅಳಿಸಲಾಗಿದೆ. ಖಚಿತಪಡಿಸಲು ಕೆಳಗಿನ 'ಉಳಿಸಿ (Save Changes)' ಬಟನ್ ಒತ್ತಿ.`
+        : `✓ ಸಾಲು ಅಳಿಸಲಾಗಿದೆ. ಖಚಿತಪಡಿಸಲು ಕೆಳಗಿನ 'ಉಳಿಸಿ (Save Changes)' ಬಟನ್ ಒತ್ತಿ.`,
+    });
   };
 
   // Interactive sorting state
@@ -256,7 +269,15 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
     try {
       // Validate that filled rows have names
       const validRows = rows.filter((r) => r.studentName && r.studentName.trim().length > 0);
-      if (validRows.length === 0) {
+
+      // Determine all deleted student IDs
+      const remainingIds = new Set(validRows.map((r) => r.id));
+      const missingFromInitial = initialStudents
+        .filter((init) => !remainingIds.has(init.id))
+        .map((s) => s.id);
+      const allDeletedIds = Array.from(new Set([...deletedStudentIds, ...missingFromInitial]));
+
+      if (validRows.length === 0 && allDeletedIds.length === 0) {
         setFeedback({
           type: 'error',
           message: 'ದಯವಿಟ್ಟು ಕನಿಷ್ಠ ಒಬ್ಬ ವಿದ್ಯಾರ್ಥಿಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ (Please enter at least one student with a name).',
@@ -265,25 +286,50 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
         return;
       }
 
-      const normalizedList = validRows.map((st) => normalizeStudentDates({
-        ...st,
-        studentName: st.studentName.trim(),
-        fatherName: (st.fatherName || '').trim(),
-        motherName: (st.motherName || '').trim(),
-        satsNo: (st.satsNo || '').trim(),
-        schoolRegNo: (st.schoolRegNo || '').trim(),
-        aadharNo: (st.aadharNo || '').trim(),
-        penNo: (st.penNo || '').trim(),
-        diseCode: diseCode,
-        schoolId: diseCode,
-        academicYear: academicYear,
-      }));
+      // 1. Permanently delete / move to Dropbox all removed students first
+      if (allDeletedIds.length > 0) {
+        await deleteMultipleStudents(allDeletedIds, diseCode, diseCode, academicYear);
+      }
 
-      await saveBulkStudents(normalizedList, diseCode, diseCode, academicYear);
+      const normalizedList = validRows.map((st) => {
+        const trimmedName = st.studentName.trim();
+        const trimmedFather = (st.fatherName || '').trim();
+        const trimmedMother = (st.motherName || '').trim();
+        const isKn = containsKannada(trimmedName);
+        const knStudent = isKn ? cleanAllWordsEnding(trimmedName) : (st.studentNameKn ? cleanAllWordsEnding(st.studentNameKn) : transliterateEnglishToKannada(trimmedName));
+        const knFather = containsKannada(trimmedFather) ? cleanAllWordsEnding(trimmedFather) : (st.fatherNameKn ? cleanAllWordsEnding(st.fatherNameKn) : (trimmedFather ? transliterateEnglishToKannada(trimmedFather) : '-'));
+        const knMother = containsKannada(trimmedMother) ? cleanAllWordsEnding(trimmedMother) : (st.motherNameKn ? cleanAllWordsEnding(st.motherNameKn) : (trimmedMother ? transliterateEnglishToKannada(trimmedMother) : '-'));
+        return normalizeStudentDates({
+          ...st,
+          studentName: isKn ? knStudent : trimmedName,
+          fatherName: containsKannada(trimmedFather) ? knFather : trimmedFather,
+          motherName: containsKannada(trimmedMother) ? knMother : trimmedMother,
+          originalStudentName: !isKn ? trimmedName : (st.originalStudentName || trimmedName),
+          studentNameKn: knStudent,
+          fatherNameKn: knFather,
+          motherNameKn: knMother,
+          satsNo: (st.satsNo || '').trim(),
+          schoolRegNo: (st.schoolRegNo || '').trim(),
+          aadharNo: (st.aadharNo || '').trim(),
+          penNo: (st.penNo || '').trim(),
+          diseCode: diseCode,
+          schoolId: diseCode,
+          academicYear: academicYear,
+        });
+      });
+
+      // 2. Save remaining students with replaceAll: true so removed students are not resurrected
+      await saveBulkStudents(normalizedList, diseCode, diseCode, academicYear, {
+        deletedStudentIds: allDeletedIds,
+        replaceAll: true,
+      });
+
       onSaveSuccess(normalizedList);
       setFeedback({
         type: 'success',
-        message: `✓ ಒಟ್ಟು ${normalizedList.length} ವಿದ್ಯಾರ್ಥಿಗಳ ವಿವರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸರ್ವರ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ! (Saved ${normalizedList.length} students successfully!)`,
+        message: allDeletedIds.length > 0
+          ? `✓ ${normalizedList.length} ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ (${allDeletedIds.length} ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ಡ್ರಾಪ್‌ಬಾಕ್ಸ್‌ಗೆ ಸರಿಸಲಾಗಿದೆ)!`
+          : `✓ ಒಟ್ಟು ${normalizedList.length} ವಿದ್ಯಾರ್ಥಿಗಳ ವಿವರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸರ್ವರ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ! (Saved ${normalizedList.length} students successfully!)`,
       });
       setTimeout(() => {
         onClose();
@@ -595,7 +641,7 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
                         value={st.satsNo || ''}
                         onChange={(e) => handleCellChange(st.id, 'satsNo', e.target.value)}
                         placeholder="SATS No"
-                        className="w-full px-2 py-1 font-mono font-bold text-slate-900 border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded-lg focus:outline-none"
+                        className="w-full px-2 py-1 font-mono font-black text-red-900 border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white rounded-lg focus:outline-none"
                       />
                     </td>
 
@@ -727,7 +773,7 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
                         value={st.penNo || ''}
                         onChange={(e) => handleCellChange(st.id, 'penNo', e.target.value)}
                         placeholder="PEN No"
-                        className="w-full px-2 py-1 font-mono font-bold text-slate-800 border border-transparent hover:border-slate-300 focus:border-blue-500 rounded-lg focus:outline-none"
+                        className="w-full px-2 py-1 font-mono font-black text-red-900 border border-transparent hover:border-slate-300 focus:border-blue-500 rounded-lg focus:outline-none"
                       />
                     </td>
 

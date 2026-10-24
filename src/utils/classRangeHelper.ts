@@ -16,7 +16,7 @@ export const getApplicableClasses = (
   schoolProfileOrRange?: SchoolRecord | string | null
 ): StudentClass[] => {
   if (!schoolProfileOrRange) {
-    return ['1', '2', '3', '4', '5', '6', '7', '8'];
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   }
 
   const schoolRange =
@@ -25,7 +25,7 @@ export const getApplicableClasses = (
       : schoolProfileOrRange.schoolRange;
 
   if (!schoolRange) {
-    return ['1', '2', '3', '4', '5', '6', '7', '8'];
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   }
 
   const matches = schoolRange.match(/\d+/g);
@@ -49,7 +49,7 @@ export const getApplicableClasses = (
     }
   }
 
-  return ['1', '2', '3', '4', '5', '6', '7', '8'];
+  return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 };
 
 export const getClassesFromRange = getApplicableClasses;

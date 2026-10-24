@@ -13,6 +13,31 @@ export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'SUSPENDED';
 
 export type UserRole = 'admin' | 'schoolAdmin';
 
+export const formatClassOrdinal = (cls: StudentClass | string | number): string => {
+  const cStr = String(cls).trim();
+  if (cStr === '1') return '1st';
+  if (cStr === '2') return '2nd';
+  if (cStr === '3') return '3rd';
+  return `${cStr}th`;
+};
+
+export const formatClassStd = (cls: StudentClass | string | number): string => {
+  return `${formatClassOrdinal(cls)} Std`;
+};
+
+export const splitStudentNameTo3Rows = (fullName?: string): [string, string, string] => {
+  if (!fullName || !fullName.trim()) return ['', '', ''];
+  const words = fullName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return ['', '', ''];
+  if (words.length === 1) return [words[0], '', ''];
+  if (words.length === 2) return [words[0], '', words[1]];
+  if (words.length === 3) return [words[0], words[1], words[2]];
+  const firstName = words[0];
+  const lastName = words[words.length - 1];
+  const middleName = words.slice(1, words.length - 1).join(' ');
+  return [firstName, middleName, lastName];
+};
+
 export const getFormattedClassName = (
   cls: StudentClass | string | number,
   medium?: SchoolMedium
@@ -21,19 +46,7 @@ export const getFormattedClassName = (
   if (medium === 'Kannada') {
     return `${cStr}ನೇ ತರಗತಿ`;
   }
-  const suffixes: Record<string, string> = {
-    '1': '1st Std',
-    '2': '2nd Std',
-    '3': '3rd Std',
-    '4': '4th Std',
-    '5': '5th Std',
-    '6': '6th Std',
-    '7': '7th Std',
-    '8': '8th Std',
-    '9': '9th Std',
-    '10': '10th Std',
-  };
-  return suffixes[cStr] || `${cStr}th Std`;
+  return formatClassStd(cls);
 };
 
 export interface SubjectConfig {
@@ -135,6 +148,13 @@ export interface Student {
   studentName: string;
   fatherName: string;
   motherName: string;
+  originalStudentName?: string;
+  originalFatherName?: string;
+  originalMotherName?: string;
+  studentNameKn?: string;
+  fatherNameKn?: string;
+  motherNameKn?: string;
+  namesLanguage?: 'en' | 'kn';
   classStandard: StudentClass;
   division: StudentDivision;
   satsNo: string;

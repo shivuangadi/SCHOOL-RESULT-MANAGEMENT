@@ -1,5 +1,5 @@
 import React from 'react';
-import { Student } from '../../types';
+import { Student, formatClassStd } from '../../types';
 import {
   MarathiUrduSubjectCode,
   ComputedMarathiUrduStudent,
@@ -59,7 +59,7 @@ export const MarathiUrduCcePage1Entry: React.FC<MarathiUrduCcePage1EntryProps> =
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-300 shadow-xs">
         <div className="flex items-center gap-2">
           <span className="px-3 py-1.5 bg-blue-200 border border-blue-400 font-black text-xs text-blue-950 rounded-lg">
-            CLASS: {selectedClass}th Std
+            CLASS: {formatClassStd(selectedClass)}
           </span>
           <div className="flex items-center gap-1">
             <span className="text-xs font-bold text-slate-700">Subject:</span>
@@ -570,7 +570,7 @@ export const MarathiUrduCcePage1Entry: React.FC<MarathiUrduCcePage1EntryProps> =
                 <th className="border border-slate-400 p-1.5 w-20">SEM</th>
                 <th className="border border-slate-400 p-1.5 min-w-[90px]">DAYS ATTENDED SCHOOL</th>
                 {MARATHI_URDU_CO_ACTIVITIES.map((act) => (
-                  <th key={act.key} className="border border-slate-400 p-1.5 min-w-[110px] text-[11px]">
+                  <th key={act.key} className="border border-slate-400 p-1.5 min-w-[110px] text-[11px] font-bold uppercase">
                     {act.nameEn}
                   </th>
                 ))}

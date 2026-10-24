@@ -34,7 +34,11 @@ import { getClassesFromRange } from '../utils/studentStore';
 import { getRealMarksFromLocal, getStudentCalculatedResult } from '../utils/marksStore';
 import { ACADEMIC_YEARS } from './SchoolDashboard';
 import { getSavedClassTeacher } from '../utils/teacherHelper';
-import { executeReportPrint, downloadElementAsPdf, ReportPaperSize } from '../utils/printPdfHelper';
+import {
+  printConsolidatedReport,
+  exportConsolidatedReportPdf,
+  ReportPaperSize,
+} from '../utils/printPdfHelper';
 import { calculateGrade, calculateSubjectGrade } from '../data/demoData';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
@@ -50,6 +54,8 @@ import {
   Users,
   Search,
   BookOpen,
+  Plus,
+  Minus,
 } from 'lucide-react';
 
 interface CceConsolidatedReportMarathiUrduModalProps {
@@ -247,6 +253,18 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
     });
   }, [filteredStudents, activeMedium, marksMap]);
 
+  // Default: 12 students per page
+  const [studentsPerPage, setStudentsPerPage] = useState<number>(12);
+
+  const chunks = useMemo(() => {
+    if (consolidatedRows.length === 0) return [[]];
+    const res = [];
+    for (let i = 0; i < consolidatedRows.length; i += studentsPerPage) {
+      res.push(consolidatedRows.slice(i, i + studentsPerPage));
+    }
+    return res;
+  }, [consolidatedRows, studentsPerPage]);
+
   if (!isOpen) return null;
 
   // Print Action
@@ -260,7 +278,7 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
     if (!printContent) return;
 
     const title = `${schoolName} - CCE Consolidated Report - Class ${selectedClass} (${activeMedium} Medium)`;
-    await executeReportPrint(printContent, title, paperSize);
+    await printConsolidatedReport(printContent, title, paperSize);
   };
 
   // Download PDF Action
@@ -276,7 +294,7 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
     setIsExportingPdf(true);
     try {
       const filename = `CCE_Consolidated_Report_${activeMedium}_Class_${selectedClass}_${selectedYear}_${paperSize.toUpperCase()}.pdf`;
-      await downloadElementAsPdf(printElement, filename, paperSize);
+      await exportConsolidatedReportPdf(printElement, filename, paperSize);
     } catch (err) {
       console.error('PDF export error:', err);
       window.print();
@@ -390,6 +408,42 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
               </select>
             </div>
 
+            {/* Students Per Page Selector with Increase (+) and Decrease (-) controls */}
+            <div className="flex items-center gap-1.5 bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
+              <Users className="w-3.5 h-3.5 text-amber-300" />
+              <span className="font-bold text-slate-200 text-xs">Per Page:</span>
+              <button
+                type="button"
+                onClick={() => setStudentsPerPage((prev) => Math.max(1, prev - 1))}
+                className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-white cursor-pointer"
+                title="Decrease students per page"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="font-mono font-black text-amber-300 px-1 text-xs">
+                {studentsPerPage}
+              </span>
+              <button
+                type="button"
+                onClick={() => setStudentsPerPage((prev) => Math.min(50, prev + 1))}
+                className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-white cursor-pointer"
+                title="Increase students per page"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+              <select
+                value={studentsPerPage}
+                onChange={(e) => setStudentsPerPage(Number(e.target.value))}
+                className="bg-slate-900 text-amber-300 font-bold border border-slate-700 rounded px-1.5 py-0.5 text-xs cursor-pointer ml-1"
+              >
+                {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 25].map((n) => (
+                  <option key={n} value={n}>
+                    {n} students {n === 12 ? '(Default)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Switch to Kannada / English Report if applicable */}
             {onSwitchToKannadaEnglish && (
               <button
@@ -454,12 +508,15 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
             REPORT PREVIEW BODY (SCROLLABLE CONTAINER)
             ======================================================== */}
         <div className="flex-1 bg-slate-200 overflow-auto p-4 sm:p-6 flex justify-center items-start">
-          {/* Legal Landscape Sheet: 355.6mm wide, white background, shadow-2xl */}
+          {/* Official Landscape Sheet (A4 or Legal): 20mm left margin, 5mm right margin */}
           <div
             ref={printableRef}
-            className="bg-white text-slate-950 shadow-2xl rounded-none w-[355.6mm] min-h-[215.9mm] p-[5mm_10mm_0.75mm_20mm] font-sans flex flex-col justify-between shrink-0"
+            className="report-page-sheet cce-sheet-container bg-white text-slate-950 shadow-2xl rounded-none font-sans flex flex-col justify-between shrink-0"
             style={{
               boxSizing: 'border-box',
+              width: paperSize === 'a4' ? '297mm' : '355.6mm',
+              minHeight: paperSize === 'a4' ? '210mm' : '215.9mm',
+              padding: '6mm 2mm 6mm 0mm',
               fontFamily: "'Anek Kannada', 'Plus Jakarta Sans', sans-serif",
             }}
           >
@@ -520,7 +577,7 @@ export const CceConsolidatedReportMarathiUrduModal: React.FC<CceConsolidatedRepo
                   ALL TABLE HEADINGS IN ENGLISH
                   ======================================================== */}
               <div className="w-full overflow-hidden mt-1">
-                <table className="w-full text-center border-collapse text-[9.5px] sm:text-[10.5px] border border-slate-900">
+                <table className="w-full text-center border-collapse text-[9.5px] sm:text-[10.5px] border border-slate-900 table-fixed" style={{ tableLayout: 'fixed', width: '100%' }}>
                   <thead className="bg-slate-100 text-slate-950 font-black uppercase tracking-wider">
                     {/* Tier 1 Header */}
                     <tr className="border-b border-slate-900 h-8">

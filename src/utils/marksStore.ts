@@ -408,10 +408,8 @@ export const getStudentCalculatedResult = (
       ? 'PROMOTED'
       : !hasAnyEntered
       ? ('-' as any)
-      : percentage >= 35
-      ? 'PROMOTED'
       : percentage >= 30
-      ? 'ELIGIBLE FOR SUPPLEMENTARY'
+      ? 'PROMOTED'
       : 'DETAINED';
 
   return {

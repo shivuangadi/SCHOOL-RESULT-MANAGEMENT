@@ -11,9 +11,11 @@ import {
   saveStudentMarks,
   subscribeSchoolMarks,
 } from '../utils/marksStore';
+import { distributeSubject100Marks, distributePartB100Marks } from '../utils/marksDistribution';
 import {
   executeReportPrint,
   downloadElementAsPdf,
+  downloadElementAsHtml,
   exportElementAsImage,
   shareReportToWhatsApp,
   ReportPaperSize,
@@ -29,6 +31,7 @@ import {
   Layers,
   BookOpen,
   CheckCircle2,
+  FileCode,
 } from 'lucide-react';
 
 import { HpCcePage1Entry } from './higher_primary_cce/HpCcePage1Entry';
@@ -223,13 +226,14 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
     const pctKey = `${exam}_pct`;
     const isSa = exam === 'sa1' || exam === 'sa2';
     let propRaw: number | null = null;
+    let clampedPct: number | null = null;
     if (val !== null && !isNaN(val)) {
       if (isSa) {
-        const clamped = Math.min(30, Math.max(0, Math.floor(val)));
-        propRaw = Math.min(50, Math.round((clamped * 50) / 30));
+        clampedPct = Math.min(30, Math.max(0, Math.floor(val)));
+        propRaw = Math.min(50, Math.round((clampedPct * 50) / 30));
       } else {
-        const clamped = Math.min(10, Math.max(0, Math.floor(val)));
-        propRaw = Math.min(20, clamped * 2);
+        clampedPct = Math.min(10, Math.max(0, Math.floor(val)));
+        propRaw = Math.min(20, clampedPct * 2);
       }
     }
 
@@ -245,7 +249,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
       const existingSub = existing.subjects[subCode] || { code: subCode };
       const updatedSub = {
         ...existingSub,
-        [pctKey]: val,
+        [pctKey]: clampedPct,
         [exam]: propRaw,
       };
 
@@ -277,7 +281,8 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
       };
 
       const existingSub = existing.subjects[subCode] || { code: subCode };
-      const updatedSub = { ...existingSub, total: total100 };
+      const distributed = distributeSubject100Marks(total100, selectedClass, subCode);
+      const updatedSub = { ...existingSub, ...distributed };
 
       const updated = {
         ...existing,
@@ -360,7 +365,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
   const handleUpdatePartBMarks = (
     studentId: string,
     subjectKey: string,
-    sem: 'sem1' | 'sem2',
+    sem: 'sem1' | 'sem2' | 'total',
     val: number | null
   ) => {
     setMarksMap((prev) => {
@@ -375,14 +380,32 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
       const existingPartB = (existing as any).partBSubjects || {};
       const existingSub = existingPartB[subjectKey] || {};
 
+      let updatedSubValues: any = {};
+      if (sem === 'total') {
+        const distributed = distributePartB100Marks(val);
+        updatedSubValues = {
+          ...existingSub,
+          sem1: distributed.sem1,
+          sem2: distributed.sem2,
+          total: distributed.total,
+        };
+      } else {
+        const otherSem = sem === 'sem1' ? 'sem2' : 'sem1';
+        const otherVal = existingSub[otherSem] !== undefined && existingSub[otherSem] !== null ? Number(existingSub[otherSem]) : 0;
+        const currentVal = val !== null && val !== undefined ? Number(val) : 0;
+        const total = Math.min(100, Math.max(0, currentVal + otherVal));
+        updatedSubValues = {
+          ...existingSub,
+          [sem]: val,
+          total,
+        };
+      }
+
       const updated = {
         ...existing,
         partBSubjects: {
           ...existingPartB,
-          [subjectKey]: {
-            ...existingSub,
-            [sem]: val,
-          },
+          [subjectKey]: updatedSubValues,
         },
       };
 
@@ -399,10 +422,10 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
         return 'ಅಂಕ ದಾಖಲಾತಿ ನಮೂನೆ (Class 6-8 Marks Entry Form • Part A & B)';
       case 'consolidation_100':
       case 'page3':
-        return '೧೦೦ ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ (100 Marks Consolidation Broadsheet • 700 Marks)';
+        return '100 ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ (100 Marks Consolidation Broadsheet • 700 Marks)';
       case 'consolidation_9line':
       case 'page2':
-        return '೯-ಸಾಲು CCE ಸಂಯೋಜಿತ ವರದಿ (9-Line Consolidation • Legal Landscape)';
+        return '9-ಸಾಲು CCE ಸಂಯೋಜಿತ ವರದಿ (9-Line Consolidation • Legal Landscape)';
       case 'sats_grade':
       case 'page4':
       case 'sats':
@@ -412,9 +435,9 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
         return 'ವಿಷಯವಾರು ಹಾಗೂ ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ (Class 1-8 Subject & Grade Abstract)';
       case 'master_abstract':
       case 'page6':
-        return '೬-೮ ಮಹಾ ಕ್ರೋಢೀಕರಣ ಘೋಷವಾರ (Class 6-8 Master Consolidation Abstract)';
+        return '1-8 ವಾರ್ಷಿಕ ಪರಿಣಾಮ ಪತ್ರಿಕೆಯ ಘೋಷವಾರ (Class 1-8 Annual Result Abstract)';
       default:
-        return '೬-೮ನೇ ತರಗತಿ CCE ಅಧಿಕೃತ ವರದಿಗಳು';
+        return '6-8ನೇ ತರಗತಿ CCE ಅಧಿಕೃತ ವರದಿಗಳು';
     }
   };
 
@@ -430,7 +453,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black text-amber-300 tracking-wide">
-                  ೬ ರಿಂದ ೮ ನೇ ತರಗತಿ CCE ಅಧಿಕೃತ ವರದಿಗಳು (Class 6-8 CCE Reports Suite)
+                  6 ರಿಂದ 8 ನೇ ತರಗತಿ CCE ಅಧಿಕೃತ ವರದಿಗಳು (Class 6-8 CCE Reports Suite)
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                   700 ಅಂಕಗಳು • {schoolMedium} Medium
@@ -468,7 +491,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>೧. ಅಂಕ ದಾಖಲಾತಿ ನಮೂನೆ (Marks Entry Form)</span>
+              <span>1. ಅಂಕ ದಾಖಲಾತಿ ನಮೂನೆ (Marks Entry Form)</span>
             </button>
 
             {/* Format 2: 100 Marks Consolidation Report */}
@@ -482,7 +505,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>೨. ೧೦೦ ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ (100 Marks Consolidation)</span>
+              <span>2. 100 ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ (100 Marks Consolidation)</span>
             </button>
 
             {/* Format 3: 9-Line Consolidation Report */}
@@ -496,7 +519,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>೩. ೯-ಸಾಲು ಸಂಯೋಜಿತ ವರದಿ (9-Line Consolidation)</span>
+              <span>3. 9-ಸಾಲು ಸಂಯೋಜಿತ ವರದಿ (9-Line Consolidation)</span>
             </button>
 
             {/* Format 4: SATS Grade Upload Format */}
@@ -510,10 +533,10 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <Award className="w-3.5 h-3.5 text-amber-900" />
-              <span>೪. SATS ಗ್ರೇಡ್ ನಮೂನೆ (SATS Grade Upload)</span>
+              <span>4. SATS ಗ್ರೇಡ್ ನಮೂನೆ (SATS Grade Upload)</span>
             </button>
 
-            {/* Format 5: Class 1-8 Subject & Grade Abstract */}
+            {/* Format 5: Class 6-8 Subject & Grade Abstract */}
             <button
               type="button"
               onClick={() => setActiveTab('class_abstract')}
@@ -524,7 +547,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>೫. ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ (Class 1-8 Abstract)</span>
+              <span>5. 6-8 ತರಗತಿವಾರು, ವಿಷಯವಾರು & ಶ್ರೇಣಿವಾರು ಘೋಷವಾರ (Class 6-8 Abstract)</span>
             </button>
 
             {/* Format 6: Class 6-8 Master Abstract */}
@@ -538,7 +561,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>೬. ೬-೮ ಮಹಾ ಘೋಷವಾರ (Master Abstract)</span>
+              <span>6. 1-8 ಮಹಾ ಘೋಷವಾರ (Class 1-8 Abstract)</span>
             </button>
           </div>
 
@@ -605,9 +628,9 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-white text-slate-700 hover:bg-slate-200'
                 }`}
-                title="1. A4 Size (295mm width, 210mm height)"
+                title="1. A4 Size (297mm × 210mm)"
               >
-                1. A4 (295×210mm)
+                1. A4 (297×210mm)
               </button>
               <button
                 type="button"
@@ -617,21 +640,54 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-white text-slate-700 hover:bg-slate-200'
                 }`}
-                title="2. Legal Size (340mm width, 210mm height)"
+                title="2. Legal Size (355.6mm × 215.9mm)"
               >
-                2. Legal (340×210mm)
+                2. Legal (355.6×215.9mm)
               </button>
             </div>
 
             <button
               type="button"
+              onClick={async () => {
+                if (reportRef.current) {
+                  const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
+                  const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
+                  const summary = `*${schoolRecord?.schoolName || 'ಶಾಲೆ'}*\n*ವರದಿ (${academicYear})*\nತರಗತಿ: ${selectedClass}ನೇ ತರಗತಿ\nದಿನಾಂಕ: ${new Date().toLocaleDateString('kn-IN')}`;
+                  await shareReportToWhatsApp(reportRef.current, summary, filename);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              title="Share report image & summary to WhatsApp"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 if (reportRef.current) {
-                  executeReportPrint(reportRef.current, getTabTitle(), paperSize);
+                  const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
+                  const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
+                  downloadElementAsHtml(reportRef.current, filename, paperSize);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              title="Download standalone HTML file to adjust margins manually"
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>HTML ಡೌನ್‌ಲೋಡ್</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (reportRef.current) {
+                  const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
+                  const docTitle = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
+                  executeReportPrint(reportRef.current, docTitle, paperSize);
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
-              title={`Print in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
+              title={`Print in ${paperSize === 'a4' ? 'A4 (297×210mm)' : 'Legal (355.6×215.9mm)'}`}
             >
               <Printer className="w-3.5 h-3.5" />
               <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
@@ -640,11 +696,13 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               type="button"
               onClick={async () => {
                 if (reportRef.current) {
-                  await downloadElementAsPdf(reportRef.current, `CCE_Report_${activeTab}_Class${selectedClass}_${paperSize.toUpperCase()}.pdf`, paperSize);
+                  const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
+                  const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
+                  await downloadElementAsPdf(reportRef.current, filename, paperSize);
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
-              title={`Download PDF in ${paperSize === 'a4' ? 'A4 (295×210mm)' : 'Legal (340×210mm)'}`}
+              title={`Download PDF in ${paperSize === 'a4' ? 'A4 (297×210mm)' : 'Legal (355.6×215.9mm)'}`}
             >
               <Download className="w-3.5 h-3.5" />
               <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
@@ -683,9 +741,11 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               classTeacherName={classTeacherName}
               workingDays={workingDays}
               reportRef={reportRef}
+              initialPaperSize={paperSize}
               onUpdateSubject100={handleUpdateSubject100}
               onUpdateAttendance={handleUpdateAttendance}
               onUpdateCoGrade={handleUpdateCoGrade}
+              onUpdatePartBMarks={handleUpdatePartBMarks}
             />
           )}
 
@@ -704,6 +764,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               onUpdateAttendance={handleUpdateAttendance}
               onUpdateSemAttendance={handleUpdateSemAttendance}
               onUpdateCoGrade={handleUpdateCoGrade}
+              onUpdatePartBMarks={handleUpdatePartBMarks}
             />
           )}
 

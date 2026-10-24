@@ -22,60 +22,506 @@ const normalizeHeader = (header: any): string => {
     .replace(/[^a-z0-9\u0C80-\u0CFF]/g, '');
 };
 
-const normalizeClass = (val: any): StudentClass => {
-  if (!val) return '1';
-  const str = String(val).trim().toUpperCase();
+export const normalizeClass = (val: any): StudentClass | null => {
+  if (val === null || val === undefined) return null;
+  let str = String(val).trim().toUpperCase();
+  if (!str) return null;
 
-  // Roman numerals
-  if (str === 'I' || str === '1' || str.includes('1ST') || str === 'CLASS 1' || str === 'STD 1' || str.includes('1ನೇ')) return '1';
-  if (str === 'II' || str === '2' || str.includes('2ND') || str === 'CLASS 2' || str === 'STD 2' || str.includes('2ನೇ')) return '2';
-  if (str === 'III' || str === '3' || str.includes('3RD') || str === 'CLASS 3' || str === 'STD 3' || str.includes('3ನೇ')) return '3';
-  if (str === 'IV' || str === '4' || str.includes('4TH') || str === 'CLASS 4' || str === 'STD 4' || str.includes('4ನೇ')) return '4';
-  if (str === 'V' || str === '5' || str.includes('5TH') || str === 'CLASS 5' || str === 'STD 5' || str.includes('5ನೇ')) return '5';
-  if (str === 'VI' || str === '6' || str.includes('6TH') || str === 'CLASS 6' || str === 'STD 6' || str.includes('6ನೇ')) return '6';
-  if (str === 'VII' || str === '7' || str.includes('7TH') || str === 'CLASS 7' || str === 'STD 7' || str.includes('7ನೇ')) return '7';
-  if (str === 'VIII' || str === '8' || str.includes('8TH') || str === 'CLASS 8' || str === 'STD 8' || str.includes('8ನೇ')) return '8';
-  if (str === 'IX' || str === '9' || str.includes('9TH') || str === 'CLASS 9' || str === 'STD 9' || str.includes('9ನೇ')) return '9';
-  if (str === 'X' || str === '10' || str.includes('10TH') || str === 'CLASS 10' || str === 'STD 10' || str.includes('10ನೇ')) return '10';
-
-  // Extract first number between 1 and 10
-  const match = str.match(/\b([1-9]|10)\b/);
-  if (match) {
-    return match[1] as StudentClass;
+  // 1. Explicit Pre-Primary exclusion: LKG, UKG, KG1, KG2, PP1, PP2, Nursery, etc.
+  if (
+    /\b(LKG|UKG|KG-?1|KG-?2|PP-?1|PP-?2|PRE-?PRIMARY|PRE-?KG|NURSERY|PLAY\s*GROUP|MONTESSORI|BALAVATIKA|ಬಾಲವಾಟಿಕ)\b/i.test(str) ||
+    str.includes('LKG') ||
+    str.includes('UKG') ||
+    str.includes('KG1') ||
+    str.includes('KG2') ||
+    str.includes('PP1') ||
+    str.includes('PP2') ||
+    str.includes('NURSERY')
+  ) {
+    return null;
   }
-  return '1';
+
+  // Remove common prefixes
+  str = str.replace(/^(CLASS|STD|STANDARD|GRADE|ತರಗತಿ|ವರ್ಗ)[\s.:_-]*/i, '').trim();
+
+  // Handle Kannada numerals: ೧-೧೦
+  const kannadaMap: Record<string, StudentClass> = {
+    '೧೦': '10', '೧': '1', '೨': '2', '೩': '3', '೪': '4',
+    '೫': '5', '೬': '6', '೭': '7', '೮': '8', '೯': '9'
+  };
+  for (const [knNum, mappedClass] of Object.entries(kannadaMap)) {
+    if (str.startsWith(knNum) || str === knNum) {
+      return mappedClass;
+    }
+  }
+
+  // Kannada words: 1ನೇ to 10ನೇ
+  if (str.includes('ಹತ್ತ') || str.includes('10ನೇ')) return '10';
+  if (str.includes('ಒಂಬತ್ತ') || str.includes('9ನೇ')) return '9';
+  if (str.includes('ಎಂಟ') || str.includes('8ನೇ')) return '8';
+  if (str.includes('ಏಳ') || str.includes('7ನೇ')) return '7';
+  if (str.includes('ಆರ') || str.includes('6ನೇ')) return '6';
+  if (str.includes('ಐದ') || str.includes('5ನೇ')) return '5';
+  if (str.includes('ನಾಲ್ಕ') || str.includes('4ನೇ')) return '4';
+  if (str.includes('ಮೂರ') || str.includes('3ನೇ')) return '3';
+  if (str.includes('ಎರಡ') || str.includes('2ನೇ')) return '2';
+  if (str.includes('ಒಂದ') || str.includes('1ನೇ')) return '1';
+
+  // Check 10 / X first to avoid matching 1 inside 10!
+  if (
+    str === '10' || str === '010' || str.startsWith('10TH') || str.startsWith('10 TH') ||
+    str.startsWith('10-') || str.startsWith('10 ') || str.startsWith('10/') ||
+    str === 'X' || str.startsWith('X-') || str.startsWith('X ') || str.startsWith('X/') ||
+    str === 'XTH' || str === 'TENTH'
+  ) {
+    return '10';
+  }
+
+  // Roman numerals / standard Arabic digits with boundaries or sections (e.g. "VI A", "6th", "06", "6")
+  if (/^(VIII|8TH|8|08)(\b|\s|[-_/]|$)/i.test(str)) return '8';
+  if (/^(VII|7TH|7|07)(\b|\s|[-_/]|$)/i.test(str)) return '7';
+  if (/^(VI|6TH|6|06)(\b|\s|[-_/]|$)/i.test(str)) return '6';
+  if (/^(IX|9TH|9|09)(\b|\s|[-_/]|$)/i.test(str)) return '9';
+  if (/^(IV|4TH|4|04)(\b|\s|[-_/]|$)/i.test(str)) return '4';
+  if (/^(V|5TH|5|05)(\b|\s|[-_/]|$)/i.test(str)) return '5';
+  if (/^(III|3RD|3|03)(\b|\s|[-_/]|$)/i.test(str)) return '3';
+  if (/^(II|2ND|2|02)(\b|\s|[-_/]|$)/i.test(str)) return '2';
+  if (/^(I|1ST|1|01)(\b|\s|[-_/]|$)/i.test(str)) return '1';
+
+  // Standalone Roman numerals
+  if (/^VIII\b/i.test(str)) return '8';
+  if (/^VII\b/i.test(str)) return '7';
+  if (/^VI\b/i.test(str)) return '6';
+  if (/^IX\b/i.test(str)) return '9';
+  if (/^IV\b/i.test(str)) return '4';
+  if (/^V\b/i.test(str)) return '5';
+  if (/^III\b/i.test(str)) return '3';
+  if (/^II\b/i.test(str)) return '2';
+  if (/^I\b/i.test(str)) return '1';
+  if (/^X\b/i.test(str)) return '10';
+
+  // Fallback: extract number 10 or 1-9 strictly with word boundary
+  const m10 = str.match(/\b10\b/);
+  if (m10) return '10';
+
+  const mSingle = str.match(/\b([1-9])\b/);
+  if (mSingle) return mSingle[1] as StudentClass;
+
+  const mZero = str.match(/\b0([1-9])\b/);
+  if (mZero) return mZero[1] as StudentClass;
+
+  // Anything other than Roman numbers I-X and Arabic numbers 1-10 -> null (do NOT import)
+  return null;
 };
 
-const normalizeDivision = (val: any): StudentDivision => {
+export const normalizeDivision = (val: any): StudentDivision => {
   if (!val) return 'A';
   const str = String(val).trim().toUpperCase();
-  if (str.includes('B')) return 'B';
-  if (str.includes('C')) return 'C';
-  if (str.includes('D')) return 'D';
+  if (str.includes('B') || str.includes('ಬಿ')) return 'B';
+  if (str.includes('C') || str.includes('ಸಿ')) return 'C';
+  if (str.includes('D') || str.includes('ಡಿ')) return 'D';
   return 'A';
 };
 
-const normalizeReligion = (val: any): StudentReligion => {
+export const normalizeReligion = (val: any): StudentReligion => {
   if (!val) return 'Hindu';
   const str = String(val).trim().toLowerCase();
-  if (str.includes('mus') || str.includes('islam')) return 'Muslim';
-  if (str.includes('chri')) return 'Christian';
-  if (str.includes('jain')) return 'Jain';
-  if (str.includes('sikh')) return 'Sikh';
-  if (str.includes('bud')) return 'Buddhist';
-  if (str.includes('hin')) return 'Hindu';
+  if (str.includes('mus') || str.includes('islam') || str.includes('ಇಸ್ಲಾಂ') || str.includes('ಮುಸ್ಲಿಂ')) return 'Muslim';
+  if (str.includes('chri') || str.includes('ಕ್ರೈಸ್ತ')) return 'Christian';
+  if (str.includes('jain') || str.includes('ಜೈನ')) return 'Jain';
+  if (str.includes('sikh') || str.includes('ಸಿಖ್')) return 'Sikh';
+  if (str.includes('bud') || str.includes('ಬೌದ್ಧ')) return 'Buddhist';
+  if (str.includes('hin') || str.includes('ಹಿಂದೂ')) return 'Hindu';
   return 'Other';
 };
 
-const normalizeCaste = (val: any): StudentCaste => {
-  if (!val) return 'GENERAL';
+export const isValidSatsNo = (val: any): boolean => {
+  if (val === null || val === undefined) return false;
   const str = String(val).trim().toUpperCase();
-  if (str === 'SC' || str.includes('SCHEDULED CASTE')) return 'SC';
-  if (str === 'ST' || str.includes('SCHEDULED TRIBE')) return 'ST';
-  if (str.includes('OBC') || str.includes('2A') || str.includes('3A') || str.includes('3B') || str.includes('CAT-1')) return 'OBC';
-  if (str.includes('MUSLIM') || str.includes('2B')) return 'MUSLIM';
-  if (str.includes('GEN') || str.includes('GM')) return 'GENERAL';
-  return 'OTHERS';
+  if (!str) return false;
+  // Common placeholders for missing/unassigned SATS in Karnataka schools
+  if (
+    str === 'N/A' ||
+    str === 'NA' ||
+    str === 'NIL' ||
+    str === 'NONE' ||
+    str === 'NULL' ||
+    str === '-' ||
+    str === '--' ||
+    str === '---' ||
+    str === '0' ||
+    str === '00' ||
+    str === 'PENDING' ||
+    str === 'TBD' ||
+    str === 'NOT ASSIGNED' ||
+    str === 'NOT APPLICABLE' ||
+    str === '?' ||
+    str === '.'
+  ) {
+    return false;
+  }
+  const clean = str.replace(/[^A-Z0-9]/gi, '');
+  if (clean.length < 5) return false; // Genuine SATS ID in Karnataka is at least 5 to 10 digits
+  if (/^0+$/.test(clean)) return false; // e.g. "00000000"
+  return true;
+};
+
+/**
+ * Enhanced Karnataka SATS Caste & Category Recognition
+ * Recognizes SC, ST, Cat-1, 2A, 2B, 3A, 3B, GM, OBC, MUSLIM, GENERAL, OTHERS, CUSTOM
+ * along with specific community names placed in customCaste.
+ */
+export interface RecognizedCaste {
+  caste: StudentCaste;
+  customCaste?: string;
+  religion?: StudentReligion;
+}
+
+export const recognizeCasteAndCategory = (
+  rawCategoryVal: any,
+  rawCasteVal: any,
+  rawReligionVal?: any
+): RecognizedCaste => {
+  const catStr = cleanString(rawCategoryVal).toUpperCase();
+  const cstStr = cleanString(rawCasteVal).toUpperCase();
+  const combined = `${catStr} ${cstStr}`.trim();
+
+  let recognizedCaste: StudentCaste = 'GENERAL';
+  let customCaste: string | undefined = cleanString(rawCasteVal) || undefined;
+  let recognizedRel: StudentReligion | undefined = rawReligionVal ? normalizeReligion(rawReligionVal) : undefined;
+
+  // Clean specific prefixes like "HINDU - ", "HINDU ", etc. from customCaste
+  if (customCaste) {
+    customCaste = customCaste
+      .replace(/^HINDU[\s\-:]+/i, '')
+      .replace(/^MUSLIM[\s\-:]+/i, '')
+      .replace(/^CHRISTIAN[\s\-:]+/i, '')
+      .replace(/\s*\((?:SC|ST|CAT-?1|2A|2B|3A|3B|GM|OBC|GENERAL)\)/gi, '')
+      .replace(/\s*-\s*(?:SC|ST|CAT-?1|2A|2B|3A|3B|GM|OBC|GENERAL)$/gi, '')
+      .trim();
+    if (!customCaste) customCaste = undefined;
+  }
+
+  // 1. Direct Category Matching (Karnataka 8-fold reservation matrix)
+  // Check category column first, then combined
+  const checkStr = catStr || combined;
+
+  if (
+    /\b(SC|S\.C\.)\b/i.test(checkStr) ||
+    checkStr.includes('SCHEDULED CASTE') ||
+    checkStr.includes('ಪರಿಶಿಷ್ಟ ಜಾತಿ') ||
+    checkStr.includes('ಪ.ಜಾ') ||
+    checkStr.includes('ಪಜಾ')
+  ) {
+    recognizedCaste = 'SC';
+  } else if (
+    /\b(ST|S\.T\.)\b/i.test(checkStr) ||
+    checkStr.includes('SCHEDULED TRIBE') ||
+    checkStr.includes('ಪರಿಶಿಷ್ಟ ಪಂಗಡ') ||
+    checkStr.includes('ಪ.ಪಂ') ||
+    checkStr.includes('ಪಪಂ')
+  ) {
+    recognizedCaste = 'ST';
+  } else if (
+    /\b(CAT-?1|CAT\s*1|CAT1|C-?1|C1|CATEGORY-?1|CATEGORY\s*1|CAT-?I)\b/i.test(checkStr) ||
+    checkStr.includes('ಪ್ರವರ್ಗ-1') ||
+    checkStr.includes('ಪ್ರವರ್ಗ 1') ||
+    checkStr.includes('ಪ್ರವರ್ಗ-೧') ||
+    checkStr.includes('ಪ್ರವರ್ಗ ೧') ||
+    catStr === '1' ||
+    catStr === 'I'
+  ) {
+    recognizedCaste = 'Cat-1';
+  } else if (
+    /\b(2A|2-A|2\s*A|IIA|II-A|CAT-?2A|CAT\s*2A|CATEGORY-?2A|CAT-?IIA)\b/i.test(checkStr) ||
+    checkStr.includes('ಪ್ರವರ್ಗ-2A') ||
+    checkStr.includes('ಪ್ರವರ್ಗ 2ಎ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ-2ಎ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ ೨ಎ') ||
+    checkStr.includes('2 ಎ') ||
+    checkStr.includes('೨ ಎ') ||
+    checkStr.includes('2ಎ')
+  ) {
+    recognizedCaste = '2A';
+  } else if (
+    /\b(2B|2-B|2\s*B|IIB|II-B|CAT-?2B|CAT\s*2B|CATEGORY-?2B|CAT-?IIB)\b/i.test(checkStr) ||
+    checkStr.includes('ಪ್ರವರ್ಗ-2B') ||
+    checkStr.includes('ಪ್ರವರ್ಗ 2ಬಿ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ-2ಬಿ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ ೨ಬಿ') ||
+    checkStr.includes('2 ಬಿ') ||
+    checkStr.includes('೨ ಬಿ') ||
+    checkStr.includes('2ಬಿ')
+  ) {
+    recognizedCaste = '2B';
+    recognizedRel = 'Muslim';
+  } else if (
+    /\b(3A|3-A|3\s*A|IIIA|III-A|CAT-?3A|CAT\s*3A|CATEGORY-?3A|CAT-?IIIA)\b/i.test(checkStr) ||
+    checkStr.includes('ಪ್ರವರ್ಗ-3A') ||
+    checkStr.includes('ಪ್ರವರ್ಗ 3ಎ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ-3ಎ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ ೩ಎ') ||
+    checkStr.includes('3 ಎ') ||
+    checkStr.includes('೩ ಎ') ||
+    checkStr.includes('3ಎ')
+  ) {
+    recognizedCaste = '3A';
+  } else if (
+    /\b(3B|3-B|3\s*B|IIIB|III-B|CAT-?3B|CAT\s*3B|CATEGORY-?3B|CAT-?IIIB)\b/i.test(checkStr) ||
+    checkStr.includes('ಪ್ರವರ್ಗ-3B') ||
+    checkStr.includes('ಪ್ರವರ್ಗ 3ಬಿ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ-3ಬಿ') ||
+    checkStr.includes('ಪ್ರವರ್ಗ ೩ಬಿ') ||
+    checkStr.includes('3 ಬಿ') ||
+    checkStr.includes('೩ ಬಿ') ||
+    checkStr.includes('3ಬಿ')
+  ) {
+    recognizedCaste = '3B';
+  } else if (
+    /\b(GM|G\.M\.|GENERAL\s*MERIT|GEN)\b/i.test(checkStr) ||
+    checkStr.includes('ಸಾಮಾನ್ಯ')
+  ) {
+    recognizedCaste = 'GM';
+  } else if (
+    /\bOBC\b/i.test(checkStr) ||
+    checkStr.includes('BACKWARD') ||
+    checkStr.includes('ಹಿಂದುಳಿದ')
+  ) {
+    recognizedCaste = 'OBC';
+  } else if (
+    checkStr.includes('MUSLIM') ||
+    checkStr.includes('ISLAM') ||
+    checkStr.includes('ಮುಸ್ಲಿಂ') ||
+    checkStr.includes('ಇಸ್ಲಾಂ')
+  ) {
+    recognizedCaste = '2B';
+    recognizedRel = 'Muslim';
+  }
+
+  // 2. Specific Community Name Recognition (Auto-maps category if not already specific, and sets customCaste)
+  const isGenericCategory = recognizedCaste === 'GENERAL' || recognizedCaste === 'GM' || recognizedCaste === 'OBC';
+
+  // 2A Communities
+  if (
+    combined.includes('KURUBA') ||
+    combined.includes('KURUBAR') ||
+    combined.includes('ಕುರುಬ') ||
+    combined.includes('EDIGA') ||
+    combined.includes('IDIGA') ||
+    combined.includes('ಈಡಿಗ') ||
+    combined.includes('BILLAVA') ||
+    combined.includes('ಬಿಲ್ಲವ') ||
+    combined.includes('MADIVALA') ||
+    combined.includes('ಮಡಿವಾಳ') ||
+    combined.includes('AGASA') ||
+    combined.includes('ಅಗಸ') ||
+    combined.includes('DHOBI') ||
+    combined.includes('SAVITA') ||
+    combined.includes('SAVITHA') ||
+    combined.includes('NAYINDA') ||
+    combined.includes('ನಾಯಿಂದ') ||
+    combined.includes('HADAPAD') ||
+    combined.includes('ಹಡಪದ') ||
+    combined.includes('BADIGER') ||
+    combined.includes('ಬಡಿಗೇರ') ||
+    combined.includes('VISHWAKARMA') ||
+    combined.includes('ವಿಶ್ವಕರ್ಮ') ||
+    combined.includes('KAMMAR') ||
+    combined.includes('ಕಮ್ಮಾರ') ||
+    combined.includes('KUMBARA') ||
+    combined.includes('KULALA') ||
+    combined.includes('ಕುಂಬಾರ') ||
+    combined.includes('MARATHA') ||
+    combined.includes('ಮರಾಠ') ||
+    combined.includes('GANIGA') ||
+    combined.includes('ಗಾಣಿಗ') ||
+    combined.includes('DEVANGA') ||
+    combined.includes('ದೇವಾಂಗ') ||
+    combined.includes('NEYGI') ||
+    combined.includes('BHAVASAR') ||
+    combined.includes('DARJI') ||
+    combined.includes('SIMPI') ||
+    combined.includes('ಸಿಂಪಿ') ||
+    combined.includes('ದರ್ಜಿ') ||
+    combined.includes('RANGARE')
+  ) {
+    if (isGenericCategory) recognizedCaste = '2A';
+  }
+  // 3B Communities (Veerashaiva, Lingayat, etc.)
+  else if (
+    combined.includes('LINGAYAT') ||
+    combined.includes('LINGAVANTA') ||
+    combined.includes('VEERASHAIVA') ||
+    combined.includes('ಲಿಂಗಾಯತ') ||
+    combined.includes('ಲಿಂಗವಂತ') ||
+    combined.includes('ವೀರಶೈವ') ||
+    combined.includes('PANCHAMASALI') ||
+    combined.includes('ಪಂಚಮಸಾಲಿ') ||
+    combined.includes('BANJIGA') ||
+    combined.includes('ಬಣಜಿಗ') ||
+    combined.includes('JANGAM') ||
+    combined.includes('JANGAMA') ||
+    combined.includes('ಜಂಗಮ') ||
+    combined.includes('SADAR') ||
+    combined.includes('ಸಾದರ') ||
+    combined.includes('KSHATRIYA') ||
+    combined.includes('ಕ್ಷತ್ರಿಯ')
+  ) {
+    if (isGenericCategory) recognizedCaste = '3B';
+  }
+  // 3A Communities (Vokkaliga, Gowda, Reddy, etc.)
+  else if (
+    combined.includes('VOKKALIGA') ||
+    combined.includes('OKKALIGA') ||
+    combined.includes('GOWDA') ||
+    combined.includes('ವೊಕ್ಕಲಿಗ') ||
+    combined.includes('ಒಕ್ಕಲಿಗ') ||
+    combined.includes('ಗೌಡ') ||
+    combined.includes('REDDY') ||
+    combined.includes('ರೆಡ್ಡಿ') ||
+    combined.includes('BUNT') ||
+    combined.includes('ಬಂಟ') ||
+    combined.includes('KODAVA') ||
+    combined.includes('ಕೊಡವ') ||
+    combined.includes('KUNCHITIGA') ||
+    combined.includes('ಕುಂಚಿಟಿಗ') ||
+    combined.includes('BALIJA') ||
+    combined.includes('NAIDU')
+  ) {
+    if (isGenericCategory) recognizedCaste = '3A';
+  }
+  // ST Communities (Valmiki, Nayaka, Bedar, etc.)
+  else if (
+    combined.includes('VALMIKI') ||
+    combined.includes('BEDAR') ||
+    combined.includes('BEDA') ||
+    combined.includes('NAYAK') ||
+    combined.includes('NAYAKA') ||
+    combined.includes('NAIK') ||
+    combined.includes('TALWAR') ||
+    combined.includes('TALWARA') ||
+    combined.includes('ವಾಲ್ಮೀಕಿ') ||
+    combined.includes('ಬೇಡರ') ||
+    combined.includes('ಬೇಡ') ||
+    combined.includes('ನಾಯಕ') ||
+    combined.includes('ತಳವಾರ') ||
+    combined.includes('SOLIGA') ||
+    combined.includes('ಸೋಲಿಗ') ||
+    combined.includes('KADU KURUBA') ||
+    combined.includes('JENU KURUBA') ||
+    combined.includes('SIDDI') ||
+    combined.includes('ಸಿದ್ಧಿ')
+  ) {
+    if (isGenericCategory) recognizedCaste = 'ST';
+  }
+  // SC Communities (Madiga, Holeya, Chalavadi, Banjara/Lamani, Bhovi, etc.)
+  else if (
+    combined.includes('MADAR') ||
+    combined.includes('MADIGA') ||
+    combined.includes('HOLEYA') ||
+    combined.includes('CHALAVADI') ||
+    combined.includes('CHALAVADI') ||
+    combined.includes('ಮಾದಿಗ') ||
+    combined.includes('ಹೊಲೆಯ') ||
+    combined.includes('ಚಲವಾದಿ') ||
+    combined.includes('LAMANI') ||
+    combined.includes('LAMBANI') ||
+    combined.includes('BANJARA') ||
+    combined.includes('ಲಮಾಣಿ') ||
+    combined.includes('ಬಂಜಾರ') ||
+    combined.includes('BHOVI') ||
+    combined.includes('BOVI') ||
+    combined.includes('ಭೋವಿ') ||
+    combined.includes('SAMAGAR') ||
+    combined.includes('ಸಮಗಾರ') ||
+    combined.includes('KORAMA') ||
+    combined.includes('KORACHA') ||
+    combined.includes('ಕೊರಮ') ||
+    combined.includes('ಕೊರಚ') ||
+    combined.includes('ADI KARNATAKA') ||
+    combined.includes('ಆದಿ ಕರ್ನಾಟಕ') ||
+    combined.includes('ADI DRAVIDA') ||
+    combined.includes('MOCHI') ||
+    combined.includes('DHOR')
+  ) {
+    if (isGenericCategory) recognizedCaste = 'SC';
+  }
+  // 2B Communities (Muslim, Pinjar, Nadaf, etc.)
+  else if (
+    combined.includes('PINJAR') ||
+    combined.includes('PINJARA') ||
+    combined.includes('NADAFF') ||
+    combined.includes('NADAF') ||
+    combined.includes('ಪಿಂಜಾರ') ||
+    combined.includes('ನದಾಫ') ||
+    combined.includes('MULLA') ||
+    combined.includes('QURESHI') ||
+    combined.includes('SHEIKH') ||
+    combined.includes('SHAIKH') ||
+    combined.includes('SHAIK') ||
+    combined.includes('SYED') ||
+    combined.includes('PATHAN') ||
+    combined.includes('MUGHAL') ||
+    combined.includes('MANSOORI')
+  ) {
+    recognizedCaste = '2B';
+    recognizedRel = 'Muslim';
+  }
+  // Cat-1 Communities (Besta, Kabbaliga, Uppara, Golla, etc.)
+  else if (
+    combined.includes('BESTA') ||
+    combined.includes('BESTHA') ||
+    combined.includes('KABBALIGA') ||
+    combined.includes('GANGAMATHA') ||
+    combined.includes('ಬೆಸ್ತ') ||
+    combined.includes('ಕಬ್ಬಲಿಗ') ||
+    combined.includes('ಗಂಗಾಮತ') ||
+    combined.includes('KOLI') ||
+    combined.includes('MOGAVEERA') ||
+    combined.includes('ಮೊಗವೀರ') ||
+    combined.includes('UPPARA') ||
+    combined.includes('ಉಪ್ಪಾರ') ||
+    combined.includes('SUNAGARA') ||
+    combined.includes('GOLLA') ||
+    combined.includes('YADAV') ||
+    combined.includes('ಗೊಲ್ಲ') ||
+    combined.includes('ಯಾದವ') ||
+    combined.includes('TIGALA') ||
+    combined.includes('ತಿಗಳ') ||
+    combined.includes('HELAVA') ||
+    combined.includes('ಬುಡಗ ಜಂಗಮ')
+  ) {
+    if (isGenericCategory) recognizedCaste = 'Cat-1';
+  }
+  // GM Communities (Brahmin, Jain, etc.)
+  else if (
+    combined.includes('BRAHMIN') ||
+    combined.includes('VIPRA') ||
+    combined.includes('ಬ್ರಾಹ್ಮಣ') ||
+    combined.includes('ವಿಪ್ರ') ||
+    combined.includes('SMARTHA') ||
+    combined.includes('MADHWA') ||
+    combined.includes('HAVYAKA') ||
+    combined.includes('SARASWAT') ||
+    combined.includes('IYENGAR')
+  ) {
+    if (isGenericCategory) recognizedCaste = 'GM';
+  }
+
+  // If customCaste is identical to the recognized category string (e.g. "2A" or "SC"), omit it
+  if (customCaste && (customCaste.toUpperCase() === recognizedCaste || customCaste.toUpperCase() === 'GENERAL')) {
+    customCaste = undefined;
+  }
+
+  return {
+    caste: recognizedCaste,
+    customCaste: customCaste || undefined,
+    religion: recognizedRel,
+  };
+};
+
+export const normalizeCaste = (val: any): StudentCaste => {
+  return recognizeCasteAndCategory(val, val).caste;
 };
 
 const normalizeGender = (val: any): 'Boy' | 'Girl' => {
@@ -272,31 +718,47 @@ export const parseStudentsFromJsonText = (
     const name = String(item.studentName || item.name || '').trim();
     if (!name) return;
 
-    const stdClass = normalizeClass(item.classStandard || item.class || item.std || '1');
+    const stdClass = normalizeClass(item.classStandard || item.class || item.std);
+    if (!stdClass) return; // Skip non-Roman / non-Arabic / pre-primary (LKG/UKG/PP1/PP2/etc.)
+
     const division = normalizeDivision(item.division || item.sec || 'A');
     const gender = normalizeGender(item.gender);
-    const caste = normalizeCaste(item.caste);
-    const religion = normalizeReligion(item.religion);
+
+    const recognized = recognizeCasteAndCategory(
+      item.category || item.socialCategory || item.social_category,
+      item.caste || item.subCaste || item.customCaste,
+      item.religion
+    );
+    const validSats = isValidSatsNo(item.satsNo || item.sats || item.satsNumber)
+      ? String(item.satsNo || item.sats || item.satsNumber).trim()
+      : '';
 
     const st: Student = {
-      id: String(item.id || `std_${diseCode}_${Date.now()}_${idx}`).replace(/[^a-zA-Z0-9_-]/g, '_'),
+      id: String(item.id || (validSats ? `std_${diseCode}_${validSats}` : `std_${diseCode}_c${stdClass}_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`)).replace(/[^a-zA-Z0-9_-]/g, '_'),
       schoolId: item.schoolId || schoolId || diseCode,
       diseCode: item.diseCode || diseCode,
       studentName: name,
       fatherName: item.fatherName || item.father || '-',
       motherName: item.motherName || item.mother || '-',
+      originalStudentName: item.originalStudentName || name,
+      originalFatherName: item.originalFatherName || item.fatherName || item.father || '-',
+      originalMotherName: item.originalMotherName || item.motherName || item.mother || '-',
+      studentNameKn: item.studentNameKn,
+      fatherNameKn: item.fatherNameKn,
+      motherNameKn: item.motherNameKn,
+      namesLanguage: item.namesLanguage || 'en',
       classStandard: stdClass,
       division: division,
-      satsNo: String(item.satsNo || item.sats || item.satsNumber || '').trim() || '-',
-      penNo: String(item.penNo || item.pen || '').trim() || '-',
-      aadharNo: String(item.aadharNo || item.aadhar || '').trim() || '-',
+      satsNo: validSats || 'N/A',
+      penNo: String(item.penNo || item.pen || '').trim() || 'N/A',
+      aadharNo: String(item.aadharNo || item.aadhar || '').trim() || 'N/A',
       schoolRegNo: item.schoolRegNo || undefined,
       admissionDate: formatDateToDmy(item.admissionDate || '01/06/2025'),
       dob: formatDateToDmy(item.dob || item.dateOfBirth || '15/05/2015'),
       dateOfBirth: formatDateToDmy(item.dateOfBirth || item.dob || '15/05/2015'),
-      religion: religion,
-      caste: caste,
-      customCaste: item.customCaste || undefined,
+      religion: recognized.religion || normalizeReligion(item.religion),
+      caste: recognized.caste,
+      customCaste: recognized.customCaste || item.customCaste || undefined,
       gender: gender,
       mobile: item.mobile || item.contactNumber || undefined,
       contactNumber: item.contactNumber || item.mobile || undefined,
@@ -379,22 +841,25 @@ export const parseSatsExcel = async (
     // Detect fallback class from sheet name (e.g., "Class 5", "5th", "Class_8")
     const sheetClassFallback = normalizeClass(sheetName);
 
-    // Step 1: Find header row
+    // Step 1: Find header row (scan up to 35 rows for Karnataka SATS metadata banners)
     let headerRowIdx = -1;
     let headerMap: Record<string, number> = {};
 
-    for (let r = 0; r < Math.min(10, rows.length); r++) {
+    for (let r = 0; r < Math.min(35, rows.length); r++) {
       const row = rows[r];
       if (!row || !Array.isArray(row)) continue;
 
       const normRow = row.map(normalizeHeader);
-      // Check if this row contains student name or sats indicators
+      // Check if this row contains student name or sats indicators (English and Kannada)
       const hasName = normRow.some(
         (c) =>
           c.includes('studentname') ||
-          c.includes('name') ||
           c.includes('candidatename') ||
-          c.includes('nameofstudent')
+          c.includes('nameofstudent') ||
+          c.includes('childname') ||
+          c.includes('name') ||
+          c.includes('ವಿದ್ಯಾರ್ಥಿ') ||
+          c.includes('ಹೆಸರು')
       );
       const hasSatsOrClass = normRow.some(
         (c) =>
@@ -402,7 +867,12 @@ export const parseSatsExcel = async (
           c.includes('class') ||
           c.includes('std') ||
           c.includes('father') ||
-          c.includes('admission')
+          c.includes('admission') ||
+          c.includes('ತರಗತಿ') ||
+          c.includes('ತಂದೆ') ||
+          c.includes('ದಾಖಲಾತಿ') ||
+          c.includes('ಲಿಂಗ') ||
+          c.includes('ಸ್ಯಾಟ್ಸ್')
       );
 
       if (hasName && hasSatsOrClass) {
@@ -438,8 +908,14 @@ export const parseSatsExcel = async (
       'studentname',
       'candidatename',
       'nameofstudent',
+      'nameofcandidate',
+      'childname',
+      'student_name',
       'name',
       'student',
+      'ವಿದ್ಯಾರ್ಥಿಯಹೆಸರು',
+      'ವಿದ್ಯಾರ್ಥಿಹೆಸರು',
+      'ಹೆಸರು',
     ]);
     const colMiddleName = findColIdx([
       'middlename',
@@ -447,9 +923,36 @@ export const parseSatsExcel = async (
       'studentmiddlename',
       'mname',
     ]);
-    const colFatherName = findColIdx(['fathername', 'fathersname', 'father']);
-    const colMotherName = findColIdx(['mothername', 'mothersname', 'mother']);
-    const colClass = findColIdx(['class', 'standard', 'std', 'classstandard', 'admittedclass', 'currentclass', 'ತರಗತಿ']);
+    const colFatherName = findColIdx([
+      'fathername',
+      'fathersname',
+      'father',
+      'ತಂದೆಯಹೆಸರು',
+      'ತಂದೆಹೆಸರು',
+      'ತಂದೆ',
+    ]);
+    const colMotherName = findColIdx([
+      'mothername',
+      'mothersname',
+      'mother',
+      'ತಾಯಿಯಹೆಸರು',
+      'ತಾಯಿಹೆಸರು',
+      'ತಾಯಿ',
+    ]);
+    const colClass = findColIdx([
+      'classstandard',
+      'admittedclass',
+      'currentclass',
+      'presentclass',
+      'studyingclass',
+      'enrolledclass',
+      'standard',
+      'class',
+      'std',
+      'ತರಗತಿ',
+      'ವರ್ಗ',
+      'ಹಾಲಿ',
+    ]);
     const colDivision = findColIdx(['division', 'section', 'div', 'sec', 'ವಿಭಾಗ']);
     const colDob = findColIdx([
       'dob',
@@ -460,19 +963,59 @@ export const parseSatsExcel = async (
       'janmadinanka',
       'ಹುಟ್ಟಿದದಿನಾಂಕ',
       'ಜನ್ಮದಿನಾಂಕ',
+      'ಹುಟ್ಟಿದ',
       'studentdob',
       'stddob',
       'dobddmmyyyy',
       'dateofbirthddmmyyyy',
       'birth',
     ]);
-    const colSats = findColIdx(['satsno', 'satsnumber', 'satsid', 'sats', 'enrollmentno', 'studentid']);
+    const colSats = findColIdx([
+      'satsno',
+      'satsnumber',
+      'satsid',
+      'sats',
+      'enrollmentno',
+      'enrolmentno',
+      'studentid',
+      'student_id',
+      'ಸ್ಯಾಟ್ಸ್',
+      'ಸ್ಯಾಟ್ಸ್ನಂ',
+    ]);
     const colPen = findColIdx(['penno', 'pennumber', 'pen']);
-    const colAadhar = findColIdx(['aadharno', 'aadhaarno', 'aadharnumber', 'aadhaar', 'uid', 'aadhar']);
-    const colRegNo = findColIdx(['admissionno', 'schoolregno', 'regno', 'admissionnumber', 'registrationno']);
-    const colAdmDate = findColIdx(['admissiondate', 'doa', 'dateofadmission']);
+    const colAadhar = findColIdx(['aadharno', 'aadhaarno', 'aadharnumber', 'aadhaar', 'uid', 'aadhar', 'ಆಧಾರ್']);
+    const colRegNo = findColIdx([
+      'admissionno',
+      'schoolregno',
+      'regno',
+      'admissionnumber',
+      'registrationno',
+      'ದಾಖಲಾತಿಸಂಖ್ಯೆ',
+      'ದಾಖಲಾತಿ',
+    ]);
+    const colAdmDate = findColIdx(['admissiondate', 'doa', 'dateofadmission', 'ದಾಖಲಾತಿದಿನಾಂಕ']);
     const colReligion = findColIdx(['religion', 'ಧರ್ಮ']);
-    const colCaste = findColIdx(['caste', 'category', 'socialcategory', 'ಜಾತಿ', 'ಪ್ರವರ್ಗ']);
+    const colCategory = findColIdx([
+      'socialcategory',
+      'category',
+      'social_category',
+      'castecategory',
+      'socialgroup',
+      'cat',
+      'ಪ್ರವರ್ಗ',
+      'ಸಾಮಾಜಿಕಪ್ರವರ್ಗ',
+      'ಮೀಸಲಾತಿಪ್ರವರ್ಗ',
+    ]);
+    const colCaste = findColIdx([
+      'subcaste',
+      'castename',
+      'caste_name',
+      'caste',
+      'community',
+      'sub_caste',
+      'ಜಾತಿ',
+      'ಉಪಜಾತಿ',
+    ]);
     const colGender = findColIdx(['gender', 'sex', 'linga', 'ಲಿಂಗ', 'studentgender', 'stdgender', 'gendermf', 'morf', 'genders']);
     const colCwsn = findColIdx(['cwsn', 'cwsnstatus', 'iscwsn', 'cwsntype', 'specialneeds', 'disability', 'ವಿಕಲಚೇತನ', 'ವಿಶೇಷಅಗತ್ಯ', 'ವಿನಾಯಿತಿ', 'handicapped']);
 
@@ -489,7 +1032,7 @@ export const parseSatsExcel = async (
         const rawMother = colMotherName !== -1 ? cleanString(row[colMotherName]) : '';
         const rawMiddle = colMiddleName !== -1 ? cleanString(row[colMiddleName]) : '';
 
-        // User requirement: "When excel is imported to fetch or add students the middle name if available be taken as father name and placed in the column of father nme"
+        // Middle name fallback to father name
         let detectedMiddleName = rawMiddle;
         if (!detectedMiddleName) {
           const nameParts = rawName.split(/\s+/).filter(Boolean);
@@ -498,42 +1041,49 @@ export const parseSatsExcel = async (
           }
         }
 
-        // If middle name is available and father name is empty or unassigned, place middle name in father name
         if (detectedMiddleName && (!rawFather || rawFather.trim() === '' || rawFather === '-')) {
           rawFather = detectedMiddleName;
         }
-        const rawClassVal = colClass !== -1 ? row[colClass] : sheetClassFallback;
+
+        // Guaranteed class fallback to sheet name if cell is empty
+        const rawClassVal = (colClass !== -1 && cleanString(row[colClass])) ? row[colClass] : sheetClassFallback;
         const classStandard = normalizeClass(rawClassVal || sheetClassFallback);
+        // Exclude LKG, UKG, KG1, KG2, PP1, PP2 and anything other than Roman (I-X) and Arabic (1-10) numbers
+        if (!classStandard) continue;
+
         const division = colDivision !== -1 ? normalizeDivision(row[colDivision]) : 'A';
 
-        const satsNo = colSats !== -1 ? cleanNumberString(row[colSats]) : '';
+        const rawSats = colSats !== -1 ? cleanNumberString(row[colSats]) : '';
+        const validSats = isValidSatsNo(rawSats) ? rawSats : '';
         const penNo = colPen !== -1 ? cleanNumberString(row[colPen]) : '';
         const aadharNo = colAadhar !== -1 ? cleanNumberString(row[colAadhar]) : '';
         const schoolRegNo = colRegNo !== -1 ? cleanString(row[colRegNo]) : '';
         const admissionDate = colAdmDate !== -1 ? formatDateToDmy(row[colAdmDate]) || '01/06/2026' : '01/06/2026';
 
-        // Format DOB in DD/MM/YYYY format as requested by user
+        // Format DOB in DD/MM/YYYY format
         let formattedDob = '';
         if (colDob !== -1 && row[colDob]) {
           formattedDob = formatDateToDmy(row[colDob]);
         }
         if (!formattedDob) {
-          // Default DOB: e.g. Class 1 is ~6 yrs old in 2026 -> 2020, Class 5 -> 2016
           const classInt = parseInt(classStandard, 10) || 5;
           const birthYear = 2026 - 5 - classInt;
           formattedDob = `01/06/${birthYear}`;
         }
 
-        const religion = colReligion !== -1 ? normalizeReligion(row[colReligion]) : 'Hindu';
-        const caste = colCaste !== -1 ? normalizeCaste(row[colCaste]) : 'GENERAL';
+        const rawCategory = colCategory !== -1 ? row[colCategory] : '';
+        const rawCaste = colCaste !== -1 ? row[colCaste] : '';
+        const rawReligion = colReligion !== -1 ? row[colReligion] : '';
+
+        const recognized = recognizeCasteAndCategory(rawCategory, rawCaste, rawReligion);
         const gender: 'Boy' | 'Girl' = colGender !== -1 ? normalizeGender(row[colGender]) : 'Boy';
         const cwsnStatus: CwsnStatus = colCwsn !== -1 ? normalizeCwsn(row[colCwsn]) : 'NO';
 
         const safeDise = (diseCode || schoolId || 'school').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const cleanSatsId = satsNo && satsNo !== 'N/A' && satsNo !== '-' ? satsNo.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
-        const id = cleanSatsId
-          ? `std_${safeDise}_${cleanSatsId}`
-          : `std_${safeDise}_${Date.now()}_${r}_${Math.random().toString(36).substring(2, 8)}`;
+        // Only use valid SATS for deterministic ID; otherwise assign guaranteed collision-free ID
+        const id = validSats
+          ? `std_${safeDise}_${validSats.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+          : `std_${safeDise}_c${classStandard}_${Date.now()}_${r}_${Math.random().toString(36).substring(2, 8)}`;
 
         const student: Student = {
           id,
@@ -542,17 +1092,22 @@ export const parseSatsExcel = async (
           studentName: rawName.toUpperCase(),
           fatherName: (rawFather || '-').toUpperCase(),
           motherName: (rawMother || '-').toUpperCase(),
+          originalStudentName: rawName.toUpperCase(),
+          originalFatherName: (rawFather || '-').toUpperCase(),
+          originalMotherName: (rawMother || '-').toUpperCase(),
+          namesLanguage: 'en',
           classStandard,
           division,
-          satsNo: satsNo || 'N/A',
+          satsNo: validSats || 'N/A',
           penNo: penNo || 'N/A',
           aadharNo: aadharNo || 'N/A',
           schoolRegNo: schoolRegNo || '',
           admissionDate,
           dob: formattedDob,
           dateOfBirth: formattedDob,
-          religion,
-          caste,
+          religion: recognized.religion || normalizeReligion(rawReligion),
+          caste: recognized.caste,
+          customCaste: recognized.customCaste,
           gender,
           cwsnStatus,
           academicYear,

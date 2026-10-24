@@ -69,7 +69,7 @@ export const MARATHI_URDU_CO_ACTIVITIES = [
   { key: 'physical', nameEn: 'PHYSICAL & HEALTH EDUCATION' },
   { key: 'art', nameEn: 'ARTS & CRAFT' },
   { key: 'music', nameEn: 'MUSIC & DANCE' },
-  { key: 'supw', nameEn: 'SOCIALLI USEFUL PRODUCTIVE WORK' },
+  { key: 'supw', nameEn: 'SOCIAL USEFUL PRODUCTIVE WORK' },
   { key: 'values', nameEn: 'VALUES, PERSONAL & SOCIAL GROWTH' },
 ] as const;
 
@@ -316,8 +316,10 @@ export const computeMarathiUrduStudentCce = (
     const hasAnyInSub = hasSem1 || hasSem2 || hasDirectTotal;
     const total100 = isExempted
       ? 0
-      : hasAnyInSub
-      ? (hasDirectTotal ? Math.min(100, Math.round(Number(raw.total))) : ((sem1_total || 0) + (sem2_total || 0)))
+      : (hasSem1 || hasSem2)
+      ? ((sem1_total || 0) + (sem2_total || 0))
+      : hasDirectTotal
+      ? Math.min(100, Math.round(Number(raw.total)))
       : null;
 
     const grade = isExempted ? 'Exempt' : (total100 !== null && hasAnyInSub && total100 > 0) ? calculateGrade(total100) : '-';
@@ -365,8 +367,8 @@ export const computeMarathiUrduStudentCce = (
     resultStatus = '-';
   } else if (percentage < 30) {
     resultStatus = 'DETAINED';
-  } else if (percentage < 35) {
-    resultStatus = 'SUPPLEMENTARY';
+  } else {
+    resultStatus = 'PROMOTED';
   }
 
   // Co-scholastic activities (Part B) - never auto-load fake grades

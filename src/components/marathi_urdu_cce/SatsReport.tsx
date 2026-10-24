@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { SchoolRecord, Student } from '../../types';
+import { SchoolRecord, Student, formatClassStd, formatClassOrdinal } from '../../types';
 import { ComputedMarathiUrduStudent } from '../../utils/marathiUrduCceHelper';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
@@ -168,7 +168,7 @@ export const SatsReport: React.FC<SatsReportProps> = ({
         <div className="text-xs font-bold text-slate-800 flex flex-wrap items-center justify-center gap-2">
           <span>DISE NO: <strong className="font-mono text-slate-950 font-black">{diseCode}</strong></span>
           <span>•</span>
-          <span>CLASS: <strong className="text-emerald-700 font-black">{selectedClass}th Std</strong></span>
+          <span>CLASS: <strong className="text-emerald-700 font-black">{formatClassStd(selectedClass)}</strong></span>
           <span>•</span>
           <span>EXAM TYPE: <strong className="text-blue-700 font-black">{currentExamLabel}</strong></span>
           <span>•</span>
@@ -193,7 +193,7 @@ export const SatsReport: React.FC<SatsReportProps> = ({
             ))}
           </select>
           <span className="hidden print:inline font-black text-emerald-800">
-            : {selectedClass}th Std
+            : {formatClassStd(selectedClass)}
           </span>
         </div>
 
@@ -240,7 +240,7 @@ export const SatsReport: React.FC<SatsReportProps> = ({
             {/* Header row 2 with DISE, Class, Exam Type, Academic Year for Excel & print exports */}
             <tr className="bg-amber-50/80 text-center font-bold text-slate-900 border-b-2 border-slate-900 text-xs">
               <th colSpan={8} className="p-1.5 border-2 border-slate-900 text-slate-900">
-                DISE NO: {diseCode} | CLASS: {selectedClass}th Std | EXAM TYPE: {currentExamLabel} | ACADEMIC YEAR: {academicYear}
+                DISE NO: {diseCode} | CLASS: {formatClassStd(selectedClass)} | EXAM TYPE: {currentExamLabel} | ACADEMIC YEAR: {academicYear}
               </th>
             </tr>
             <tr className="bg-[#fed7aa] font-black text-slate-950 border-b-2 border-slate-900">
@@ -314,7 +314,7 @@ export const SatsReport: React.FC<SatsReportProps> = ({
             {classStudents.length === 0 ? (
               <tr>
                 <td colSpan={8} className="border border-slate-900 p-4 text-center text-slate-500 font-semibold italic">
-                  No students found in Class {selectedClass}th
+                  No students found in Class {formatClassOrdinal(selectedClass)}
                 </td>
               </tr>
             ) : (

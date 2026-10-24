@@ -9,6 +9,7 @@
 import { Student, StudentExamMarks, StudentClass, isCwsnExempted, isCwsnStudent } from '../types';
 import { calculateGrade, calculateMarksGrade } from '../data/demoData';
 import * as XLSX from 'xlsx';
+import { distributeSubject100Marks } from './marksDistribution';
 
 export type PrimarySubjectCode = 'FL' | 'SL' | 'TL' | 'MATHS' | 'EVS' | 'MATH';
 
@@ -410,8 +411,10 @@ export const computeStudentCceDetails = (
     const hasAnyInSub = hasSem1 || hasSem2 || hasDirectTotal;
     const total100 = isExempted
       ? 0
-      : hasAnyInSub
-      ? (hasDirectTotal ? Math.min(100, Math.round(Number(raw.total))) : ((sem1_total || 0) + (sem2_total || 0)))
+      : (hasSem1 || hasSem2)
+      ? ((sem1_total || 0) + (sem2_total || 0))
+      : hasDirectTotal
+      ? Math.min(100, Math.round(Number(raw.total)))
       : null;
 
     const grade = isExempted ? 'Exempt' : (total100 !== null && hasAnyInSub && total100 > 0) ? calculateGrade(total100) : '-';
@@ -458,7 +461,7 @@ export const computeStudentCceDetails = (
   const percentage = isExempted ? 0 : hasAnyMarksEntered ? Number(((totalMarks400 / 400) * 100).toFixed(1)) : 0;
   const overallGrade = isExempted ? 'Exempt' : (hasAnyMarksEntered && totalMarks400 > 0) ? calculateGrade(percentage) : '-';
 
-  // Result Status
+  // Result Status: >= 30% is PROMOTED, < 30% is DETAINED (Not Promoted)
   let resultStatus: 'ಉತ್ತೀರ್ಣ (PROMOTED)' | 'ಅನುತ್ತೀರ್ಣ (DETAINED)' | 'CWSN (ವಿನಾಯಿತಿ)' | 'ಪೂರಕ ಪರೀಕ್ಷೆಗೆ ಅರ್ಹ' | 'ಉತ್ತೀರ್ಣ (CWSN)' = 'ಉತ್ತೀರ್ಣ (PROMOTED)';
   if (isExempted || hasCwsnBadge) {
     resultStatus = 'ಉತ್ತೀರ್ಣ (CWSN)';
@@ -466,8 +469,8 @@ export const computeStudentCceDetails = (
     resultStatus = '-' as any;
   } else if (percentage < 30) {
     resultStatus = 'ಅನುತ್ತೀರ್ಣ (DETAINED)';
-  } else if (percentage < 35) {
-    resultStatus = 'ಪೂರಕ ಪರೀಕ್ಷೆಗೆ ಅರ್ಹ';
+  } else {
+    resultStatus = 'ಉತ್ತೀರ್ಣ (PROMOTED)';
   }
 
   // Co-scholastic grades
@@ -516,48 +519,14 @@ export const computeStudentCceDetails = (
 
 /**
  * Symmetrically distributes a 100-mark score into FA1(20), FA2(20), SA1(50), FA3(20), FA4(20), SA2(50)
- * for 2-way synchronization between 100-mark consolidation and 9-line consolidation.
+ * for 2-way synchronization between 100-mark consolidation and marks entry forms.
  */
 export const distribute100MarksIntoSubject = (
-  total100: number,
-  subCode: PrimarySubjectCode
+  total100: number | null | undefined,
+  subCode: PrimarySubjectCode,
+  classStandard: string | number = 3
 ) => {
-  const clamped = Math.max(0, Math.min(100, Math.round(Number(total100) || 0)));
-  const semTarget = Math.round(clamped / 2); // e.g. 50 out of 50 max
-
-  // In each sem: FA1=15%, FA2=15%, SA1=20% -> total 50%
-  const fa1_pct = Math.floor((semTarget * 15) / 50);
-  const fa2_pct = Math.floor((semTarget * 15) / 50);
-  const sa1_pct = Math.max(0, semTarget - fa1_pct - fa2_pct);
-
-  const fa1 = Math.min(20, Math.max(0, Math.round((fa1_pct * 20) / 15)));
-  const fa2 = Math.min(20, Math.max(0, Math.round((fa2_pct * 20) / 15)));
-  const sa1 = Math.min(50, Math.max(0, Math.round((sa1_pct * 50) / 20)));
-
-  const fa3_pct = fa1_pct;
-  const fa4_pct = fa2_pct;
-  const sa2_pct = sa1_pct;
-  const fa3 = fa1;
-  const fa4 = fa2;
-  const sa2 = sa1;
-
-  return {
-    code: subCode,
-    total: clamped,
-    fa1,
-    fa1_pct,
-    fa2,
-    fa2_pct,
-    sa1,
-    sa1_pct,
-    fa3,
-    fa3_pct,
-    fa4,
-    fa4_pct,
-    sa2,
-    sa2_pct,
-    total100: clamped,
-  };
+  return distributeSubject100Marks(total100, classStandard, subCode);
 };
 
 /**

@@ -6,7 +6,7 @@
 
 import { Student, StudentClass, StudentDivision, CwsnStatus, StudentCaste, StudentReligion } from '../types';
 import { db } from '../lib/firebase';
-import { formatDateToDmy } from './satsExcelParser';
+import { formatDateToDmy, isValidSatsNo } from './satsExcelParser';
 import {
   collection,
   doc,
@@ -17,6 +17,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
+export { formatSatsNo, formatAadharNo } from './kannadaTransliterator';
 
 export const cleanForFirestore = <T extends Record<string, any>>(obj: T): Record<string, any> => {
   const result: Record<string, any> = {};
@@ -222,6 +223,10 @@ export const generateSampleSchoolStudents = (
         studentName: `${fName} ${lName}`,
         fatherName: `${boyFirstNames[(b + 4) % boyFirstNames.length]} ${lName}`,
         motherName: `${girlFirstNames[(b + 6) % girlFirstNames.length]} ${lName}`,
+        originalStudentName: `${fName} ${lName}`,
+        originalFatherName: `${boyFirstNames[(b + 4) % boyFirstNames.length]} ${lName}`,
+        originalMotherName: `${girlFirstNames[(b + 6) % girlFirstNames.length]} ${lName}`,
+        namesLanguage: 'en',
         classStandard: cls,
         division: div,
         satsNo: `129038${String(4000 + bIdx).padStart(4, '0')}`,
@@ -257,6 +262,10 @@ export const generateSampleSchoolStudents = (
         studentName: `${fName} ${lName}`,
         fatherName: `${boyFirstNames[(g + 5) % boyFirstNames.length]} ${lName}`,
         motherName: `${girlFirstNames[(g + 8) % girlFirstNames.length]} ${lName}`,
+        originalStudentName: `${fName} ${lName}`,
+        originalFatherName: `${boyFirstNames[(g + 5) % boyFirstNames.length]} ${lName}`,
+        originalMotherName: `${girlFirstNames[(g + 8) % girlFirstNames.length]} ${lName}`,
+        namesLanguage: 'en',
         classStandard: cls,
         division: div,
         satsNo: `129038${String(4000 + gIdx).padStart(4, '0')}`,
@@ -482,17 +491,111 @@ export const saveStudent = async (student: Student, academicYear?: string): Prom
 };
 
 /**
- * Bulk save students (e.g. from Excel SATS import) directly into Firestore
+ * Delete multiple students from Firestore: moves them to Dropbox (deletedStudents)
+ * so they can be restored later, removes them from Firestore students collection,
+ * and purges them from both academicYear-specific and general local storage caches.
+ */
+export const deleteMultipleStudents = async (
+  studentIds: string[],
+  schoolId: string,
+  diseCode: string,
+  academicYear?: string
+): Promise<boolean> => {
+  if (!studentIds || studentIds.length === 0) return true;
+  const targetDise = diseCode || schoolId;
+  const idSet = new Set(studentIds);
+
+  const current = getStudentsFromLocal(targetDise, academicYear);
+  const general = getStudentsFromLocal(targetDise);
+
+  const studentsToBackup: Student[] = [];
+  idSet.forEach((id) => {
+    const found = current.find((s) => s.id === id) || general.find((s) => s.id === id);
+    if (found) {
+      studentsToBackup.push(found);
+    }
+  });
+
+  try {
+    const batch = writeBatch(db);
+    studentsToBackup.forEach((st) => {
+      const cleanId = st.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const backupRef = doc(db, 'schools', targetDise, 'deletedStudents', cleanId);
+      batch.set(backupRef, {
+        ...cleanForFirestore(st),
+        deletedAt: new Date().toISOString(),
+      });
+      const studentRef = doc(db, 'schools', targetDise, 'students', cleanId);
+      batch.delete(studentRef);
+    });
+
+    // Also ensure all IDs in idSet are deleted from Firestore students collection
+    idSet.forEach((id) => {
+      const cleanId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const studentRef = doc(db, 'schools', targetDise, 'students', cleanId);
+      batch.delete(studentRef);
+    });
+
+    await batch.commit();
+  } catch (err) {
+    console.warn('Firestore batch delete notice, attempting individual deletes:', err);
+    for (const st of studentsToBackup) {
+      try {
+        const cleanId = st.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+        await setDoc(doc(db, 'schools', targetDise, 'deletedStudents', cleanId), {
+          ...cleanForFirestore(st),
+          deletedAt: new Date().toISOString(),
+        });
+        await deleteDoc(doc(db, 'schools', targetDise, 'students', cleanId));
+      } catch (e) {
+        console.warn('Single delete fallback notice:', e);
+      }
+    }
+    for (const id of studentIds) {
+      try {
+        const cleanId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+        await deleteDoc(doc(db, 'schools', targetDise, 'students', cleanId));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  // Update local deleted students (Dropbox)
+  if (studentsToBackup.length > 0) {
+    const deletedLocal = getDeletedStudentsFromLocal(targetDise);
+    const updatedDeleted = [
+      ...deletedLocal.filter((s) => !idSet.has(s.id)),
+      ...studentsToBackup,
+    ];
+    saveDeletedStudentsToLocal(targetDise, updatedDeleted);
+  }
+
+  // Purge from active local storage caches
+  const filteredCurrent = current.filter((s) => !idSet.has(s.id));
+  saveStudentsToLocal(targetDise, filteredCurrent, academicYear);
+  const filteredGeneral = general.filter((s) => !idSet.has(s.id));
+  saveStudentsToLocal(targetDise, filteredGeneral);
+
+  return true;
+};
+
+/**
+ * Bulk save students (e.g. from Excel SATS import or Bulk Excel Sheet Editor) directly into Firestore
  * with deduplication and cross-device persistence.
  */
 export const saveBulkStudents = async (
   newStudents: Student[],
   schoolId: string,
   diseCode: string,
-  academicYear?: string
-): Promise<number> => {
+  academicYear?: string,
+  options?: {
+    deletedStudentIds?: string[];
+    replaceAll?: boolean;
+  }
+): Promise<Student[]> => {
   const targetDise = (diseCode && diseCode !== '00000000000' ? diseCode : schoolId) || '29010100101';
-  if (!targetDise || newStudents.length === 0) return 0;
+  if (!targetDise || (newStudents.length === 0 && (!options?.deletedStudentIds || options.deletedStudentIds.length === 0))) return [];
 
   localStorage.removeItem(`kseab_cleared_${targetDise}`);
   if (schoolId) {
@@ -501,38 +604,57 @@ export const saveBulkStudents = async (
 
   const currentYear = academicYear || newStudents[0]?.academicYear || '2026-27';
 
-  // Read existing to deduplicate by SATS No or Student ID without recursion
+  // If deleted IDs are provided, execute deletion from Firestore & caches
+  if (options?.deletedStudentIds && options.deletedStudentIds.length > 0) {
+    await deleteMultipleStudents(options.deletedStudentIds, schoolId, targetDise, currentYear);
+  }
+
+  const deletedIdSet = new Set(options?.deletedStudentIds || []);
+
+  // Read existing to deduplicate by valid SATS No or Student ID without recursion
   const existingList = getStudentsFromLocal(targetDise, currentYear);
   const studentMap = new Map<string, Student>();
-  const satsMap = new Map<string, string>(); // satsNo -> existing student id
+  const satsMap = new Map<string, string>(); // valid satsNo -> existing student id
 
-  existingList.forEach((s) => {
-    studentMap.set(s.id, s);
-    if (s.satsNo && s.satsNo !== 'N/A' && s.satsNo !== '-') {
-      satsMap.set(s.satsNo, s.id);
-    }
-  });
+  if (!options?.replaceAll) {
+    existingList.forEach((s) => {
+      if (!deletedIdSet.has(s.id)) {
+        studentMap.set(s.id, s);
+        if (isValidSatsNo(s.satsNo)) {
+          satsMap.set(s.satsNo.trim(), s.id);
+        }
+      }
+    });
+  }
 
   const studentsToWrite: Student[] = [];
 
   newStudents.forEach((student, idx) => {
+    if (deletedIdSet.has(student.id)) return;
+
     const norm = normalizeStudentDates(student);
-    const rawId = norm.id || `std_${targetDise}_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
-    const cleanId = rawId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const validSats = isValidSatsNo(norm.satsNo) ? norm.satsNo.trim() : '';
+
+    let studentId = norm.id;
+    if (!studentId || studentId.endsWith('_NA') || studentId.endsWith('_0') || studentId.includes('_undefined')) {
+      studentId = validSats
+        ? `std_${targetDise}_${validSats.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+        : `std_${targetDise}_c${norm.classStandard}_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
+    }
+    const cleanId = studentId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     const cleanStudent: Student = {
       ...norm,
       id: cleanId,
+      satsNo: validSats || norm.satsNo || 'N/A',
       schoolId: targetDise,
       diseCode: targetDise,
       academicYear: currentYear,
       updatedAt: new Date().toISOString(),
     };
 
-    // Fast Match existing by SATS No if valid
-    const existingId = cleanStudent.satsNo && cleanStudent.satsNo !== 'N/A' && cleanStudent.satsNo !== '-'
-      ? satsMap.get(cleanStudent.satsNo)
-      : undefined;
+    // Match existing student ONLY by genuine, valid SATS No
+    const existingId = validSats ? satsMap.get(validSats) : undefined;
 
     if (existingId && studentMap.has(existingId)) {
       const existingObj = studentMap.get(existingId)!;
@@ -541,20 +663,28 @@ export const saveBulkStudents = async (
       studentsToWrite.push(mergedStudent);
     } else {
       studentMap.set(cleanStudent.id, cleanStudent);
-      if (cleanStudent.satsNo && cleanStudent.satsNo !== 'N/A' && cleanStudent.satsNo !== '-') {
-        satsMap.set(cleanStudent.satsNo, cleanStudent.id);
+      if (validSats) {
+        satsMap.set(validSats, cleanStudent.id);
       }
       studentsToWrite.push(cleanStudent);
     }
   });
 
-  const merged = Array.from(studentMap.values());
+  const merged = Array.from(studentMap.values()).filter((s) => !deletedIdSet.has(s.id));
   saveStudentsToLocal(targetDise, merged, currentYear);
+  saveStudentsToLocal(targetDise, merged); // Sync general cache as well
+
+  // Deduplicate doc IDs to avoid Firestore batch duplicate-write errors
+  const docWriteMap = new Map<string, Student>();
+  studentsToWrite.forEach((st) => {
+    docWriteMap.set(st.id.replace(/[^a-zA-Z0-9_-]/g, '_'), st);
+  });
+  const uniqueStudentsToWrite = Array.from(docWriteMap.values());
 
   // Write only newly imported or updated students to Firestore in batches of up to 350 documents
   const chunks: Student[][] = [];
-  for (let i = 0; i < studentsToWrite.length; i += 350) {
-    chunks.push(studentsToWrite.slice(i, i + 350));
+  for (let i = 0; i < uniqueStudentsToWrite.length; i += 350) {
+    chunks.push(uniqueStudentsToWrite.slice(i, i + 350));
   }
 
   for (const chunk of chunks) {
@@ -598,7 +728,7 @@ export const saveBulkStudents = async (
     console.warn('School document ensure notice:', schoolErr);
   }
 
-  return newStudents.length;
+  return merged;
 };
 
 /**
@@ -626,7 +756,7 @@ export const getHighestClassFromRange = (schoolRange?: string): number => {
  *  "8 ರಿಂದ 10 ನೇ ತರಗತಿ" -> ['8', '9', '10'])
  */
 export const getClassesFromRange = (schoolRange?: string): StudentClass[] => {
-  if (!schoolRange) return ['1', '2', '3', '4', '5', '6', '7', '8'];
+  if (!schoolRange) return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
   const matches = schoolRange.match(/\d+/g);
   if (matches && matches.length > 0) {
     const nums = matches.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n));
@@ -640,7 +770,7 @@ export const getClassesFromRange = (schoolRange?: string): StudentClass[] => {
       return classes;
     }
   }
-  return ['1', '2', '3', '4', '5', '6', '7', '8'];
+  return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 };
 
 /**

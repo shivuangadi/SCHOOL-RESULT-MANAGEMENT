@@ -210,27 +210,27 @@ export const CasteBirthCertificateModal: React.FC<CasteBirthCertificateModalProp
         <div className="bg-slate-50 border-2 border-slate-300 rounded-xl p-4 space-y-2 text-xs sm:text-sm font-semibold">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <span className="text-slate-600">೧. ವಿದ್ಯಾರ್ಥಿಯ SATS ಸಂಖ್ಯೆ: </span>
-              <strong className="font-mono text-blue-900">{currentStudent?.satsNo || '-'}</strong>
+              <span className="text-slate-600">1. ವಿದ್ಯಾರ್ಥಿಯ SATS ಸಂಖ್ಯೆ: </span>
+              <strong className="font-mono text-red-900 font-black">{currentStudent?.satsNo || '-'}</strong>
             </div>
             <div>
-              <span className="text-slate-600">೨. ಶಾಲಾ ಪ್ರವೇಶ ಸಂಖ್ಯೆ (Reg No): </span>
+              <span className="text-slate-600">2. ಶಾಲಾ ಪ್ರವೇಶ ಸಂಖ್ಯೆ (Reg No): </span>
               <strong className="font-mono">{currentStudent?.schoolRegNo || '-'}</strong>
             </div>
             <div>
-              <span className="text-slate-600">೩. ಜನ್ಮ ದಿನಾಂಕ (ಅಂಕೆಗಳಲ್ಲಿ): </span>
+              <span className="text-slate-600">3. ಜನ್ಮ ದಿನಾಂಕ (ಅಂಕೆಗಳಲ್ಲಿ): </span>
               <strong className="font-mono text-slate-900">{studentDob}</strong>
             </div>
             <div>
-              <span className="text-slate-600">೪. ಜನ್ಮ ದಿನಾಂಕ (ಅಕ್ಷರಗಳಲ್ಲಿ): </span>
+              <span className="text-slate-600">4. ಜನ್ಮ ದಿನಾಂಕ (ಅಕ್ಷರಗಳಲ್ಲಿ): </span>
               <strong className="text-slate-950 font-bold">{dobInWords}</strong>
             </div>
             <div>
-              <span className="text-slate-600">೫. ಧರ್ಮ (Religion): </span>
+              <span className="text-slate-600">5. ಧರ್ಮ (Religion): </span>
               <strong>{currentStudent?.religion || 'Hindu'}</strong>
             </div>
             <div>
-              <span className="text-slate-600">೬. ಜಾತಿ / ಪ್ರವರ್ಗ (Caste/Category): </span>
+              <span className="text-slate-600">6. ಜಾತಿ / ಪ್ರವರ್ಗ (Caste/Category): </span>
               <strong className="text-blue-950">{currentStudent?.caste || 'GENERAL'}</strong>
             </div>
           </div>

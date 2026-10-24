@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Student, SchoolRecord, StudentExamMarks } from '../types';
+import { Student, SchoolRecord, StudentExamMarks, formatClassStd } from '../types';
 import {
   PrimarySubjectCode,
   PRIMARY_SUBJECTS,
@@ -18,6 +18,7 @@ import {
   distribute100MarksIntoSubject,
   calculatePartBAverageGrade,
 } from '../utils/primaryCceHelper';
+import { distributeSubject100Marks, distributePartB100Marks } from '../utils/marksDistribution';
 import {
   loadSchoolMarks,
   saveStudentMarks,
@@ -64,6 +65,10 @@ import {
   computeMarathiUrduStudentCce,
   ComputedMarathiUrduStudent,
 } from '../utils/marathiUrduCceHelper';
+import {
+  printMarathiUrduCcePage2Register,
+  exportMarathiUrduCcePage2Pdf,
+} from '../utils/report_layouts/group2_marathi_urdu/marathiUrduPage2LayoutHelper';
 
 import { HpCcePage1Entry } from './higher_primary_cce/HpCcePage1Entry';
 import { HpCcePage2Register9Line } from './higher_primary_cce/HpCcePage2Register9Line';
@@ -410,8 +415,8 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     const effectiveCode = (currentSubjects[subCode] ? subCode : subCode === 'MATHS' && currentSubjects['MATH'] ? 'MATH' : subCode) as PrimarySubjectCode;
     const subRecord = currentSubjects[effectiveCode] || { code: effectiveCode };
 
-    // If cleared / empty / zero:
-    if (val === null || val === undefined || (val as any) === '' || Number(val) === 0) {
+    // If cleared / empty:
+    if (val === null || val === undefined || (val as any) === '') {
       const updatedSubRecord = {
         ...subRecord,
         [exam]: null,
@@ -434,9 +439,9 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
       return;
     }
 
-    // Clamped strictly to maximum marks rule, integer only (no decimals)
-    const clampedPct = Math.floor(Math.max(1, Math.min(maxPct, Number(val))));
-    const proportionalRaw = Math.max(1, Math.min(maxRaw, Math.round((clampedPct / maxPct) * maxRaw)));
+    // Clamped strictly to maximum marks rule, integer only (no decimals, allows 0)
+    const clampedPct = Math.floor(Math.max(0, Math.min(maxPct, Number(val))));
+    const proportionalRaw = Math.max(0, Math.min(maxRaw, Math.round((clampedPct / maxPct) * maxRaw)));
 
     const updatedSubRecord = {
       ...subRecord,
@@ -546,7 +551,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
       return;
     }
 
-    const distributed = distribute100MarksIntoSubject(Number(total100), subCode);
+    const distributed = distributeSubject100Marks(total100, selectedClass, subCode);
 
     const updatedMarks: StudentExamMarks = {
       ...existing,
@@ -708,6 +713,12 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
 
   // Print Handler
   const handlePrint = async () => {
+    if (!reportRef.current) return;
+    if (activeTab === 'page2' && isMarathiOrUrdu) {
+      const title = `CCE Page 2 100 Marks Consolidation (${marathiUrduMedium} Medium) - Class ${selectedClass}`;
+      await printMarathiUrduCcePage2Register(reportRef.current, title, paperSize);
+      return;
+    }
     const title = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}`;
     await executeReportPrint(reportRef.current, title, paperSize);
   };
@@ -715,6 +726,11 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
   // PDF Export
   const handleDownloadPdf = async () => {
     if (!reportRef.current) return;
+    if (activeTab === 'page2' && isMarathiOrUrdu) {
+      const filename = `CCE_Page2_100Marks_${marathiUrduMedium}_Class_${selectedClass}_${academicYear}_${paperSize.toUpperCase()}_Landscape.pdf`;
+      await exportMarathiUrduCcePage2Pdf(reportRef.current, filename, paperSize);
+      return;
+    }
     const filename = `Karnataka_CCE_${activeTab}_Class${selectedClass}_${academicYear}_${paperSize.toUpperCase()}.pdf`;
     await downloadElementAsPdf(reportRef.current, filename, paperSize);
   };
@@ -808,7 +824,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               <BookOpen className="w-4 h-4 text-amber-300" />
               <span>೧-೫ನೇ ತರಗತಿ ಫಲಿತಾಂಶ ದಾಖಲಾತಿ</span>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-950 text-blue-200">
-                1–5th Std
+                1st–5th Std
               </span>
             </button>
 
@@ -825,7 +841,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
               <Layers className="w-4 h-4 text-amber-300" />
               <span>೬-೮ನೇ ತರಗತಿ ಫಲಿತಾಂಶ ದಾಖಲಾತಿ</span>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-200">
-                6–8th Std
+                6th–8th Std
               </span>
             </button>
           </div>
@@ -1167,7 +1183,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
             >
               {(isHp ? ['6', '7', '8'] : ['1', '2', '3', '4', '5']).map((cls) => (
                 <option key={cls} value={cls}>
-                  {cls}ನೇ ತರಗತಿ ({cls}th Std)
+                  {cls}ನೇ ತರಗತಿ ({formatClassStd(cls)})
                 </option>
               ))}
             </select>
@@ -1264,25 +1280,29 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            title={`Print in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
-          </button>
+          {!(activeTab === 'page2') && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                title={`Print in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            title={`Download PDF in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
-          </button>
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                title={`Download PDF in ${paperSize === 'a4' ? 'A4 Size (295×210mm)' : 'Legal Size (340×210mm)'}`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>PDF ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
+              </button>
+            </>
+          )}
 
           <button
             type="button"
@@ -1362,6 +1382,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 setMarksMap((p) => ({ ...p, [stId]: upd }));
                 saveStudentMarks(diseCode, diseCode, upd, academicYear);
               }}
+              onUpdatePartBMarks={handleHpUpdatePartBMarks}
             />
           )}
 

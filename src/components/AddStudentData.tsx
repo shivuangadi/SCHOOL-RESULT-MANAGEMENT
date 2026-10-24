@@ -63,7 +63,17 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Languages,
 } from 'lucide-react';
+import {
+  transliterateEnglishToKannada,
+  switchStudentsLanguage,
+  translateStudentToKannada,
+  containsKannada,
+  formatSatsNo,
+  formatAadharNo,
+  cleanAllWordsEnding,
+} from '../utils/kannadaTransliterator';
 import { StudentDropboxModal } from './StudentDropboxModal';
 import { TransferCertificateModal } from './TransferCertificateModal';
 import { StudyCertificateModal } from './StudyCertificateModal';
@@ -118,12 +128,20 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
   const effectiveSchoolRecord = propSchoolRecord || authSchoolRecord;
   const { lang } = useLanguage();
 
-  // SINGLE SOURCE OF TRUTH: Classes dynamically configured in School Profile
-  const configuredClasses = useMemo(() => {
-    return getClassesFromRange(effectiveSchoolRecord?.schoolRange);
-  }, [effectiveSchoolRecord?.schoolRange]);
-
   const [students, setStudents] = useState<Student[]>([]);
+
+  // SINGLE SOURCE OF TRUTH: Classes dynamically configured in School Profile
+  // Also incorporates any classes present in loaded students so no imported class is ever hidden
+  const configuredClasses = useMemo(() => {
+    const fromProfile = getClassesFromRange(effectiveSchoolRecord?.schoolRange);
+    const classesSet = new Set<StudentClass>(fromProfile);
+    students.forEach((s) => {
+      if (s.classStandard) {
+        classesSet.add(s.classStandard);
+      }
+    });
+    return Array.from(classesSet).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  }, [effectiveSchoolRecord?.schoolRange, students]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>(initialClass || 'ALL');
@@ -208,6 +226,49 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     '29010100101';
   const schoolId = effectiveSchoolRecord?.schoolId || diseCode;
 
+  // Language switch state for Student Database names translation (English <-> Kannada)
+  const [namesLanguage, setNamesLanguage] = useState<'en' | 'kn'>(() => {
+    const saved = localStorage.getItem(`names_lang_${diseCode}`) as 'en' | 'kn' | null;
+    return saved === 'kn' ? 'kn' : 'en';
+  });
+  const [isTranslatingNames, setIsTranslatingNames] = useState(false);
+
+  // Synchronize names language state based on loaded student records if not explicitly set
+  useEffect(() => {
+    if (students.length > 0) {
+      const saved = localStorage.getItem(`names_lang_${diseCode}`) as 'en' | 'kn' | null;
+      if (!saved) {
+        const hasKn = students.some((s) => s.namesLanguage === 'kn' || containsKannada(s.studentName));
+        setNamesLanguage(hasKn ? 'kn' : 'en');
+      }
+    }
+  }, [students, diseCode]);
+
+  const handleToggleNamesLanguage = async (targetLang: 'en' | 'kn') => {
+    if (targetLang === namesLanguage || isTranslatingNames) return;
+    setIsTranslatingNames(true);
+    try {
+      const updatedStudents = switchStudentsLanguage(students, targetLang);
+      setStudents(updatedStudents);
+      setNamesLanguage(targetLang);
+      localStorage.setItem(`names_lang_${diseCode}`, targetLang);
+
+      // Save updated students to persistent storage so all forms and reports immediately use the translated/original names
+      await saveBulkStudents(updatedStudents, schoolId, diseCode, academicYear);
+
+      if (targetLang === 'kn') {
+        showToast('✓ ವಿದ್ಯಾರ್ಥಿ ಮತ್ತು ಪೋಷಕರ ಹೆಸರುಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಲಾಗಿದೆ! (ಎಲ್ಲಾ ವರದಿಗಳು ಮತ್ತು ನಮೂನೆಗಳಲ್ಲಿ ಕನ್ನಡ ಹೆಸರುಗಳು ಅನ್ವಯವಾಗಿವೆ)');
+      } else {
+        showToast('✓ Reverted to original English names! (Fixed initial imported spellings preserved with 100% fidelity)');
+      }
+    } catch (err: any) {
+      console.error('Error switching names language:', err);
+      showToast('⚠️ ಭಾಷೆ ಬದಲಾವಣೆಯಲ್ಲಿ ದೋಷ ಕಂಡುಬಂದಿದೆ: ' + (err?.message || 'Error'));
+    } finally {
+      setIsTranslatingNames(false);
+    }
+  };
+
   const fetchDeletedCount = async () => {
     if (!diseCode || diseCode === '00000000000') return;
     try {
@@ -224,14 +285,30 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     if (!diseCode || diseCode === '00000000000') return;
     setLoading(true);
     loadSchoolStudents(diseCode, diseCode, academicYear).then((data) => {
-      setStudents(data);
+      const sanitized = namesLanguage === 'kn'
+        ? data.map(translateStudentToKannada)
+        : data.map((s) => ({
+            ...s,
+            studentName: containsKannada(s.studentName) ? cleanAllWordsEnding(s.studentName) : s.studentName,
+            fatherName: s.fatherName && containsKannada(s.fatherName) ? cleanAllWordsEnding(s.fatherName) : s.fatherName,
+            motherName: s.motherName && containsKannada(s.motherName) ? cleanAllWordsEnding(s.motherName) : s.motherName,
+          }));
+      setStudents(sanitized);
       setLoading(false);
     });
 
     const unsubscribe = subscribeSchoolStudents(
       diseCode,
       (updated) => {
-        setStudents(updated);
+        const sanitized = namesLanguage === 'kn'
+          ? updated.map(translateStudentToKannada)
+          : updated.map((s) => ({
+              ...s,
+              studentName: containsKannada(s.studentName) ? cleanAllWordsEnding(s.studentName) : s.studentName,
+              fatherName: s.fatherName && containsKannada(s.fatherName) ? cleanAllWordsEnding(s.fatherName) : s.fatherName,
+              motherName: s.motherName && containsKannada(s.motherName) ? cleanAllWordsEnding(s.motherName) : s.motherName,
+            }));
+        setStudents(sanitized);
         setLoading(false);
       },
       undefined,
@@ -239,7 +316,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     );
 
     return () => unsubscribe();
-  }, [diseCode, academicYear]);
+  }, [diseCode, academicYear, namesLanguage]);
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
@@ -365,7 +442,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
       return;
     }
 
-    const cleanSats = satsNo.trim();
+    const cleanSats = satsNo.trim().replace(/\s+/g, '');
     if (cleanSats && !/^\d+$/.test(cleanSats)) {
       setFormError('SATS number must contain digits only.');
       return;
@@ -409,13 +486,71 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
       finalPhotoPath = undefined;
     }
 
+    const existingStudent = editingId ? students.find((s) => s.id === editingId) : undefined;
+    const trimmedName = studentName.trim();
+    const trimmedFather = fatherName.trim() ? fatherName.trim() : '-';
+    const trimmedMother = motherName.trim() ? motherName.trim() : '-';
+
+    // Handle name updates for both Kannada editing and English editing:
+    const hasKannadaInInput = containsKannada(trimmedName) || containsKannada(trimmedFather) || containsKannada(trimmedMother);
+    const isKannadaInput = hasKannadaInInput || namesLanguage === 'kn';
+
+    let origName: string;
+    let origFather: string;
+    let origMother: string;
+    let knName: string;
+    let knFather: string;
+    let knMother: string;
+
+    if (isKannadaInput) {
+      // User is editing or updating a Kannada name
+      knName = cleanAllWordsEnding(trimmedName);
+      knFather = trimmedFather !== '-' ? cleanAllWordsEnding(trimmedFather) : '-';
+      knMother = trimmedMother !== '-' ? cleanAllWordsEnding(trimmedMother) : '-';
+
+      // Preserve previous original English names if valid, so switching back to English still works
+      origName = existingStudent?.originalStudentName && !containsKannada(existingStudent.originalStudentName)
+        ? existingStudent.originalStudentName
+        : (existingStudent?.originalStudentName || trimmedName);
+
+      origFather = existingStudent?.originalFatherName && !containsKannada(existingStudent.originalFatherName)
+        ? existingStudent.originalFatherName
+        : (existingStudent?.originalFatherName || trimmedFather);
+
+      origMother = existingStudent?.originalMotherName && !containsKannada(existingStudent.originalMotherName)
+        ? existingStudent.originalMotherName
+        : (existingStudent?.originalMotherName || trimmedMother);
+    } else {
+      // User is editing in English
+      origName = trimmedName.toUpperCase();
+      origFather = trimmedFather !== '-' ? trimmedFather.toUpperCase() : '-';
+      origMother = trimmedMother !== '-' ? trimmedMother.toUpperCase() : '-';
+
+      // Automatically transliterate updated English name to Kannada
+      knName = transliterateEnglishToKannada(origName);
+      knFather = origFather !== '-' ? transliterateEnglishToKannada(origFather) : '-';
+      knMother = origMother !== '-' ? transliterateEnglishToKannada(origMother) : '-';
+    }
+
+    const effectiveLang: 'en' | 'kn' = (hasKannadaInInput || namesLanguage === 'kn') ? 'kn' : 'en';
+    const activeName = effectiveLang === 'kn' ? knName : origName;
+    const activeFather = effectiveLang === 'kn' ? knFather : origFather;
+    const activeMother = effectiveLang === 'kn' ? knMother : origMother;
+
     const newStudent: Student = {
       id,
       schoolId,
       diseCode,
-      studentName: studentName.trim().toUpperCase(),
-      fatherName: fatherName.trim() ? fatherName.trim().toUpperCase() : '-',
-      motherName: motherName.trim() ? motherName.trim().toUpperCase() : '-',
+      studentName: activeName,
+      fatherName: activeFather,
+      motherName: activeMother,
+      originalStudentName: origName,
+      originalFatherName: origFather,
+      originalMotherName: origMother,
+      studentNameKn: knName,
+      fatherNameKn: knFather,
+      motherNameKn: knMother,
+      namesLanguage: effectiveLang,
       classStandard,
       division,
       satsNo: cleanSats || 'N/A',
@@ -590,11 +725,19 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     setImporting(true);
 
     try {
-      await saveBulkStudents(parsedData.students, schoolId, diseCode, academicYear);
+      let studentsToImport = parsedData.students;
+      if (namesLanguage === 'kn') {
+        studentsToImport = switchStudentsLanguage(studentsToImport, 'kn');
+      }
+      const savedList = await saveBulkStudents(studentsToImport, schoolId, diseCode, academicYear);
 
-      // Update state
-      const merged = await loadSchoolStudents(schoolId, diseCode, academicYear);
-      setStudents(merged);
+      // Immediately update state with the complete imported/merged student list
+      if (Array.isArray(savedList) && savedList.length > 0) {
+        setStudents(savedList);
+      } else {
+        const merged = await loadSchoolStudents(schoolId, diseCode, academicYear);
+        setStudents(merged);
+      }
 
       showToast(
         `✓ ${parsedData.totalFound} ವಿದ್ಯಾರ್ಥಿಗಳ ವಿವರಗಳನ್ನು ಆಯಾ ತರಗತಿಗಳಿಗೆ ಯಶಸ್ವಿಯಾಗಿ ಅಳವಡಿಸಲಾಗಿದೆ! (Excel Import Complete)`
@@ -755,6 +898,49 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
               <span>← Classwise Dashboard</span>
             </button>
           )}
+
+          {/* LANGUAGE SWITCH BUTTON (KANNADA <-> ENGLISH NAMES TRANSLATION) */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-1 border border-white/25 flex items-center shadow-inner">
+            <div className="px-2.5 py-1 text-xs font-black text-amber-300 flex items-center gap-1.5 select-none border-r border-white/20 mr-1">
+              <Languages className="w-4 h-4 text-amber-400" />
+              <span className="hidden md:inline">ಹೆಸರುಗಳ ಭಾಷೆ (Names Language):</span>
+            </div>
+            <button
+              type="button"
+              disabled={isTranslatingNames}
+              onClick={() => handleToggleNamesLanguage('en')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer ${
+                namesLanguage === 'en'
+                  ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/60'
+                  : 'text-slate-200 hover:text-white hover:bg-white/10'
+              }`}
+              title="Switch to original English spelling (Imported / Initial Fixed Data)"
+            >
+              <span>English (Original Data Fix)</span>
+            </button>
+            <button
+              type="button"
+              disabled={isTranslatingNames}
+              onClick={() => handleToggleNamesLanguage('kn')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer ml-1 ${
+                namesLanguage === 'kn'
+                  ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300 font-black'
+                  : 'text-slate-200 hover:text-white hover:bg-white/10'
+              }`}
+              title="Translate all student and parent names to Kannada (ಅಂಕಿಸಂಖ್ಯೆಗಳು ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿಯೇ ಇರುತ್ತವೆ)"
+            >
+              {isTranslatingNames ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-950" />
+                  <span>ಅನುವಾದಿಸಲಾಗುತ್ತಿದೆ...</span>
+                </>
+              ) : (
+                <>
+                  <span>ಕನ್ನಡ (Translate to Kannada)</span>
+                </>
+              )}
+            </button>
+          </div>
 
           {/* BULK EDIT IN EXCEL SHEET BUTTON */}
           <button
@@ -1172,43 +1358,43 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
 
               {/* SATS Number */}
               <div>
-                <label className="block text-slate-700 font-bold mb-1">
-                  SATS No (ಸ್ಯಾಟ್ಸ್ ಸಂಖ್ಯೆ)
+                <label className="block text-slate-900 font-bold mb-1">
+                  SATS No (ಸ್ಯಾಟ್ಸ್ ಸಂಖ್ಯೆ) <span className="text-xs text-slate-500 font-normal">(9 Digits: 123 689 095)</span>
                 </label>
                 <input
                   type="text"
-                  maxLength={15}
-                  value={satsNo}
-                  onChange={(e) => setSatsNo(e.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g. 1290384701"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono font-bold"
+                  maxLength={11}
+                  value={formatSatsNo(satsNo)}
+                  onChange={(e) => setSatsNo(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                  placeholder="e.g. 123 689 095"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono font-black text-red-600 tracking-wider"
                 />
               </div>
 
               {/* PEN Number */}
               <div>
-                <label className="block text-slate-700 font-bold mb-1">PEN No (ಶಾಶ್ವತ ಶಿಕ್ಷಣ ಸಂಖ್ಯೆ)</label>
+                <label className="block text-slate-900 font-bold mb-1">PEN No (ಶಾಶ್ವತ ಶಿಕ್ಷಣ ಸಂಖ್ಯೆ)</label>
                 <input
                   type="text"
                   value={penNo}
                   onChange={(e) => setPenNo(e.target.value.replace(/\s+/g, ''))}
                   placeholder="e.g. 20239014561"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono font-black text-red-600 tracking-wider"
                 />
               </div>
 
               {/* Aadhar Number */}
               <div>
-                <label className="block text-slate-700 font-bold mb-1">
-                  Aadhar No (12-Digit UID)
+                <label className="block text-slate-900 font-bold mb-1">
+                  Aadhar No (12-Digit UID) <span className="text-xs text-slate-500 font-normal">(1234 5678 9012)</span>
                 </label>
                 <input
                   type="text"
-                  maxLength={12}
-                  value={aadharNo}
-                  onChange={(e) => setAadharNo(e.target.value.replace(/\D/g, ''))}
-                  placeholder="12 digit Aadhar"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono"
+                  maxLength={14}
+                  value={formatAadharNo(aadharNo)}
+                  onChange={(e) => setAadharNo(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                  placeholder="e.g. 1234 5678 9012"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-mono font-bold text-slate-900 tracking-wider"
                 />
               </div>
 
@@ -1300,11 +1486,11 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                 </select>
                 <p className="text-[11px] text-red-700 mt-1.5 font-medium leading-relaxed">
                   {cwsnStatus === 'EXEMPTED' ? (
-                    <span>⚠️ <strong>ಆಯ್ಕೆ ೨ (Exempted):</strong> ಅಂಕ ನಮೂದಿನಲ್ಲಿ CWSN ಎಂದು ಬರುತ್ತದೆ, ವಿಷಯಗಳ ಅಂಕ ನಮೂದು ರದ್ದಾಗುತ್ತದೆ (Merged), ಫಲಿತಾಂಶ CWSN ಎಂದಿರುತ್ತದೆ, ಸಹಪಠ್ಯ ಗ್ರೇಡ್ ನೀಡಬಹುದು.</span>
+                    <span>⚠️ <strong>ಆಯ್ಕೆ 2 (Exempted):</strong> ಅಂಕ ನಮೂದಿನಲ್ಲಿ CWSN ಎಂದು ಬರುತ್ತದೆ, ವಿಷಯಗಳ ಅಂಕ ನಮೂದು ರದ್ದಾಗುತ್ತದೆ (Merged), ಫಲಿತಾಂಶ CWSN ಎಂದಿರುತ್ತದೆ, ಸಹಪಠ್ಯ ಗ್ರೇಡ್ ನೀಡಬಹುದು.</span>
                   ) : cwsnStatus === 'MARKS_ALLOWED' ? (
-                    <span>✓ <strong>ಆಯ್ಕೆ ೩ (ಅಂಕ ನಮೂದಿಸಿ):</strong> ಮಗುವಿನ ಹೆಸರಿನ ಮುಂದೆ CWSN ಬ್ಯಾಡ್ಜ್ ಇರುತ್ತದೆ ಮತ್ತು ಅಂಕಗಳನ್ನು ಸಾಮಾನ್ಯವಾಗಿ ದಾಖಲಿಸಬಹುದು.</span>
+                    <span>✓ <strong>ಆಯ್ಕೆ 3 (ಅಂಕ ನಮೂದಿಸಿ):</strong> ಮಗುವಿನ ಹೆಸರಿನ ಮುಂದೆ CWSN ಬ್ಯಾಡ್ಜ್ ಇರುತ್ತದೆ ಮತ್ತು ಅಂಕಗಳನ್ನು ಸಾಮಾನ್ಯವಾಗಿ ದಾಖಲಿಸಬಹುದು.</span>
                   ) : (
-                    <span>೧. ಸಾಮಾನ್ಯ ಮಗು (Normal Student)</span>
+                    <span>1. ಸಾಮಾನ್ಯ ಮಗು (Normal Student)</span>
                   )}
                 </p>
               </div>
@@ -1394,6 +1580,38 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                   {d}
                 </button>
               ))}
+            </div>
+
+            {/* Quick Name Language Switcher for Student Database Table */}
+            <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-xl p-1 text-xs shadow-xs">
+              <Languages className="w-3.5 h-3.5 text-blue-900 ml-1" />
+              <span className="text-slate-600 font-bold hidden sm:inline mr-1">Names:</span>
+              <button
+                type="button"
+                disabled={isTranslatingNames}
+                onClick={() => handleToggleNamesLanguage('en')}
+                className={`px-2 py-0.5 rounded-lg font-black text-xs transition cursor-pointer ${
+                  namesLanguage === 'en'
+                    ? 'bg-blue-950 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Display original English names"
+              >
+                English
+              </button>
+              <button
+                type="button"
+                disabled={isTranslatingNames}
+                onClick={() => handleToggleNamesLanguage('kn')}
+                className={`px-2 py-0.5 rounded-lg font-black text-xs transition cursor-pointer ${
+                  namesLanguage === 'kn'
+                    ? 'bg-amber-400 text-slate-950 ring-1 ring-amber-300 shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Display translated Kannada names"
+              >
+                {isTranslatingNames ? '...' : 'ಕನ್ನಡ'}
+              </button>
             </div>
 
             {(searchQuery || selectedClassFilter !== 'ALL' || selectedDivFilter !== 'ALL') && (
@@ -1516,17 +1734,17 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                     </div>
                   </th>
                   <th
-                    className="py-3 px-4 font-mono cursor-pointer select-none hover:bg-slate-200 transition"
+                    className="py-3 px-4 font-mono whitespace-nowrap min-w-[150px] cursor-pointer select-none hover:bg-slate-200 transition"
                     onClick={() => handleHeaderSort('sats')}
                     title="Click to sort by SATS / PEN number"
                   >
                     <div className="flex items-center gap-1">
-                      <span>SATS / PEN</span>
+                      <span className="text-slate-900 font-bold">SATS / PEN</span>
                       {renderSortIcon('sats')}
                     </div>
                   </th>
                   <th
-                    className="py-3 px-4 font-mono cursor-pointer select-none hover:bg-slate-200 transition"
+                    className="py-3 px-4 font-mono whitespace-nowrap min-w-[150px] cursor-pointer select-none hover:bg-slate-200 transition"
                     onClick={() => handleHeaderSort('aadhar')}
                     title="Click to sort by Aadhar / Reg No"
                   >
@@ -1570,16 +1788,6 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                             >
                               {st.gender || 'Student'}
                             </span>
-                            {(st.dob || st.dateOfBirth) && (
-                              <span className="text-[10px] text-slate-500 font-mono">
-                                DOB: {formatDateToDmy(st.dob || st.dateOfBirth)}
-                              </span>
-                            )}
-                            {st.admissionDate && (
-                              <span className="text-[10px] text-emerald-700 font-mono font-bold">
-                                Adm: {formatDateToDmy(st.admissionDate)}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -1593,35 +1801,49 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                       <div className="text-slate-900 font-bold text-xs whitespace-nowrap">
                         {formatDateToDmy(st.dob || st.dateOfBirth) || '-'}
                       </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-slate-900 text-xs">{st.fatherName || '-'}</div>
+                      <div className="font-bold text-slate-900 text-xs mt-0.5">{st.motherName || '-'}</div>
+                    </td>
+                    <td className="py-3 px-4 font-mono whitespace-nowrap min-w-[150px]">
+                      <div className="text-xs whitespace-nowrap">
+                        <span className="text-slate-950 font-bold">SATS:&nbsp;</span>
+                        <span className="font-black text-red-600 tracking-wider whitespace-nowrap">{formatSatsNo(st.satsNo)}</span>
+                      </div>
+                      <div className="text-xs mt-0.5 whitespace-nowrap">
+                        <span className="text-slate-950 font-bold">PEN:&nbsp;</span>
+                        <span className="font-black text-red-600 tracking-wider whitespace-nowrap">{st.penNo || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[11px] whitespace-nowrap min-w-[150px]">
+                      <div className="text-slate-900 whitespace-nowrap">
+                        <span className="text-slate-700 font-bold">UID:&nbsp;</span>
+                        <span className="font-mono font-bold text-slate-900 tracking-wider whitespace-nowrap">
+                          {formatAadharNo(st.aadharNo)}
+                        </span>
+                      </div>
+                      {st.schoolRegNo && (
+                        <div className="text-[10px] text-slate-500">Reg: {st.schoolRegNo}</div>
+                      )}
                       {st.admissionDate && (
-                        <div className="text-[10px] text-emerald-700 font-medium whitespace-nowrap">
+                        <div className="text-[10px] text-emerald-700 font-bold">
                           Adm: {formatDateToDmy(st.admissionDate)}
                         </div>
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-800">{st.fatherName}</div>
-                      <div className="text-[11px] text-slate-500">{st.motherName}</div>
-                    </td>
-                    <td className="py-3 px-4 font-mono">
-                      <div className="font-bold text-blue-900">SATS: {st.satsNo}</div>
-                      <div className="text-[10px] text-slate-500">PEN: {st.penNo}</div>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px]">
-                      <div className="text-slate-800">
-                        UID: {st.aadharNo && st.aadharNo.length === 12
-                          ? `XXXX-XXXX-${st.aadharNo.slice(-4)}`
-                          : st.aadharNo}
+                      <div className="text-slate-800 font-medium">{st.religion || 'Hindu'}</div>
+                      <div className="flex flex-wrap gap-1 mt-0.5 items-center">
+                        <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px] inline-block">
+                          {st.caste === 'CUSTOM' ? st.customCaste || 'CUSTOM' : st.caste || 'GENERAL'}
+                        </span>
+                        {st.customCaste && st.customCaste !== st.caste && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold inline-block">
+                            {st.customCaste}
+                          </span>
+                        )}
                       </div>
-                      {st.schoolRegNo && (
-                        <div className="text-[10px] text-slate-400">Reg: {st.schoolRegNo}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-slate-800 font-medium">{st.religion}</div>
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold text-[10px] inline-block mt-0.5">
-                        {st.caste === 'CUSTOM' ? st.customCaste || 'CUSTOM' : st.caste}
-                      </span>
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
@@ -1737,7 +1959,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                   ತರಗತಿವಾರು ವಿದ್ಯಾರ್ಥಿಗಳ ಹಂಚಿಕೆ (Class-Wise Distribution):
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {configuredClasses.map((c) => {
+                  {(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] as StudentClass[]).map((c) => {
                     const count = parsedData.classCounts[c] || 0;
                     if (count === 0) return null;
                     return (
@@ -1797,7 +2019,15 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                               {st.gender || 'Boy'}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-emerald-800 font-bold">{st.satsNo || '-'}</td>
+                          <td className="py-2.5 px-3 font-mono whitespace-nowrap min-w-[130px]">
+                            <div className="text-red-600 font-bold tracking-wider whitespace-nowrap">{formatSatsNo(st.satsNo) || '-'}</div>
+                            {st.penNo && st.penNo !== 'N/A' && st.penNo !== '-' && (
+                              <div className="text-[10px] whitespace-nowrap">
+                                <span className="text-slate-900 font-bold">PEN:&nbsp;</span>
+                                <span className="text-red-600 font-bold tracking-wider whitespace-nowrap">{st.penNo}</span>
+                              </div>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2277,6 +2507,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
           diseCode={diseCode}
           onSaveSuccess={(updated) => {
             setStudents(updated);
+            fetchDeletedCount();
             setSuccessToast('✓ ವಿದ್ಯಾರ್ಥಿಗಳ ಎಲ್ಲಾ ವಿವರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಸರ್ವರ್‌ನಲ್ಲಿ ನವೀಕರಿಸಲಾಗಿದೆ! (All student records updated successfully!)');
             setTimeout(() => setSuccessToast(null), 4000);
           }}
