@@ -448,10 +448,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       district: districtName,
       mobile: payload.mobile.trim(),
       email: payload.email.trim(),
-      status: 'APPROVED', // Enable immediate dashboard access with payment modal
+      status: 'PENDING', // Must remain PENDING until Root Admin Shri S R Angadi explicitly approves
       paymentStatus: 'PENDING',
-      subscriptionStatus: 'ACTIVE',
-      subscriptionExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      subscriptionStatus: 'INACTIVE',
+      subscriptionExpiry: '',
       ownerUid: uid,
       firebaseAuthUid: uid,
       registrationPassword: payload.password,
@@ -467,7 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: 'schoolAdmin',
       name: payload.headmasterName.trim(),
       email: payload.email.trim(),
-      status: 'APPROVED',
+      status: 'PENDING',
       createdAt: now,
     };
 
@@ -489,7 +489,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: payload.email.trim(),
         taluk: talukName,
         district: districtName,
-        status: 'APPROVED',
+        status: 'PENDING',
         paymentStatus: 'PENDING',
         password: payload.password,
         createdAt: now,
@@ -545,9 +545,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const targetDise = schoolRecord?.diseCode;
     if (!targetDise) return false;
 
+    // Security check: only authorized administrator can modify schoolName and diseCode
+    const sanitizedUpdates = { ...updates };
+    if (!isAdmin) {
+      delete sanitizedUpdates.schoolName;
+      delete sanitizedUpdates.diseCode;
+      delete sanitizedUpdates.schoolId;
+    }
+
     try {
-      const updated = { ...schoolRecord, ...updates, updatedAt: new Date().toISOString() };
-      await updateDoc(doc(db, 'schools', targetDise), updates);
+      const updated = { ...schoolRecord, ...sanitizedUpdates, updatedAt: new Date().toISOString() };
+      await updateDoc(doc(db, 'schools', targetDise), sanitizedUpdates);
       setSchoolRecord(updated as SchoolRecord);
       saveLocalSchool(updated as SchoolRecord, updated.registrationPassword || '');
       return true;

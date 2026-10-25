@@ -5,7 +5,24 @@ import {
   captureCleanReportCanvas,
   openCleanPrintWindow,
   printElementViaIframe,
+  shareReportToWhatsApp,
+  downloadElementAsHtml,
 } from './printPdfHelper';
+
+export {
+  REPORT_PAPER_SIZES,
+  type ReportPaperSize,
+  captureCleanReportCanvas,
+  openCleanPrintWindow,
+  printElementViaIframe,
+  shareReportToWhatsApp,
+  downloadElementAsHtml,
+};
+
+export {
+  printHigherPrimaryCcePage2Detailed,
+  exportHigherPrimaryCcePage2Pdf,
+} from './report_layouts/higher_primary/higherPrimaryPage2LayoutHelper';
 
 /**
  * ============================================================================
@@ -104,18 +121,26 @@ export const executeCustomReportPrint = async (
       }
       #cce-isolated-print-portal .report-page-sheet {
         margin: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         padding: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
         box-sizing: border-box !important;
-        page-break-after: always !important;
         break-after: page !important;
+        page-break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
       #cce-isolated-print-portal .report-page-sheet:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
       #cce-isolated-print-portal .cce-sheet-container {
         padding-left: 0 !important;
@@ -291,107 +316,15 @@ export {
 } from './report_layouts/group1_kannada_english/kannadaEnglishPage4LayoutHelper';
 
 // ============================================================================
-// 3. HIGHER PRIMARY CCE PAGE 2 (9-LINE CONSOLIDATION - 28-30 COLS, 7 SUBJECTS)
+// 3. HIGHER PRIMARY CCE PAGE 2 (100 MARKS 35-COLUMN CONSOLIDATION REGISTER)
 // ============================================================================
-/**
- * Dedicated Print Helper for Higher Primary CCE Page 2 (9-Line Consolidation Register)
- * Highest column count (28-30 columns) requiring ultra-compact cell padding & font size.
- */
-export const printHpCcePage2_9Line = async (
-  element: HTMLElement,
-  title: string = 'Higher Primary 9-Line Consolidation Register',
-  paperSize: ReportPaperSize = 'legal'
-): Promise<boolean> => {
-  const isA4 = paperSize === 'a4';
-  const customCss = `
-    /* Ultra-compact 28-30 Column Rules for Higher Primary 9-Line Register */
-    @page {
-      size: ${isA4 ? 'A4' : 'legal'} landscape;
-      margin: 4mm 1mm 4mm 0mm !important;
-    }
-    #cce-isolated-print-portal .cce-9line-sheet table {
-      width: 100% !important;
-      table-layout: fixed !important;
-      border-collapse: collapse !important;
-      border: 1.5px solid #000000 !important;
-    }
-    #cce-isolated-print-portal .cce-9line-sheet th,
-    #cce-isolated-print-portal .cce-9line-sheet td {
-      padding: ${isA4 ? '0.25px 0.5px' : '0.5px 1px'} !important;
-      font-size: ${isA4 ? '7px' : '8px'} !important;
-      line-height: 1.05 !important;
-      border: 1px solid #000000 !important;
-      box-sizing: border-box !important;
-    }
-    #cce-isolated-print-portal .cce-v-header,
-    #cce-isolated-print-portal [style*="vertical-rl"] {
-      font-size: ${isA4 ? '6.5px' : '7.5px'} !important;
-      line-height: 1 !important;
-      white-space: nowrap !important;
-    }
-    #cce-isolated-print-portal .student-tbody {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
-  `;
-  return executeCustomReportPrint(element, title, paperSize, customCss, 'landscape');
-};
-
-/**
- * Dedicated PDF Exporter for Higher Primary CCE Page 2 (9-Line Consolidation Register)
- */
-export const exportHpCcePage2_9LinePdf = async (
-  element: HTMLElement,
-  filename: string,
-  paperSize: ReportPaperSize = 'legal'
-): Promise<boolean> => {
-  return executeCustomReportPdf(element, filename, paperSize, 1.0);
-};
-
-// ============================================================================
-// 4. HIGHER PRIMARY CCE PAGE 3 (100 MARKS REGISTER - 24-26 COLS, 6-7 SUBJECTS)
-// ============================================================================
-/**
- * Dedicated Print Helper for Higher Primary CCE Page 3 (100 Marks Register)
- */
-export const printHpCcePage3Register = async (
-  element: HTMLElement,
-  title: string = 'Higher Primary 100 Marks Consolidation Register',
-  paperSize: ReportPaperSize = 'legal'
-): Promise<boolean> => {
-  const isA4 = paperSize === 'a4';
-  const customCss = `
-    /* 24-26 Column Rules for Higher Primary 100 Marks */
-    #cce-isolated-print-portal table {
-      width: 100% !important;
-      table-layout: fixed !important;
-      border: 1.5px solid #000000 !important;
-    }
-    #cce-isolated-print-portal th,
-    #cce-isolated-print-portal td {
-      padding: ${isA4 ? '1px 1.5px' : '1.5px 2.5px'} !important;
-      font-size: ${isA4 ? '8px' : '9px'} !important;
-      line-height: 1.15 !important;
-      border: 1px solid #000000 !important;
-    }
-    #cce-isolated-print-portal th {
-      font-weight: 800 !important;
-      background-color: #f1f5f9 !important;
-    }
-  `;
-  return executeCustomReportPrint(element, title, paperSize, customCss, 'landscape');
-};
-
-/**
- * Dedicated PDF Exporter for Higher Primary CCE Page 3 (100 Marks Register)
- */
-export const exportHpCcePage3RegisterPdf = async (
-  element: HTMLElement,
-  filename: string,
-  paperSize: ReportPaperSize = 'legal'
-): Promise<boolean> => {
-  return executeCustomReportPdf(element, filename, paperSize, 1.0);
-};
+export {
+  printHigherPrimaryCcePage2Detailed as printHpCcePage2_9Line,
+  exportHigherPrimaryCcePage2Pdf as exportHpCcePage2_9LinePdf,
+  exportHigherPrimaryCcePage2Html as exportHpCcePage2_9LineHtml,
+  printHigherPrimaryCcePage2Detailed as printHpCcePage3Register,
+  exportHigherPrimaryCcePage2Pdf as exportHpCcePage3RegisterPdf,
+} from './report_layouts/higher_primary/higherPrimaryPage2LayoutHelper';
 
 // ============================================================================
 // 5. MARATHI / URDU CCE PAGE 2 (500 MARKS REGISTER - 24 COLS, 5 SUBJECTS)

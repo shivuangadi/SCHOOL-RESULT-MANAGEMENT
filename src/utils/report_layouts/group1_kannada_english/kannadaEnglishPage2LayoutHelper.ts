@@ -145,8 +145,10 @@ export const printPrimaryCcePage2Register = async (
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        page-break-after: always !important;
+        height: auto !important;
+        min-height: 0 !important;
         break-after: page !important;
+        page-break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         background: #ffffff !important;
@@ -156,8 +158,8 @@ export const printPrimaryCcePage2Register = async (
       }
 
       #kannada-english-page2-isolated-portal .report-page-sheet:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
 
       #kannada-english-page2-isolated-portal .cce-sheet-container {

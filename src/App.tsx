@@ -306,7 +306,10 @@ const MainAppContent: React.FC = () => {
           </div>
         ) : (
           /* CASE 3: UNAUTHENTICATED VISITOR - PROFESSIONAL LOGIN WINDOW (NO OBSCURING BY HEADER) */
-          <div className="relative w-full flex-1 flex flex-col items-center justify-start p-3 sm:p-5 lg:p-6 pt-4 sm:pt-6 pb-16 overflow-y-auto">
+          <div
+            className="relative w-full flex-1 flex flex-col items-center justify-start p-3 sm:p-5 lg:p-6 pt-4 sm:pt-6 pb-16 overflow-y-auto"
+            style={{ backgroundColor: '#1f82b7' }}
+          >
             {/* Edge-to-edge Widescreen Background Visual */}
             <LoginBackgroundVisual />
 

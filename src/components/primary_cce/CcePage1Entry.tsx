@@ -97,6 +97,9 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
                 <th rowSpan={2} className="border border-slate-300 p-1 bg-emerald-200 text-emerald-950 font-black min-w-[45px]">
                   ಶ್ರೇಣಿ
                 </th>
+                <th rowSpan={2} className="border border-slate-300 p-1 bg-amber-200 text-amber-950 font-black min-w-[70px]">
+                  ಫಲಿತಾಂಶ<br />Result
+                </th>
               </tr>
               <tr className="bg-slate-50 text-[11px] font-bold text-slate-700 border-b border-slate-300">
                 {/* FA1 */}
@@ -151,7 +154,7 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
 
                     {/* MERGED ROW IF CWSN EXEMPT */}
                     {cSt.isExempted ? (
-                      <td colSpan={20} className="border border-slate-300 p-2 bg-purple-100/90 text-purple-950 font-black text-center tracking-wide">
+                      <td colSpan={21} className="border border-slate-300 p-2 bg-purple-100/90 text-purple-950 font-black text-center tracking-wide">
                         <div className="flex items-center justify-center gap-3">
                           <span className="px-3 py-1 bg-purple-800 text-white rounded-lg text-xs">
                             CWSN (ವಿನಾಯಿತಿ / EXEMPT)
@@ -494,6 +497,37 @@ export const CcePage1Entry: React.FC<CcePage1EntryProps> = ({
                         <td className="border border-slate-300 p-1 font-black text-emerald-900 bg-emerald-100/80 text-sm">
                           {sub.grade}
                         </td>
+
+                        {/* Result (Pass/Fail) based strictly on this subject's 100 marks: >= 30% Pass, < 30% Fail */}
+                        {(() => {
+                          const subTotal = sub.total100;
+                          const hasMarks = subTotal !== null && subTotal !== undefined;
+                          const hasCwsn = isCwsnStudent(st.cwsnStatus);
+                          const isSubPassed = cSt.isExempted || hasCwsn || (hasMarks && subTotal >= 30);
+                          return (
+                            <td className={`border border-slate-300 p-1 font-black text-xs text-center ${
+                              cSt.isExempted
+                                ? 'bg-purple-100 text-purple-950'
+                                : hasCwsn
+                                ? 'bg-emerald-100 text-emerald-950'
+                                : hasMarks
+                                ? isSubPassed
+                                  ? 'bg-emerald-100 text-emerald-950'
+                                  : 'bg-rose-100 text-rose-950'
+                                : 'bg-slate-50 text-slate-400'
+                            }`}>
+                              {cSt.isExempted
+                                ? 'ವಿನಾಯಿತಿ'
+                                : hasCwsn
+                                ? 'ತೇರ್ಗಡೆ (CWSN)'
+                                : hasMarks
+                                ? isSubPassed
+                                  ? 'ತೇರ್ಗಡೆ'
+                                  : 'ಅನುತ್ತೀರ್ಣ'
+                                : '-'}
+                            </td>
+                          );
+                        })()}
                       </>
                     )}
                   </tr>

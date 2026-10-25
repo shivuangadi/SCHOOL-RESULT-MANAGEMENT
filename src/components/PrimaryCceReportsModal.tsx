@@ -442,21 +442,33 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
     saveStudentMarks(diseCode, diseCode, updatedMarks, academicYear).catch(() => {});
   };
 
-  // Handle Final Co-Scholastic Grade Update
-  const handleUpdateFinalCoGrade = (studentId: string, key: string, val: string) => {
+  // Handle Co-Scholastic Grade Update (supports sem1, sem2, and final)
+  const handleUpdateFinalCoGrade = (studentId: string, semOrKey: string, keyOrVal: string, maybeVal?: string) => {
+    let sem: 'sem1' | 'sem2' | 'final' = 'final';
+    let key = '';
+    let val = '';
+    if (maybeVal !== undefined) {
+      sem = semOrKey as any;
+      key = keyOrVal;
+      val = maybeVal;
+    } else {
+      key = semOrKey;
+      val = keyOrVal;
+    }
     const st = students.find((s) => s.id === studentId);
     if (!st) return;
 
     const existing = marksMap[studentId] || generateDefaultPrimaryMarks(st);
-    const currentFinal = (existing as any).finalCo || {};
+    const targetKey = sem === 'sem1' ? 'sem1Co' : sem === 'sem2' ? 'sem2Co' : 'finalCo';
+    const currentObj = (existing as any)[targetKey] || {};
 
     const updatedMarks: any = {
       ...existing,
       studentId,
       diseCode,
       academicYear,
-      finalCo: {
-        ...currentFinal,
+      [targetKey]: {
+        ...currentObj,
         [key]: val,
       },
     };

@@ -6,6 +6,7 @@ import {
   MARATHI_URDU_CO_ACTIVITIES,
   getMarathiUrduSubjects,
 } from '../../utils/marathiUrduCceHelper';
+import { handleTableGridNavigation } from '../../utils/tableNavigationHelper';
 
 interface MarathiUrduCcePage1EntryProps {
   computedList: ComputedMarathiUrduStudent[];
@@ -96,7 +97,10 @@ export const MarathiUrduCcePage1Entry: React.FC<MarathiUrduCcePage1EntryProps> =
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-xs text-center border-collapse border border-slate-400">
+          <table
+            className="w-full min-w-[1100px] text-xs text-center border-collapse border border-slate-400"
+            onKeyDown={handleTableGridNavigation}
+          >
             <thead>
               <tr className="bg-slate-100 font-bold text-slate-900 border-b border-slate-400">
                 <th rowSpan={2} className="border border-slate-400 p-1 w-10">Si.No</th>
@@ -124,6 +128,9 @@ export const MarathiUrduCcePage1Entry: React.FC<MarathiUrduCcePage1EntryProps> =
                 </th>
                 <th rowSpan={2} className="border border-slate-400 p-1 bg-green-100 font-black min-w-[50px]">
                   GRADE
+                </th>
+                <th rowSpan={2} className="border border-slate-400 p-1 bg-amber-200 font-black text-amber-950 min-w-[70px]">
+                  RESULT<br />(Pass &gt;= 30%)
                 </th>
               </tr>
               <tr className="bg-slate-50 text-[11px] font-bold text-slate-700 border-b border-slate-400">
@@ -539,6 +546,36 @@ export const MarathiUrduCcePage1Entry: React.FC<MarathiUrduCcePage1EntryProps> =
                     }`}>
                       {sub.grade}
                     </td>
+
+                    {/* RESULT: Evaluated out of this subject's 100 marks (>= 30% Pass, < 30% Fail) */}
+                    {(() => {
+                      const subTotal = sub.total100;
+                      const hasMarks = subTotal !== null && subTotal !== undefined;
+                      const isSubPassed = isExempted || cSt.hasCwsnBadge || (hasMarks && subTotal >= 30);
+                      return (
+                        <td className={`border border-slate-400 p-1 font-black text-xs text-center ${
+                          isExempted
+                            ? 'bg-purple-100 text-purple-950'
+                            : cSt.hasCwsnBadge
+                            ? 'bg-emerald-100 text-emerald-950'
+                            : hasMarks
+                            ? isSubPassed
+                              ? 'bg-emerald-100 text-emerald-950'
+                              : 'bg-rose-100 text-rose-950'
+                            : 'bg-slate-50 text-slate-400'
+                        }`}>
+                          {isExempted
+                            ? 'EXEMPT'
+                            : cSt.hasCwsnBadge
+                            ? 'PASS (CWSN)'
+                            : hasMarks
+                            ? isSubPassed
+                              ? 'PROMOTED'
+                              : 'DETAINED'
+                            : '-'}
+                        </td>
+                      );
+                    })()}
                   </tr>
                 );
               })}

@@ -126,10 +126,14 @@ export const buildPrintableHtmlDocument = (
       width: 100% !important;
       max-width: 100% !important;
       height: auto !important;
-      min-height: auto !important;
+      min-height: 0 !important;
       max-height: none !important;
       overflow: visible !important;
       background: #ffffff !important;
+    }
+    .report-page-sheet:last-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
     }
     .report-page-sheet > div,
     .cce-sheet-container {
@@ -1070,10 +1074,24 @@ export const executeReportPrint = async (
       }
       #cce-isolated-print-portal .report-page-sheet {
         margin: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         padding: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
+        height: auto !important;
+        min-height: 0 !important;
+        page-break-after: page !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      #cce-isolated-print-portal .report-page-sheet:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
       #cce-isolated-print-portal .report-page-sheet > div,
       #cce-isolated-print-portal .cce-sheet-container {
@@ -1160,9 +1178,9 @@ export const exportElementAsImage = async (
 
 /**
  * Strategy 5: Share Report to WhatsApp
- * 1. Exports/downloads report photo without window navigation bars or missing columns
- * 2. Launches WhatsApp with prefilled formatted summary
- * 3. Supports native navigator.share if available
+ * - When multiple pages exist, EVERY page is captured and downloaded as a separate crystal-clear image
+ * - Pre-formats and opens WhatsApp Web/mobile with structured summary
+ * - Uses native navigator.share if file sharing is supported
  */
 export const shareReportToWhatsApp = async (
   element: HTMLElement | null,
@@ -1170,42 +1188,64 @@ export const shareReportToWhatsApp = async (
   filename: string = 'School_Report'
 ): Promise<boolean> => {
   try {
-    let imageBlob: Blob | null = null;
+    const cleanBase = filename.replace(/[^a-zA-Z0-9_\u0C80-\u0CFF]/g, '_');
+    const sharedFiles: File[] = [];
 
     if (element) {
-      try {
-        const captured = await captureCleanReportCanvas(element);
-        if (captured) {
-          const { dataUrl } = captured;
-          // Prompt image download so user has the photo ready to send
-          const cleanName = `${filename.replace(/[^a-zA-Z0-9_\u0C80-\u0CFF]/g, '_')}_Photo.png`;
-          const link = document.createElement('a');
-          link.href = dataUrl;
-          link.download = cleanName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+      // Find all report page sheets in container
+      const sheets = Array.from(element.querySelectorAll<HTMLElement>('.report-page-sheet'));
+      const targetItems = sheets.length > 0 ? sheets : [element];
 
-          // Convert dataUrl to blob
-          const res = await fetch(dataUrl);
-          imageBlob = await res.blob();
+      for (let idx = 0; idx < targetItems.length; idx++) {
+        const item = targetItems[idx];
+        try {
+          const captured = await captureCleanReportCanvas(item);
+          if (captured) {
+            const { dataUrl } = captured;
+            const pageSuffix = targetItems.length > 1 ? `_Page_${idx + 1}` : '';
+            const downloadFilename = `${cleanBase}${pageSuffix}.png`;
+
+            // Prompt image download so user has each clear page image ready
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = downloadFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Collect blob for native sharing if supported
+            try {
+              const res = await fetch(dataUrl);
+              const blob = await res.blob();
+              sharedFiles.push(new File([blob], downloadFilename, { type: 'image/png' }));
+            } catch (_) {}
+
+            // Delay between multi-page downloads so the browser doesn't block or drop downloads
+            if (targetItems.length > 1 && idx < targetItems.length - 1) {
+              await new Promise((r) => setTimeout(r, 220));
+            }
+          }
+        } catch (itemErr) {
+          console.warn(`Could not capture page ${idx + 1} for WhatsApp share:`, itemErr);
         }
-      } catch (imgErr) {
-        console.warn('Could not generate image blob for share, continuing with text:', imgErr);
       }
     }
 
-    // If native share supports files, share both file and text
-    if (imageBlob && navigator.canShare && navigator.canShare({ files: [new File([imageBlob], `${filename}.png`, { type: 'image/png' })] })) {
+    // If native share supports all files, share both file and text
+    if (
+      sharedFiles.length > 0 &&
+      navigator.canShare &&
+      navigator.canShare({ files: sharedFiles })
+    ) {
       try {
         await navigator.share({
           title: filename,
           text: textSummary,
-          files: [new File([imageBlob], `${filename}.png`, { type: 'image/png' })],
+          files: sharedFiles,
         });
         return true;
       } catch (shareErr) {
-        // User cancelled or not supported, fallback to WhatsApp URL
+        // User cancelled or unsupported, fallback to WhatsApp URL
       }
     }
 

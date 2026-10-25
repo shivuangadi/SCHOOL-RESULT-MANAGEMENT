@@ -6,14 +6,15 @@ import {
   HP_CO_ACTIVITIES,
   getHpSubjectsForMedium,
 } from '../../utils/higherPrimaryCceHelper';
-import { Printer, Download, CheckCircle2, FileCode, Sliders, Plus, Minus, Users } from 'lucide-react';
+import { Printer, Download, CheckCircle2, FileCode, Sliders, Plus, Minus, Users, Share2 } from 'lucide-react';
 import {
-  printHpCcePage3Register,
-  exportHpCcePage3RegisterPdf,
+  printHigherPrimaryCcePage2Detailed,
+  exportHigherPrimaryCcePage2Pdf,
   downloadElementAsHtml,
+  shareReportToWhatsApp,
   ReportPaperSize,
   REPORT_PAPER_SIZES,
-} from '../../utils/printPdfHelper';
+} from '../../utils/reportPrintPdfHelpers';
 
 interface HpCcePage3Register100Props {
   computedList: ComputedHpStudent[];
@@ -72,6 +73,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
 
   const paperConfig = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
   const medium = schoolRecord?.schoolMedium || 'Kannada';
+  const isKannada = !medium || medium.toLowerCase() === 'kannada';
   const subjects = getHpSubjectsForMedium(medium);
 
   const talukName = schoolRecord?.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ';
@@ -91,7 +93,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
     if (reportRef?.current) {
       const sName = schoolName.replace(/\s+/g, '_');
       const docTitle = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation_${paperSize.toUpperCase()}`;
-      printHpCcePage3Register(reportRef.current, docTitle, paperSize);
+      printHigherPrimaryCcePage2Detailed(reportRef.current, docTitle, paperSize);
     }
   };
 
@@ -102,13 +104,31 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
       try {
         const sName = schoolName.replace(/\s+/g, '_');
         const filename = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation_${paperSize.toUpperCase()}`;
-        await exportHpCcePage3RegisterPdf(reportRef.current, filename, paperSize);
+        await exportHigherPrimaryCcePage2Pdf(reportRef.current, filename, paperSize);
         setStatusMessage('PDF ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!');
       } catch (err) {
         console.error('PDF error:', err);
         setStatusMessage('PDF ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಗಿದೆ');
       } finally {
         setIsExportingPdf(false);
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    }
+  };
+
+  const handleWhatsAppShare = async () => {
+    if (reportRef?.current) {
+      const sName = (schoolName || 'School').replace(/\s+/g, '_');
+      const filename = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation_${paperSize.toUpperCase()}`;
+      const summary = `*${schoolName}*\n*${isKannada ? '100 ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ' : '100 Marks Consolidation Register'} (${academicYear})*\n${isKannada ? 'ತರಗತಿ' : 'Class'}: ${selectedClass} | ${isKannada ? 'ದಿನಾಂಕ' : 'Date'}: ${new Date().toLocaleDateString('en-IN')}`;
+      setStatusMessage('WhatsApp ಚಿತ್ರಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ... / Preparing WhatsApp images...');
+      try {
+        await shareReportToWhatsApp(reportRef.current, summary, filename);
+        setStatusMessage('ಚಿತ್ರಗಳು ಡೌನ್‌ಲೋಡ್ ಆಗಿವೆ! / Images downloaded!');
+      } catch (e) {
+        console.error('WhatsApp share error:', e);
+        setStatusMessage('ವಿಫಲವಾಗಿದೆ / Failed');
+      } finally {
         setTimeout(() => setStatusMessage(null), 3000);
       }
     }
@@ -129,18 +149,15 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
       {/* Scoped Print and Margin Styles */}
       <style>{`
         @page {
-          size: ${paperConfig.widthMm}mm ${paperConfig.heightMm}mm landscape;
-          margin-top: 5mm;
-          margin-bottom: 5mm;
-          margin-left: 0mm;
-          margin-right: 2mm;
+          size: ${paperConfig.widthMm}mm ${paperConfig.heightMm}mm landscape !important;
+          margin: 0 !important;
         }
         @media print {
           html, body {
             color: #000000 !important;
             background: #ffffff !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             margin: 0 !important;
             padding: 0 !important;
           }
@@ -151,14 +168,17 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
             break-before: avoid !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            padding: 0 !important;
+            padding-top: 6mm !important;
+            padding-bottom: 6mm !important;
+            padding-left: ${paperSize === 'a4' ? '18mm' : '20mm'} !important;
+            padding-right: 6mm !important;
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
             width: 100% !important;
             max-width: 100% !important;
             height: auto !important;
-            min-height: auto !important;
+            min-height: 0 !important;
             max-height: none !important;
             overflow: visible !important;
             background: #ffffff !important;
@@ -174,8 +194,8 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
             box-sizing: border-box !important;
           }
           .report-page-sheet:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
           .cce-print-hidden {
             display: none !important;
@@ -226,7 +246,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
             </button>
           </div>
 
-          {/* Row Height Adjuster (User-requested feature) */}
+          {/* Row Height Adjuster */}
           <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
             <Sliders className="w-3.5 h-3.5 text-amber-300" />
             <span className="font-bold text-slate-200">ಸಾಲು ಎತ್ತರ (Row Height):</span>
@@ -265,7 +285,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
             </div>
           </div>
 
-          {/* Students Per Page Selector with Increase (+) and Decrease (-) controls */}
+          {/* Students Per Page Selector */}
           <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
             <Users className="w-3.5 h-3.5 text-amber-300" />
             <span className="font-bold text-slate-200">ಪುಟಕ್ಕೆ ವಿದ್ಯಾರ್ಥಿಗಳು:</span>
@@ -313,9 +333,18 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
           )}
           <button
             type="button"
+            onClick={handleWhatsAppShare}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+            title="Download every page as high-res PNG for WhatsApp sharing"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>WhatsApp ಹಂಚಿಕೆ</span>
+          </button>
+          <button
+            type="button"
             onClick={handleDownloadHtml}
             className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
-            title="Download standalone HTML file to adjust margins manually"
+            title="Download standalone HTML file"
           >
             <FileCode className="w-3.5 h-3.5" />
             <span>HTML ಡೌನ್‌ಲೋಡ್</span>
@@ -393,29 +422,31 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                   }`}
                 >
                   <div className="text-[12px] font-bold text-center text-black uppercase tracking-wide leading-tight">
-                    ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಹಾಗೂ ಕ್ಷೇತ್ರ ಸಮನ್ವಯಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ, {talukName} — {academicYear} ನೇ ಸಾಲಿನ ವಾರ್ಷಿಕ ಕ್ರೋಢೀಕರಣ ವಹಿ (100 ಅಂಕಗಳು)
+                    {isKannada
+                      ? `ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಹಾಗೂ ಕ್ಷೇತ್ರ ಸಮನ್ವಯಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ, ${talukName} — ${academicYear} ನೇ ಸಾಲಿನ ವಾರ್ಷಿಕ ಕ್ರೋಢೀಕರಣ ವಹಿ (100 ಅಂಕಗಳು)`
+                      : `OFFICE OF THE BLOCK EDUCATION OFFICER & BRC, ${talukName} — ANNUAL CONSOLIDATION REGISTER (${academicYear}) (100 MARKS)`}
                   </div>
 
                   {/* Page Headings: School Name, Class, Class Teacher, Academic Year, Working Days distributed in the SAME LINE across table width */}
                   <div className="flex flex-row items-center justify-between w-full text-[11px] font-bold text-black border-t border-black pt-1 mt-1 px-1 whitespace-nowrap overflow-hidden">
                     <div>
-                      ಶಾಲೆ: <span className="font-black">{schoolName}</span> <span className="font-normal font-mono text-[10px]">({diseCode})</span>
+                      {isKannada ? 'ಶಾಲೆ' : 'School'}: <span className="font-black">{schoolName}</span> <span className="font-normal font-mono text-[10px]">({diseCode})</span>
                     </div>
                     <div>
-                      ತರಗತಿ: <span className="font-black">{selectedClass}ನೇ ತರಗತಿ (Class {selectedClass})</span>
+                      {isKannada ? 'ತರಗತಿ' : 'Class'}: <span className="font-black">{selectedClass} {isKannada ? 'ನೇ ತರಗತಿ' : 'Standard'}</span>
                     </div>
                     <div>
-                      ವರ್ಗ ಶಿಕ್ಷಕರು: <span className="font-black underline underline-offset-2">{classTeacherName || '____________________'}</span>
+                      {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರು' : 'Class Teacher'}: <span className="font-black underline underline-offset-2">{classTeacherName || '____________________'}</span>
                     </div>
                     <div>
-                      ಶೈಕ್ಷಣಿಕ ವರ್ಷ: <span className="font-black">{academicYear}</span>
+                      {isKannada ? 'ಶೈಕ್ಷಣಿಕ ವರ್ಷ' : 'Academic Year'}: <span className="font-black">{academicYear}</span>
                     </div>
                     <div>
-                      ಶಾಲೆ ನಡೆದ ದಿನಗಳು: <span className="font-black font-mono">{workingDays}</span>
+                      {isKannada ? 'ಶಾಲೆ ನಡೆದ ದಿನಗಳು' : 'Working Days'}: <span className="font-black font-mono">{workingDays}</span>
                     </div>
                     {chunks.length > 1 && (
                       <div>
-                        ಪುಟ: <span className="font-black font-mono">{pageIdx + 1} / {chunks.length}</span>
+                        {isKannada ? 'ಪುಟ' : 'Page'}: <span className="font-black font-mono">{pageIdx + 1} / {chunks.length}</span>
                       </div>
                     )}
                   </div>
@@ -481,45 +512,52 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                       >
                         {/* 1. Sl No */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] overflow-hidden">
-                          ಕ್ರ.ಸಂ
+                          {isKannada ? 'ಕ್ರ.ಸಂ' : 'Sl. No.'}
                         </th>
 
                         {/* 2. Student Name in Second Column */}
                         <th rowSpan={2} className="border border-black p-1 align-middle text-left text-[10px] overflow-hidden">
-                          ವಿದ್ಯಾರ್ಥಿಯ ಹೆಸರು
+                          {isKannada ? 'ವಿದ್ಯಾರ್ಥಿಯ ಹೆಸರು' : 'Student Name'}
                         </th>
 
                         {/* 3. 3rd Column: DOB and below DOB Gender */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] leading-tight overflow-hidden">
-                          ಜನ್ಮ ದಿನಾಂಕ<br />ಲಿಂಗ
+                          {isKannada ? (
+                            <>ಜನ್ಮ ದಿನಾಂಕ<br />ಲಿಂಗ</>
+                          ) : (
+                            <>Date of Birth<br />Gender</>
+                          )}
                         </th>
 
                         {/* 4. Reg No & SATS No in a cell */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] leading-tight overflow-hidden">
-                          ದಾಖಲಾತಿ<br />SATS ಸಂಖ್ಯೆ
+                          {isKannada ? (
+                            <>ದಾಖಲಾತಿ<br />SATS ಸಂಖ್ಯೆ</>
+                          ) : (
+                            <>Adm. No.<br />SATS No.</>
+                          )}
                         </th>
 
                         {/* 5. Category / Caste (centered and wrapped) */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] overflow-hidden">
-                          ಪ್ರವರ್ಗ
+                          {isKannada ? 'ಪ್ರವರ್ಗ' : 'Category'}
                         </th>
 
                         {/* 6. ATTENDANCE COLUMN AT 6TH COLUMN */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] font-black overflow-hidden leading-tight">
-                          ಹಾಜರಾತಿ
+                          {isKannada ? 'ಹಾಜರಾತಿ' : 'Attendance'}
                         </th>
 
                         {/* Curricular Subjects (FL, SL, TL, Maths, Science, Social Science) */}
                         {subjects.map((s) => (
                           <th key={s.code} colSpan={2} className="border border-black p-0.5 text-[10px] font-black overflow-hidden leading-tight">
-                            {s.nameKn}<br />
-                            <span className="text-[10px] font-normal">({s.nameEn.split(' ')[0]})</span>
+                            {isKannada ? s.nameKn : s.nameEn}
                           </th>
                         ))}
 
                         {/* Grand Total */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] font-black overflow-hidden">
-                          ಒಟ್ಟು
+                          {isKannada ? 'ಒಟ್ಟು' : 'Total'}
                         </th>
 
                         {/* Percentage */}
@@ -529,29 +567,27 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
 
                         {/* Grade */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] font-black overflow-hidden">
-                          ಶ್ರೇಣಿ
+                          {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
                         </th>
 
                         {/* Art Education / Work Experience */}
                         <th colSpan={2} className="border border-black p-0.5 text-[10px] font-black overflow-hidden leading-tight">
-                          ಕಲಾ ಶಿಕ್ಷಣ<br />
-                          <span className="text-[10px] font-normal">(Art Edu)</span>
+                          {isKannada ? 'ಕಲಾ ಶಿಕ್ಷಣ' : 'Art Education'}
                         </th>
 
                         {/* Computer Education / ICT */}
                         <th colSpan={2} className="border border-black p-0.5 text-[10px] font-black overflow-hidden leading-tight">
-                          ಕಂಪ್ಯೂಟರ್ ಶಿಕ್ಷಣ<br />
-                          <span className="text-[10px] font-normal">(Comp Edu)</span>
+                          {isKannada ? 'ಕಂಪ್ಯೂಟರ್ ಶಿಕ್ಷಣ' : 'Computer Education'}
                         </th>
 
                         {/* Part B: 7 Co-Scholastic Activities */}
                         <th colSpan={7} className="border border-black p-0.5 text-[10px] font-black overflow-hidden leading-tight">
-                          ಭಾಗ-ಬಿ ಸಹ ಪಠ್ಯ ವಿಷಯಗಳು (Part-B 1-7)
+                          {isKannada ? 'ಭಾಗ-ಬಿ ಸಹ ಪಠ್ಯ ವಿಷಯಗಳು' : 'Part-B Co-Scholastic Activities'}
                         </th>
 
                         {/* Result */}
                         <th rowSpan={2} className="border border-black p-0.5 align-middle text-[10px] font-black overflow-hidden">
-                          ಫಲಿತಾಂಶ
+                          {isKannada ? 'ಫಲಿತಾಂಶ' : 'Result'}
                         </th>
                       </tr>
 
@@ -563,21 +599,33 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                         {/* Curricular subjects sub-columns: Marks and Grade are same size */}
                         {subjects.map((s) => (
                           <React.Fragment key={s.code}>
-                            <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಅಂಕ</th>
-                            <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಶ್ರೇಣಿ</th>
+                            <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                              {isKannada ? 'ಅಂಕ' : 'Marks'}
+                            </th>
+                            <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                              {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                            </th>
                           </React.Fragment>
                         ))}
                         {/* Art Education sub-columns: Marks and Grade are same size */}
-                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಅಂಕ</th>
-                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಶ್ರೇಣಿ</th>
+                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                          {isKannada ? 'ಅಂಕ' : 'Marks'}
+                        </th>
+                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                          {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                        </th>
 
                         {/* Computer Education sub-columns: Marks and Grade are same size */}
-                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಅಂಕ</th>
-                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">ಶ್ರೇಣಿ</th>
+                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                          {isKannada ? 'ಅಂಕ' : 'Marks'}
+                        </th>
+                        <th className="border border-black p-0.5 text-[10px] overflow-hidden">
+                          {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                        </th>
 
                         {/* 7 Co-scholastic activities */}
                         {HP_CO_ACTIVITIES.map((act) => (
-                          <th key={act.key} className="border border-black p-0.5 text-[10px] overflow-hidden" title={act.nameKn}>
+                          <th key={act.key} className="border border-black p-0.5 text-[10px] overflow-hidden" title={isKannada ? act.nameKn : act.nameEn}>
                             {act.num}
                           </th>
                         ))}
@@ -632,7 +680,13 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                                   {st.dob || st.dateOfBirth || '-'}
                                 </span>
                                 <span className="text-black font-bold whitespace-nowrap mt-0.5 text-[10px]">
-                                  {st.gender === 'Boy' ? 'ಬಾಲಕ' : st.gender === 'Girl' ? 'ಬಾಲಕಿ' : (st.gender || '-')}
+                                  {isKannada
+                                    ? st.gender === 'Boy'
+                                      ? 'ಬಾಲಕ'
+                                      : st.gender === 'Girl'
+                                      ? 'ಬಾಲಕಿ'
+                                      : (st.gender || '-')
+                                    : (st.gender || '-')}
                                 </span>
                               </div>
                             </td>
@@ -659,48 +713,66 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                             {/* 6. ATTENDANCE COLUMN AT 6TH COLUMN (2-way sync editable days) - Font Size 12 */}
                             <td className="border border-black p-0 text-center font-mono font-bold align-middle text-[12px]">
                               <input
-                                type="number"
-                                min={0}
-                                max={workingDays || 300}
-                                value={cSt.attendanceDays || ''}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={3}
+                                placeholder="-"
+                                value={!cSt.attendanceDays ? '' : cSt.attendanceDays}
                                 onChange={(e) => {
-                                  const val = e.target.value.trim();
-                                  onUpdateAttendance?.(st.id, val === '' ? 0 : Number(val));
+                                  const raw = e.target.value.trim().replace(/^0+(?=\d)/, '');
+                                  if (raw === '' || raw === '-') {
+                                    onUpdateAttendance?.(st.id, 0);
+                                  } else {
+                                    const num = Number(raw);
+                                    if (!isNaN(num)) {
+                                      onUpdateAttendance?.(st.id, Math.min(workingDays || 300, Math.max(0, num)));
+                                    }
+                                  }
                                 }}
                                 className="w-full h-full text-center bg-transparent border-0 font-bold text-black font-mono p-0 focus:outline-none focus:bg-amber-50 text-[12px]"
-                                title="Days Attended"
+                                title={isKannada ? 'ಹಾಜರಾತಿ ದಿನಗಳು' : 'Days Attended'}
                               />
                             </td>
 
                             {/* Curricular Subjects: Marks & Grade are SAME SIZE - Font Size 12 */}
                             {subjects.map((subInfo) => {
                               const sub = cSt.subjects[subInfo.code];
-                              const markVal = sub?.total100 !== null && sub?.total100 !== undefined ? sub.total100 : '';
+                              const markVal: string | number = (sub?.total100 && sub.total100 !== 0) ? sub.total100 : '';
 
                               return (
                                 <React.Fragment key={subInfo.code}>
                                   {/* Mark (2-way sync interactive input) - Font size 12 */}
                                   <td className="border border-black p-0 text-center font-mono font-bold align-middle text-[12px]">
                                     <input
-                                      type="number"
-                                      min={0}
-                                      max={100}
+                                      type="text"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
+                                      maxLength={3}
                                       value={markVal}
+                                      placeholder="-"
                                       onChange={(e) => {
-                                        const val = e.target.value.trim();
-                                        onUpdateSubject100?.(
-                                          st.id,
-                                          subInfo.code,
-                                          val === '' ? null : Math.min(100, Math.max(0, Number(val)))
-                                        );
+                                        const raw = e.target.value.trim().replace(/^0+(?=\d)/, '');
+                                        if (raw === '' || raw === '-') {
+                                          onUpdateSubject100?.(st.id, subInfo.code, null);
+                                        } else {
+                                          const num = Number(raw);
+                                          if (!isNaN(num)) {
+                                            onUpdateSubject100?.(
+                                              st.id,
+                                              subInfo.code,
+                                              Math.min(100, Math.max(0, num))
+                                            );
+                                          }
+                                        }
                                       }}
                                       className="w-full h-full text-center bg-transparent border-0 font-bold text-black font-mono p-0 focus:outline-none focus:bg-amber-50 text-[12px]"
-                                      title={`Class 6-8 ${subInfo.nameEn} (0-100)`}
+                                      title={`Class 6-8 ${isKannada ? subInfo.nameKn : subInfo.nameEn} (0-100)`}
                                     />
                                   </td>
                                   {/* Grade - Font size 12 */}
                                   <td className="border border-black p-0.5 text-center font-bold align-middle text-[12px]">
-                                    {cSt.isExempted ? 'Exempt' : (sub?.grade || '-')}
+                                    {cSt.isExempted ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'Exempt') : (sub?.grade || '-')}
                                   </td>
                                 </React.Fragment>
                               );
@@ -718,55 +790,73 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
 
                             {/* Overall Grade - Font size 12 */}
                             <td className="border border-black p-0.5 text-center font-black align-middle text-[12px]">
-                              {cSt.isExempted ? 'Exempt' : cSt.overallGrade}
+                              {cSt.isExempted ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'Exempt') : cSt.overallGrade}
                             </td>
 
                             {/* Art Education / Work Experience: Marks & Grade are SAME SIZE - Font size 12 */}
                             <td className="border border-black p-0 text-center font-mono font-bold align-middle text-[12px]">
                               <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={artTotal}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={3}
+                                value={artTotal === 0 || artTotal === '' ? '' : artTotal}
+                                placeholder="-"
                                 onChange={(e) => {
-                                  const val = e.target.value.trim();
-                                  onUpdatePartBMarks?.(
-                                    st.id,
-                                    'art_workexp',
-                                    'total',
-                                    val === '' ? null : Math.min(100, Math.max(0, Number(val)))
-                                  );
+                                  const raw = e.target.value.trim().replace(/^0+(?=\d)/, '');
+                                  if (raw === '' || raw === '-') {
+                                    onUpdatePartBMarks?.(st.id, 'art_workexp', 'total', null);
+                                  } else {
+                                    const num = Number(raw);
+                                    if (!isNaN(num)) {
+                                      onUpdatePartBMarks?.(
+                                        st.id,
+                                        'art_workexp',
+                                        'total',
+                                        Math.min(100, Math.max(0, num))
+                                      );
+                                    }
+                                  }
                                 }}
                                 className="w-full h-full text-center bg-transparent border-0 font-bold text-black font-mono p-0 focus:outline-none focus:bg-amber-50 text-[12px]"
-                                title="Art Education / Work Exp Total (0-100)"
+                                title="Art Education (0-100)"
                               />
                             </td>
                             <td className="border border-black p-0.5 text-center font-bold align-middle text-[12px]">
-                              {cSt.isExempted ? 'Exempt' : (artSub?.grade || '-')}
+                              {cSt.isExempted ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'Exempt') : (artSub?.grade || '-')}
                             </td>
 
                             {/* Computer Education / ICT: Marks & Grade are SAME SIZE - Font size 12 */}
                             <td className="border border-black p-0 text-center font-mono font-bold align-middle text-[12px]">
                               <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={ictTotal}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={3}
+                                value={ictTotal === 0 || ictTotal === '' ? '' : ictTotal}
+                                placeholder="-"
                                 onChange={(e) => {
-                                  const val = e.target.value.trim();
-                                  onUpdatePartBMarks?.(
-                                    st.id,
-                                    'ict_computer',
-                                    'total',
-                                    val === '' ? null : Math.min(100, Math.max(0, Number(val)))
-                                  );
+                                  const raw = e.target.value.trim().replace(/^0+(?=\d)/, '');
+                                  if (raw === '' || raw === '-') {
+                                    onUpdatePartBMarks?.(st.id, 'ict_computer', 'total', null);
+                                  } else {
+                                    const num = Number(raw);
+                                    if (!isNaN(num)) {
+                                      onUpdatePartBMarks?.(
+                                        st.id,
+                                        'ict_computer',
+                                        'total',
+                                        Math.min(100, Math.max(0, num))
+                                      );
+                                    }
+                                  }
                                 }}
                                 className="w-full h-full text-center bg-transparent border-0 font-bold text-black font-mono p-0 focus:outline-none focus:bg-amber-50 text-[12px]"
-                                title="Computer Education / ICT Total (0-100)"
+                                title="Computer Education (0-100)"
                               />
                             </td>
                             <td className="border border-black p-0.5 text-center font-bold align-middle text-[12px]">
-                              {cSt.isExempted ? 'Exempt' : (ictSub?.grade || '-')}
+                              {cSt.isExempted ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'Exempt') : (ictSub?.grade || '-')}
                             </td>
 
                             {/* Part B 1 to 7 Co-Scholastic Activities (2-way sync editable grade) - Font size 12 */}
@@ -785,7 +875,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                                     }}
                                     placeholder="-"
                                     className="w-full h-full text-center bg-transparent border-0 font-bold text-black p-0 focus:outline-none focus:bg-amber-50 text-[12px]"
-                                    title={`${act.num} ${act.nameKn}`}
+                                    title={`${act.num} ${isKannada ? act.nameKn : act.nameEn}`}
                                   />
                                 </td>
                               );
@@ -794,11 +884,11 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                             {/* Result - Font size 12 */}
                             <td className="border border-black p-0.5 text-center font-black leading-tight align-middle text-[12px]">
                               {cSt.isExempted
-                                ? 'ವಿನಾಯಿತಿ'
+                                ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'EXEMPT')
                                 : cSt.isPassed
-                                ? 'ತೇರ್ಗಡೆ'
+                                ? (isKannada ? 'ತೇರ್ಗಡೆ' : 'PASS')
                                 : cSt.totalMarks700 > 0
-                                ? 'ಅನುತ್ತೀರ್ಣ'
+                                ? (isKannada ? 'ಅನುತ್ತೀರ್ಣ' : 'FAIL')
                                 : '-'}
                             </td>
                           </tr>
@@ -819,8 +909,9 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                   <div className="w-full flex items-center justify-between px-16 text-[12px] font-bold text-black border-t-2 border-black pt-3">
                     <div className="text-center">
                       <div className="w-56 text-center">
-                        <span className="font-bold text-[12px]">ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ</span>
-                        <span className="block text-[10px] font-normal text-slate-700">(Class Teacher Signature)</span>
+                        <span className="font-bold text-[12px]">
+                          {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ' : 'Class Teacher Signature'}
+                        </span>
                         <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[22px]">
                           {classTeacherName || '____________________'}
                         </div>
@@ -828,49 +919,45 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                     </div>
                     <div className="text-center">
                       <div className="w-56 text-center">
-                        <span className="font-bold text-[12px]">ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ</span>
-                        <span className="block text-[10px] font-normal text-slate-700">(Head Master Signature)</span>
+                        <span className="font-bold text-[12px]">
+                          {isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ' : 'Head Master Signature'}
+                        </span>
                         <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[22px]">
-                          {schoolRecord?.headmasterName || 'ಮುಖ್ಯ ಗುರುಗಳು'}
+                          {schoolRecord?.headmasterName || (isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳು' : 'Head Master')}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Part B Subject Information: All 7 subjects side by side across page with English names */}
+                  {/* Part B Subject Information */}
                   <div className="w-full mt-4 border border-black p-1.5 text-black bg-white">
                     <div className="text-[11px] font-bold text-black mb-1">
-                      ಭಾಗ-ಬಿ ಸಹ ಪಠ್ಯ ವಿಷಯಗಳ ವಿವರಣೆ (Part-B Co-Scholastic Subjects Information):
+                      {isKannada
+                        ? 'ಭಾಗ-ಬಿ ಸಹ ಪಠ್ಯ ವಿಷಯಗಳ ವಿವರಣೆ:'
+                        : 'Part-B Co-Scholastic Subjects Information:'}
                     </div>
                     <div className="grid grid-cols-7 gap-1 text-center font-bold text-black text-[10.5px]">
-                      <div className="border border-black p-1">
-                        <div>(1) ಭಾವನಾತ್ಮಕ ಸಾಮಾಜಿಕ ಕೌಶಲಗಳು</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Emotional & Social Skills</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(2) ಸಂಘಟನಾ ಕೌಶಲಗಳು</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Organizational Skills</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(3) ವೈಜ್ಞಾನಿಕ ಕೌಶಲಗಳು</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Scientific Skills</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(4) ಲಲಿತ ಕಲೆ</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Fine Arts</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(5) ಸೃಜನಶೀಲತೆ</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Creativity</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(6) ಮನೋಧೋರಣೆ</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Attitude</div>
-                      </div>
-                      <div className="border border-black p-1">
-                        <div>(7) ಮೌಲ್ಯಗಳು</div>
-                        <div className="text-[9px] font-normal text-slate-700 mt-0.5">Values</div>
-                      </div>
+                      {isKannada ? (
+                        <>
+                          <div className="border border-black p-1">(1) ಭಾವನಾತ್ಮಕ ಸಾಮಾಜಿಕ ಕೌಶಲಗಳು</div>
+                          <div className="border border-black p-1">(2) ಸಂಘಟನಾ ಕೌಶಲಗಳು</div>
+                          <div className="border border-black p-1">(3) ವೈಜ್ಞಾನಿಕ ಕೌಶಲಗಳು</div>
+                          <div className="border border-black p-1">(4) ಲಲಿತ ಕಲೆ</div>
+                          <div className="border border-black p-1">(5) ಸೃಜನಶೀಲತೆ</div>
+                          <div className="border border-black p-1">(6) ಮನೋಧೋರಣೆ</div>
+                          <div className="border border-black p-1">(7) ಮೌಲ್ಯಗಳು</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="border border-black p-1">(1) Emotional & Social Skills</div>
+                          <div className="border border-black p-1">(2) Organizational Skills</div>
+                          <div className="border border-black p-1">(3) Scientific Skills</div>
+                          <div className="border border-black p-1">(4) Fine Arts</div>
+                          <div className="border border-black p-1">(5) Creativity</div>
+                          <div className="border border-black p-1">(6) Attitude</div>
+                          <div className="border border-black p-1">(7) Values</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

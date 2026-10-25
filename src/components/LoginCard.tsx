@@ -371,7 +371,10 @@ export const LoginCard: React.FC<LoginCardProps> = ({
 
           {/* Payment Badges Strip */}
           <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600 border-t border-slate-100">
-            <span className="font-extrabold text-slate-800 italic px-2 py-0.5 bg-slate-100 rounded border border-slate-200 text-[10px]">
+            <span
+              style={{ color: '#eff2f6', fontSize: '16px' }}
+              className="font-extrabold italic px-2.5 py-0.5 bg-slate-800 rounded border border-slate-700 shadow-xs"
+            >
               UPI
             </span>
             <span className="font-bold text-blue-600 px-2 py-0.5 bg-blue-50 rounded border border-blue-200 text-[10px]">

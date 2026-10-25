@@ -15,6 +15,10 @@ import {
   ChevronUp,
   FileSpreadsheet,
 } from 'lucide-react';
+import { CceProgressTicker } from './CceProgressTicker';
+import { CceClassProgressModal } from './CceClassProgressModal';
+import { CceConsolidatedProgressModal } from './CceConsolidatedProgressModal';
+import { calculateSchoolCceMonitoringSummary } from '../utils/cceProgressMonitorHelper';
 
 interface ClasswiseStudentDashboardProps {
   onNavigateToAddStudent: (selectedClass?: StudentClass) => void;
@@ -60,6 +64,10 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
     subtitle: '',
     students: [],
   });
+
+  // State for Advanced CCE Result Monitoring Modals
+  const [selectedDetailClass, setSelectedDetailClass] = useState<StudentClass | null>(null);
+  const [isConsolidatedProgressOpen, setIsConsolidatedProgressOpen] = useState(false);
 
   const schoolId = schoolRecord?.schoolId || schoolRecord?.diseCode || 'default_school';
   const diseCode = schoolRecord?.diseCode || '00000000000';
@@ -204,6 +212,18 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
   // SECTION 8 & 9: CCE RESULT MONITORING PROGRESS CALCULATION
   // Horizontal progress bar for every class in the SCHOOL'S CONFIGURED CLASS RANGE
   // =========================================================================
+  const schoolCceSummary = useMemo(() => {
+    return calculateSchoolCceMonitoringSummary(
+      students,
+      marksMap,
+      configuredClasses,
+      schoolRecord?.schoolMedium || 'Kannada',
+      schoolRecord?.schoolName || 'Karnataka Government School',
+      diseCode,
+      academicYear
+    );
+  }, [students, marksMap, configuredClasses, schoolRecord, diseCode, academicYear]);
+
   const cceProgress = useMemo(() => {
     return calculateClasswiseExamProgress(students, marksMap);
   }, [students, marksMap]);
@@ -475,15 +495,23 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
   };
 
   return (
-    <div className="space-y-6 text-slate-800 animate-in fade-in duration-150">
+    <div className="space-y-6 text-slate-800 animate-in fade-in duration-500">
       {/* =========================================================================
-          SECTION 8: CCE RESULT MONITORING – CLASSWISE STATUS
-          Immediately below the main blue header
-          Horizontal progress bar for every class in the SCHOOL'S CONFIGURED CLASS RANGE
+          SECTION 8: MOVING HOME-SCREEN NEWS BULLETIN (CCE PROGRESS ALERT)
+          Continuously scrolls right-to-left, pauses on hover, respects reduced motion
           ========================================================================= */}
+      <CceProgressTicker
+        bulletinText={schoolCceSummary.bulletinText}
+        hasAlerts={schoolCceSummary.lowProgressAlerts.length > 0}
+        currentExamLabel={schoolCceSummary.currentExamLabel}
+        overallPercentDisplay={schoolCceSummary.overallSchoolPercentDisplay}
+        onClickBulletin={() => setIsConsolidatedProgressOpen(true)}
+      />
+
       {/* =========================================================================
-          SECTION: CCE RESULT MONITORING – COMPACT HORIZONTAL BAR IN A SINGLE LINE
-          Strictly for configured classes in School Profile
+          SECTION 9: CCE RESULT MONITORING – CLICKABLE CLASSWISE STATUS (0–100%)
+          Horizontal progress bar for every class in the SCHOOL'S CONFIGURED CLASS RANGE
+          Clicking any class card opens detailed progress page for that class
           ========================================================================= */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
@@ -494,89 +522,100 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
             <div>
               <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
                 <span>CCE Result Monitoring – Classwise Status (0–100%)</span>
+                <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 hidden sm:inline">
+                  Scheduled Exam: <b className="font-mono">{schoolCceSummary.currentExamLabel}</b>
+                </span>
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {onNavigateToCceReport && (
-              <button
-                type="button"
-                onClick={() => onNavigateToCceReport()}
-                className="px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition transform hover:-translate-y-0.5 cursor-pointer ring-1 ring-amber-400/50 mr-1"
-                title="Open CCE Consolidated Reports"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-950" />
-                <span>{isKn ? 'ಸಿಸಿಇ ಸಂಯೋಜಿತ ವರದಿ (1–8)' : 'CCE Consolidated Reports (1-8)'}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsConsolidatedProgressOpen(true)}
+              className="px-3 py-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition transform hover:-translate-y-0.5 cursor-pointer ring-1 ring-amber-400/50 mr-1"
+              title="Open Consolidated CCE Progress Report for all configured classes"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-slate-950" />
+              <span>
+                {isKn
+                  ? `ಸಿಸಿಇ ಸಂಯೋಜಿತ ವರದಿ (${configuredClasses[0]}–${configuredClasses[configuredClasses.length - 1]})`
+                  : `CCE Consolidated Reports (${configuredClasses[0]}–${configuredClasses[configuredClasses.length - 1]})`}
+              </span>
+            </button>
 
             <span className="text-xs font-bold text-slate-600">
               {isKn ? 'ಒಟ್ಟು CCE ಪ್ರಗತಿ:' : 'Overall Progress:'}
             </span>
             <span
               className={`px-2.5 py-0.5 rounded-lg text-xs font-mono font-black border ${
-                overallConfiguredPercent >= 80
+                (schoolCceSummary.overallSchoolPercent ?? 0) >= 80
                   ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
-                  : overallConfiguredPercent >= 40
+                  : (schoolCceSummary.overallSchoolPercent ?? 0) >= 40
                   ? 'bg-blue-100 text-blue-950 border-blue-300'
                   : 'bg-amber-100 text-amber-950 border-amber-300'
               }`}
             >
-              {overallConfiguredPercent}%
+              {schoolCceSummary.overallSchoolPercentDisplay}
             </span>
           </div>
         </div>
 
-        {/* Compact Horizontal Bar in a Single Line */}
+        {/* Clickable Class-Wise Progress Cards */}
         <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto pb-1 pt-0.5">
-          {configuredClassesProgress.map((item) => {
-            const clsNum = Number(item.classStandard);
-            const isComplete = item.overallPercent === 100;
-            // 0–39% → red/pink, 40–69% → yellow/orange, 70–99% → green, 100% → completed green
+          {schoolCceSummary.classSummaries.map((clsSummary) => {
+            const ep = clsSummary.examProgress[schoolCceSummary.currentExam];
+            const pct = ep.percent ?? 0;
+            const isComplete = ep.percent === 100;
+            const isAlert = ep.percent !== null && ep.percent < 50;
+
             const barBg =
               isComplete
                 ? 'bg-emerald-600'
-                : item.overallPercent >= 70
+                : pct >= 70
                 ? 'bg-emerald-500'
-                : item.overallPercent >= 40
+                : pct >= 40
                 ? 'bg-amber-500'
-                : item.overallPercent > 0
+                : pct > 0
                 ? 'bg-rose-500'
                 : 'bg-slate-300';
 
             const textColor =
               isComplete
                 ? 'text-emerald-700'
-                : item.overallPercent >= 70
+                : pct >= 70
                 ? 'text-emerald-600'
-                : item.overallPercent >= 40
+                : pct >= 40
                 ? 'text-amber-600'
-                : item.overallPercent > 0
+                : pct > 0
                 ? 'text-rose-600'
                 : 'text-slate-400';
 
             return (
               <div
-                key={item.classStandard}
-                onClick={() => onNavigateToCce(clsNum)}
-                className="flex-1 min-w-[85px] sm:min-w-[105px] max-w-[160px] p-2 bg-slate-50 hover:bg-blue-50/80 rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer shadow-xs shrink-0 group space-y-1.5"
-                title={`Click to enter CCE Marks for Class ${item.classStandard} (${item.overallPercent}% complete)`}
+                key={clsSummary.classStandard}
+                onClick={() => setSelectedDetailClass(clsSummary.classStandard)}
+                className="flex-1 min-w-[90px] sm:min-w-[115px] max-w-[170px] p-2 bg-slate-50 hover:bg-blue-50/80 rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer shadow-xs shrink-0 group space-y-1.5"
+                title={`Click to view detailed CCE Progress for Class ${clsSummary.classStandard} (${ep.display})`}
               >
                 <div className="flex items-center justify-between text-[11px] font-bold">
                   <span className="text-slate-800 group-hover:text-blue-900 truncate">
-                    Class {item.classStandard}
+                    Class {clsSummary.classStandard}
                   </span>
                   <span className={`font-mono font-black ${textColor}`}>
-                    {item.overallPercent}%
+                    {ep.display}
                   </span>
                 </div>
                 {/* Horizontal progress bar */}
                 <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                   <div
-                    style={{ width: `${item.overallPercent}%` }}
+                    style={{ width: `${pct}%` }}
                     className={`h-full rounded-full transition-all duration-300 ${barBg}`}
                   />
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                  <span>{schoolCceSummary.currentExamLabel}</span>
+                  <span>{ep.completed}/{ep.totalRequired}</span>
                 </div>
               </div>
             );
@@ -1445,6 +1484,36 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
           subtitle={studentDetailsModalState.subtitle}
           students={studentDetailsModalState.students}
           schoolRecord={schoolRecord}
+        />
+      )}
+
+      {/* CCE Detailed Class Progress Modal */}
+      {selectedDetailClass && (
+        <CceClassProgressModal
+          isOpen={Boolean(selectedDetailClass)}
+          onClose={() => setSelectedDetailClass(null)}
+          classStandard={selectedDetailClass}
+          students={students}
+          marksMap={marksMap}
+          schoolRecord={schoolRecord}
+          academicYear={academicYear}
+        />
+      )}
+
+      {/* CCE Consolidated School Progress Modal (All Classes) */}
+      {isConsolidatedProgressOpen && (
+        <CceConsolidatedProgressModal
+          isOpen={isConsolidatedProgressOpen}
+          onClose={() => setIsConsolidatedProgressOpen(false)}
+          students={students}
+          marksMap={marksMap}
+          configuredClasses={configuredClasses}
+          schoolRecord={schoolRecord}
+          academicYear={academicYear}
+          onSelectClassDetail={(cls) => {
+            setIsConsolidatedProgressOpen(false);
+            setSelectedDetailClass(cls);
+          }}
         />
       )}
     </div>

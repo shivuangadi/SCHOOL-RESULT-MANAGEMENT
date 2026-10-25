@@ -57,6 +57,7 @@ import {
   RotateCcw,
   Layers,
   ArrowRight,
+  Lock,
 } from 'lucide-react';
 
 export type SchoolNavCategory =
@@ -93,7 +94,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
   onSelectCategory,
   isDemoMode = false,
 }) => {
-  const { schoolRecord: authSchoolRecord, updateSchoolRecord } = useAuth();
+  const { schoolRecord: authSchoolRecord, updateSchoolRecord, isAdmin } = useAuth();
   const schoolRecord = overrideSchoolRecord || authSchoolRecord;
   const { lang } = useLanguage();
   const isDemo = isDemoMode || overrideSchoolRecord?.diseCode === '29010100101' || schoolRecord?.diseCode === '29010100101';
@@ -858,12 +859,27 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
               {/* School Name */}
               <div className="space-y-1">
-                <label className="block font-black text-slate-700">ಶಾಲೆಯ ಹೆಸರು (School Name):</label>
+                <div className="flex items-center justify-between">
+                  <label className="block font-black text-slate-700">ಶಾಲೆಯ ಹೆಸರು (School Name):</label>
+                  {!isAdmin && (
+                    <span className="text-[10px] font-black text-slate-500 flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <Lock className="w-3 h-3 text-slate-400" />
+                      Locked (ಅಧಿಕೃತ)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={profileForm.schoolName}
-                  onChange={(e) => setProfileForm({ ...profileForm, schoolName: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  onChange={(e) => isAdmin && setProfileForm({ ...profileForm, schoolName: e.target.value })}
+                  readOnly={!isAdmin}
+                  disabled={!isAdmin}
+                  className={`w-full px-3 py-2 border rounded-xl font-bold ${
+                    !isAdmin
+                      ? 'bg-slate-100 text-slate-700 border-slate-300 cursor-not-allowed shadow-inner'
+                      : 'bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600 border-slate-300'
+                  }`}
+                  title={!isAdmin ? 'ಶಾಲೆಯ ಹೆಸರನ್ನು ಕೇವಲ ನಿರ್ವಾಹಕರು (Admin) ಮಾತ್ರ ಬದಲಾಯಿಸಬಹುದು / Locked for security' : 'ಶಾಲೆಯ ಹೆಸರು'}
                   required
                 />
               </div>

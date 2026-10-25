@@ -31,7 +31,7 @@ export {
  *    5 Co-Scholastic Activities (18.0%),
  *    Result (4.4% effective 4% of sheet).
  * 2. Strict Binding Margins:
- *    - Left Margin: Legal: 4.77cm (47.7mm), A4: 4.23cm (42.3mm)
+ *    - Left Margin: Legal: 2.5cm (25mm), A4: 2.2cm (22mm)
  *    - Right Margin: 0.65cm (6.5mm)
  *    - Top Margin: 0.65cm (6.5mm)
  *    - Bottom Margin: 0.65cm (6.5mm)
@@ -107,15 +107,15 @@ export const printMarathiUrduCcePage4Detailed = async (
     });
 
     const isA4 = paperSize === 'a4';
-    const leftMarginCm = isA4 ? '4.23cm' : '4.77cm';
-    const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+    const leftMarginCm = isA4 ? '2.2cm' : '2.5cm';
+    const leftMarginMm = isA4 ? '22mm' : '25mm';
 
     // Scoped CSS for strict left margin, 0.65cm right/top/bottom, and 100% table fitting
     const pageStyle = document.createElement('style');
     pageStyle.textContent = `
       @page {
         size: ${isA4 ? 'A4' : 'legal'} landscape !important;
-        margin: 0.65cm 0.65cm 0.65cm ${leftMarginCm} !important;
+        margin: 0 !important;
       }
 
       body.marathi-urdu-page4-print-active {
@@ -153,8 +153,10 @@ export const printMarathiUrduCcePage4Detailed = async (
         max-width: 100% !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
-        page-break-after: always !important;
+        height: auto !important;
+        min-height: 0 !important;
         break-after: page !important;
+        page-break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         box-shadow: none !important;
@@ -162,8 +164,8 @@ export const printMarathiUrduCcePage4Detailed = async (
       }
 
       #marathi-urdu-page4-isolated-portal .report-page-sheet:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
 
       #marathi-urdu-page4-isolated-portal table {
@@ -403,7 +405,7 @@ export const exportMarathiUrduCcePage4DetailedPdf = async (
   const pageHeight = chosenSize.heightMm;
   const pdfFormat: [number, number] = [pageWidth, pageHeight];
   const isA4 = paperSize === 'a4';
-  const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+  const leftMarginMm = isA4 ? '22mm' : '25mm';
 
   const isAlreadyInPortal = Boolean(
     element.id === 'marathi-urdu-page4-isolated-portal' ||
@@ -646,8 +648,8 @@ export const exportMarathiUrduCcePage4DetailedHtml = (
     } catch (_) {}
 
     const isA4 = paperSize === 'a4';
-    const leftMarginCm = isA4 ? '4.23cm' : '4.77cm';
-    const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+    const leftMarginCm = isA4 ? '2.2cm' : '2.5cm';
+    const leftMarginMm = isA4 ? '22mm' : '25mm';
 
     const fullHtml = `<!DOCTYPE html>
 <html lang="en">

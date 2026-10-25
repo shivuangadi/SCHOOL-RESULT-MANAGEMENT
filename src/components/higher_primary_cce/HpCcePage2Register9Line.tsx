@@ -12,10 +12,12 @@ import {
   downloadElementAsHtml,
   printHpCcePage2_9Line,
   exportHpCcePage2_9LinePdf,
+  shareReportToWhatsApp,
   ReportPaperSize,
 } from '../../utils/printPdfHelper';
 import { getSavedClassTeacher } from '../../utils/teacherHelper';
-import { FileCode, Download, Printer } from 'lucide-react';
+import { FileCode, Download, Printer, Share2 } from 'lucide-react';
+import { handleTableGridNavigation } from '../../utils/tableNavigationHelper';
 
 interface HpCcePage2Register9LineProps {
   computedList: ComputedHpStudent[];
@@ -159,6 +161,18 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
     }
   };
 
+  const handleShareWhatsApp = async () => {
+    if (reportRef?.current) {
+      const sName = schoolName.replace(/\s+/g, '_');
+      const filename = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation`;
+      const summary = `*${schoolName}*\n*Classes 6-8 100 Marks Consolidation Register*\nClass: ${selectedClass}th Standard\nAcademic Year: ${academicYear}\nTotal Students: ${computedList.length}`;
+      setStatusMessage('📱 WhatsApp ಚಿತ್ರಗಳು ಸಿದ್ಧವಾಗುತ್ತಿವೆ (ಪ್ರತಿ ಪುಟ ಪ್ರತ್ಯೇಕ ಚಿತ್ರ)...');
+      await shareReportToWhatsApp(reportRef.current, summary, filename);
+      setStatusMessage('✅ WhatsApp ಹಂಚಿಕೆ ಯಶಸ್ವಿಯಾಗಿದೆ!');
+      setTimeout(() => setStatusMessage(null), 3000);
+    }
+  };
+
   return (
     <div ref={reportRef} className="space-y-6 legal-landscape cce-9line-container">
       {/* Scoped Print and PDF B&W Styles for 6-8 9-Line Consolidation Report Only */}
@@ -198,9 +212,9 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           text-align: center !important;
         }
         .cce-screen-input {
-          height: 4.8mm !important;
-          max-height: 4.8mm !important;
-          line-height: 4.8mm !important;
+          height: 5.0mm !important;
+          max-height: 5.0mm !important;
+          line-height: 5.0mm !important;
           padding: 0 !important;
           margin: 0 !important;
           text-align: center !important;
@@ -214,8 +228,11 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           display: table-row-group !important;
         }
 
-        /* Print & PDF Media Styles: Maintain 100% visual fidelity matching on-screen report */
         @media print {
+          @page {
+            size: ${paperSize === 'a4' ? 'A4' : 'legal'} landscape !important;
+            margin: 0 !important;
+          }
           .cce-screen-input {
             display: none !important;
           }
@@ -227,18 +244,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
             line-height: 1.1 !important;
           }
           .cce-9line-sheet {
-            padding: 0 !important;
+            padding-left: 20mm !important;
+            padding-right: 6mm !important;
+            padding-top: 6mm !important;
+            padding-bottom: 6mm !important;
             margin: 0 !important;
+            margin-bottom: 0 !important;
             border: none !important;
             box-shadow: none !important;
             width: 100% !important;
             max-width: 100% !important;
-            page-break-after: always !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
             break-after: page !important;
+            page-break-after: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          .cce-9line-sheet:last-child {
+            break-after: avoid !important;
+            page-break-after: avoid !important;
           }
           .cce-9line-sheet table {
             margin: 0 !important;
@@ -288,6 +316,17 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
             ಒಟ್ಟು ವಿದ್ಯಾರ್ಥಿಗಳು: <span className="font-mono text-white font-black">{computedList.length}</span> • 
             ಒಟ್ಟು ಪುಟಗಳು: <span className="font-mono text-amber-300 font-black">{chunks.length}</span> ({paperSize.toUpperCase()})
           </div>
+
+          {/* WhatsApp Share Button */}
+          <button
+            type="button"
+            onClick={handleShareWhatsApp}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+            title="Download every page as separate clear image and share to WhatsApp"
+          >
+            <Share2 className="w-3.5 h-3.5 text-white" />
+            <span>WhatsApp ಹಂಚಿಕೊಳ್ಳಿ</span>
+          </button>
 
           {/* HTML Download Button */}
           <button
@@ -339,10 +378,10 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           style={{
             width: paperSize === 'a4' ? '297mm' : '355.6mm',
             minHeight: paperSize === 'a4' ? '210mm' : '215.9mm',
-            paddingLeft: '0px',
-            paddingRight: '0px',
-            paddingTop: '0px',
-            paddingBottom: '0px',
+            paddingLeft: '20mm',
+            paddingRight: '6mm',
+            paddingTop: '6mm',
+            paddingBottom: '6mm',
             boxSizing: 'border-box',
           }}
           className="report-page-sheet cce-9line-sheet bg-white rounded-2xl border border-slate-300 shadow-sm space-y-1 break-after-page mb-6 mx-auto print:border-none print:shadow-none print:rounded-none"
@@ -397,7 +436,10 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
 
           {/* 9-Line Consolidation Table: Target table heading height 18mm */}
           <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full text-[7.5px] sm:text-[8px] text-center border-collapse border-2 border-slate-900 table-fixed">
+            <table
+              className="w-full text-[7.5px] sm:text-[8px] text-center border-collapse border-2 border-slate-900 table-fixed"
+              onKeyDown={handleTableGridNavigation}
+            >
               <colgroup>
                 {/* 1. Sl No */}
                 <col style={{ width: '22px' }} />
@@ -443,69 +485,71 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   {/* 1. Sl No */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[22px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
-                      ಕ್ರ. ಸಂಖ್ಯೆ
+                      {isKannada ? 'ಕ್ರ. ಸಂಖ್ಯೆ' : 'Sl. No.'}
                     </span>
                   </th>
 
                   {/* 2. Admission / Reg No */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[26px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
-                      ದಾಖಲಾತಿ ಸಂಖ್ಯೆ
+                      {isKannada ? 'ದಾಖಲಾತಿ ಸಂಖ್ಯೆ' : 'Adm. / Reg No.'}
                     </span>
                   </th>
 
                   {/* 3. Student Name */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[62px] max-w-[62px] min-w-[62px] align-middle font-black text-slate-950 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <div className="leading-tight text-[7.5px] break-words">ವಿದ್ಯಾರ್ಥಿಗಳ ಹೆಸರು</div>
+                    <div className="leading-tight text-[7.5px] break-words">
+                      {isKannada ? 'ವಿದ್ಯಾರ್ಥಿಗಳ ಹೆಸರು' : 'Student Name'}
+                    </div>
                   </th>
 
                   {/* 4. Days Attended */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[28px] max-w-[28px] min-w-[28px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7px]">
-                      ಹಾಜರಾದ ದಿನಗಳು
+                      {isKannada ? 'ಹಾಜರಾದ ದಿನಗಳು' : 'Days Attended'}
                     </span>
                   </th>
 
-                  {/* 5. Evaluation Period - Decreased by 0.5cm to 18px */}
+                  {/* 5. Evaluation Period */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[18px] max-w-[18px] min-w-[18px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
-                      ಮೌಲ್ಯಮಾಪನ
+                      {isKannada ? 'ಮೌಲ್ಯಮಾಪನ' : 'Evaluation'}
                     </span>
                   </th>
 
-                  {/* 6. Percentage - Decreased by 0.5cm to 18px */}
+                  {/* 6. Percentage */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[18px] max-w-[18px] min-w-[18px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
-                      ಶೇಕಡಾ
+                      {isKannada ? 'ಶೇಕಡಾ' : 'Percentage'}
                     </span>
                   </th>
 
                   {/* 7. Curricular Subjects Group Header */}
                   <th colSpan={14} className="border border-slate-900 p-0.5 bg-red-50 text-red-600 font-black text-[8.5px] border-r-2 border-r-slate-900 overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                    ಅ. ವಿದ್ಯಾರ್ಥಿಯ ಶೈಕ್ಷಣಿಕ ಸಾಧನೆ ಪಠ್ಯ ವಿಷಯಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ
+                    {isKannada ? 'ಅ. ವಿದ್ಯಾರ್ಥಿಯ ಶೈಕ್ಷಣಿಕ ಸಾಧನೆ ಪಠ್ಯ ವಿಷಯಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ' : "A. Student's Academic Achievement in Curricular Subjects"}
                   </th>
 
                   {/* 8. Max Marks (700) */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[26px] align-middle bg-amber-50 font-black overflow-hidden" style={{ height: '18mm', maxHeight: '18mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '16.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
-                      ಗರಿಷ್ಠ 700
+                      {isKannada ? 'ಗರಿಷ್ಠ 700' : 'Max 700'}
                     </span>
                   </th>
 
                   {/* 9. Total Header */}
                   <th colSpan={3} className="border border-slate-900 p-0.5 bg-amber-100 font-black text-slate-950 text-[8.5px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                    ಒಟ್ಟು ಪಡೆದ ಅಂಕಗಳು
+                    {isKannada ? 'ಒಟ್ಟು ಪಡೆದ ಅಂಕಗಳು' : 'Total Marks Secured'}
                   </th>
 
                   {/* 10. Part B Header */}
                   <th colSpan={11} className="border border-slate-900 p-0.5 bg-red-50 text-red-600 font-black text-[8.5px] border-l-2 border-l-red-600 overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                    ಆ. ಸಹ ಪಠ್ಯ ವಿಷಯಗಳು & ಶ್ರೇಣಿಗಳು (ಭಾಗ-ಬಿ)
+                    {isKannada ? 'ಆ. ಸಹ ಪಠ್ಯ ವಿಷಯಗಳು & ಶ್ರೇಣಿಗಳು (ಭಾಗ-ಬಿ)' : 'B. Co-Curricular Activities & Grades (Part-B)'}
                   </th>
 
                   {/* 11. Result Header */}
                   <th rowSpan={3} className="border border-slate-900 p-0.5 w-[28px] align-middle bg-emerald-50 text-red-600 font-black overflow-hidden" style={{ height: '18mm', maxHeight: '18mm', boxSizing: 'border-box' }}>
                     <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '16.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[8px]">
-                      ಫಲಿತಾಂಶ
+                      {isKannada ? 'ಫಲಿತಾಂಶ' : 'Result'}
                     </span>
                   </th>
                 </tr>
@@ -515,23 +559,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   {/* 7 Curricular Subjects */}
                   {subjects.map((s) => (
                     <th key={s.code} colSpan={2} className="border border-slate-900 p-0.5 truncate font-black text-[7.5px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                      {s.nameKn}
+                      {isKannada ? s.nameKn : s.nameEn}
                     </th>
                   ))}
 
                   {/* Total Sub-columns */}
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[24px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>ಅಂಕ</th>
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[28px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>ಶೇಕಡಾ</th>
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[18px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>ಶ್ರೇಣಿ</th>
+                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[24px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಅಂಕ' : 'Marks'}
+                  </th>
+                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[28px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಶೇಕಡಾ' : '%'}
+                  </th>
+                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[18px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                  </th>
 
                   {/* Part B Subject 1: Art Edu / Work Exp */}
                   <th colSpan={2} className="border border-slate-900 p-0.5 bg-indigo-50 text-indigo-950 font-black text-[7px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                    ಕಲಾ ಶಿಕ್ಷಣ /<br />ಕಾರ್ಯಾನುಭವ
+                    {isKannada ? <>ಕಲಾ ಶಿಕ್ಷಣ /<br />ಕಾರ್ಯಾನುಭವ</> : <>Art Edu. /<br />Work Exp.</>}
                   </th>
 
                   {/* Part B Subject 2: Computer / ICT */}
                   <th colSpan={2} className="border border-slate-900 p-0.5 bg-blue-50 text-blue-950 font-black text-[7px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
-                    ಕಂಪ್ಯೂಟರ್<br />ಶಿಕ್ಷಣ (ICT)
+                    {isKannada ? <>ಕಂಪ್ಯೂಟರ್<br />ಶಿಕ್ಷಣ (ICT)</> : <>Computer<br />Edu. (ICT)</>}
                   </th>
 
                   {/* 7 Co-Scholastic Activities - ONLY NUMBERS 1, 2, 3, 4, 5, 6, 7 */}
@@ -540,7 +590,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                       key={act.key}
                       rowSpan={2}
                       className="border border-slate-900 p-0.5 w-[18px] align-middle text-center font-black bg-purple-50 text-purple-950 text-[9.5px] overflow-hidden"
-                      title={`${act.num}. ${act.nameKn} (${act.nameEn})`}
+                      title={`${act.num}. ${isKannada ? act.nameKn : act.nameEn}`}
                       style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}
                     >
                       {act.num}
@@ -548,20 +598,32 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   ))}
                 </tr>
 
-                {/* Sub-Header Row 3 - Height 6mm: ಅಂಕ & ಶ್ರೇಣಿ for 7 Curricular Subjects and 2 Part B Subjects */}
+                {/* Sub-Header Row 3 - Height 6mm: Marks & Grade */}
                 <tr className="bg-slate-100 text-[7px] font-black text-slate-900 border-b-2 border-slate-900" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
                   {subjects.map((s) => (
                     <React.Fragment key={s.code}>
-                      <th className="border border-slate-900 p-0.5 w-[20px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಅಂಕ</th>
-                      <th className="border border-slate-900 p-0.5 w-[15px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಶ್ರೇಣಿ</th>
+                      <th className="border border-slate-900 p-0.5 w-[20px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                        {isKannada ? 'ಅಂಕ' : 'Marks'}
+                      </th>
+                      <th className="border border-slate-900 p-0.5 w-[15px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                        {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                      </th>
                     </React.Fragment>
                   ))}
                   {/* Art Edu subheaders */}
-                  <th className="border border-slate-900 p-0.5 w-[20px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಅಂಕ</th>
-                  <th className="border border-slate-900 p-0.5 w-[15px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಶ್ರೇಣಿ</th>
+                  <th className="border border-slate-900 p-0.5 w-[20px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಅಂಕ' : 'Marks'}
+                  </th>
+                  <th className="border border-slate-900 p-0.5 w-[15px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                  </th>
                   {/* Computer Edu subheaders */}
-                  <th className="border border-slate-900 p-0.5 w-[20px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಅಂಕ</th>
-                  <th className="border border-slate-900 p-0.5 w-[15px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>ಶ್ರೇಣಿ</th>
+                  <th className="border border-slate-900 p-0.5 w-[20px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಅಂಕ' : 'Marks'}
+                  </th>
+                  <th className="border border-slate-900 p-0.5 w-[15px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                    {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
+                  </th>
                 </tr>
               </thead>
 
@@ -582,19 +644,19 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   // Prescribed maximum marks: FA1-4 (10), SA1-2 (30), Sem 1 & 2 Totals (50), Final Total (100)
                   const rowsData = [
                     // Sem 1: FA1 (10%), FA2 (10%), SA1 (30%), Sem 1 Total (50%)
-                    { exam: 'ರೂ-1', pct: '10%', maxMarks: 70, subExamKey: 'fa1' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ರೂ-2', pct: '10%', maxMarks: 70, subExamKey: 'fa2' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ಸಂ-1', pct: '30%', maxMarks: 210, subExamKey: 'sa1' as const, prescribedMax: 30, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ಒಟ್ಟು', pct: '50%', maxMarks: 350, subExamKey: null, prescribedMax: 50, isSem1Total: true, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ರೂ-1' : 'FA-1', pct: '10%', maxMarks: 70, subExamKey: 'fa1' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ರೂ-2' : 'FA-2', pct: '10%', maxMarks: 70, subExamKey: 'fa2' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ಸಂ-1' : 'SA-1', pct: '30%', maxMarks: 210, subExamKey: 'sa1' as const, prescribedMax: 30, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ಒಟ್ಟು' : 'Total', pct: '50%', maxMarks: 350, subExamKey: null, prescribedMax: 50, isSem1Total: true, isSem2Total: false, isFinalTotal: false },
 
                     // Sem 2: FA3 (10%), FA4 (10%), SA2 (30%), Sem 2 Total (50%)
-                    { exam: 'ರೂ-3', pct: '10%', maxMarks: 70, subExamKey: 'fa3' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ರೂ-4', pct: '10%', maxMarks: 70, subExamKey: 'fa4' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ಸಂ-2', pct: '30%', maxMarks: 210, subExamKey: 'sa2' as const, prescribedMax: 30, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
-                    { exam: 'ಒಟ್ಟು', pct: '50%', maxMarks: 350, subExamKey: null, prescribedMax: 50, isSem1Total: false, isSem2Total: true, isFinalTotal: false },
+                    { exam: isKannada ? 'ರೂ-3' : 'FA-3', pct: '10%', maxMarks: 70, subExamKey: 'fa3' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ರೂ-4' : 'FA-4', pct: '10%', maxMarks: 70, subExamKey: 'fa4' as const, prescribedMax: 10, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ಸಂ-2' : 'SA-2', pct: '30%', maxMarks: 210, subExamKey: 'sa2' as const, prescribedMax: 30, isSem1Total: false, isSem2Total: false, isFinalTotal: false },
+                    { exam: isKannada ? 'ಒಟ್ಟು' : 'Total', pct: '50%', maxMarks: 350, subExamKey: null, prescribedMax: 50, isSem1Total: false, isSem2Total: true, isFinalTotal: false },
 
                     // Final Total: 100%
-                    { exam: 'ಒಟ್ಟು', pct: '100%', maxMarks: 700, subExamKey: null, prescribedMax: 100, isSem1Total: false, isSem2Total: false, isFinalTotal: true },
+                    { exam: isKannada ? 'ಒಟ್ಟು' : 'Annual', pct: '100%', maxMarks: 700, subExamKey: null, prescribedMax: 100, isSem1Total: false, isSem2Total: false, isFinalTotal: true },
                   ];
 
                   // Precompute assessment totals across the 7 subjects
@@ -691,7 +753,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                         return (
                           <tr
                             key={rIdx}
-                            style={{ height: '4.8mm', minHeight: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box' }}
+                            style={{ height: '5.0mm', minHeight: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}
                             className={`border-b border-slate-300 text-[8px] ${
                               r.isFinalTotal
                                 ? 'bg-amber-100 font-black border-b-2 border-slate-900 text-red-600'
@@ -700,16 +762,16 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                 : 'hover:bg-slate-50 text-slate-900'
                             }`}
                           >
-                            {/* 1. Sl No - Spans 9 Rows (Fit in 43.2mm height) */}
+                            {/* 1. Sl No - Spans 9 Rows (Fit in 45.0mm height) */}
                             {isRow0 && (
-                              <td rowSpan={9} style={{ height: '43.2mm', maxHeight: '43.2mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
+                              <td rowSpan={9} style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
                                 {globalIdx + 1}
                               </td>
                             )}
 
                             {/* 2. Registered No - Spans 9 Rows - Vertical Bottom to Top */}
                             {isRow0 && (
-                              <td rowSpan={9} style={{ height: '43.2mm', maxHeight: '43.2mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
+                              <td rowSpan={9} style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
                                 <span
                                   style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '39mm' }}
                                   className="inline-block whitespace-nowrap text-center py-0.5 mx-auto text-[7.5px]"
@@ -723,7 +785,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow0 && (
                               <td
                                 rowSpan={9}
-                                style={{ height: '43.2mm', maxHeight: '43.2mm', boxSizing: 'border-box' }}
+                                style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }}
                                 className="border border-slate-900 p-0.5 text-center align-middle bg-white w-[62px] max-w-[62px] min-w-[62px] overflow-hidden"
                               >
                                 <div className="flex flex-col justify-center items-center text-center h-full py-0.5 space-y-0.5">
@@ -780,7 +842,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow0 && (
                               <td
                                 rowSpan={4}
-                                style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
+                                style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
                                 className="border border-slate-900 p-0 text-center align-middle font-bold bg-white overflow-hidden w-[28px] max-w-[28px]"
                               >
                                 <div className="flex flex-col items-center justify-center h-full text-center py-1">
@@ -820,7 +882,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow4 && (
                               <td
                                 rowSpan={4}
-                                style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
+                                style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
                                 className="border border-slate-900 p-0 text-center align-middle font-bold bg-white overflow-hidden w-[28px] max-w-[28px]"
                               >
                                 <div className="flex flex-col items-center justify-center h-full text-center py-1">
@@ -859,7 +921,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             )}
                             {isRow8 && (
                               <td
-                                style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
+                                style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
                                 className="border border-slate-900 p-0 text-center align-middle font-black bg-amber-100 text-red-600 overflow-hidden w-[28px] max-w-[28px]"
                               >
                                 <div className="flex items-center justify-center h-full text-center">
@@ -896,12 +958,12 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             )}
 
                             {/* 5. Exam Period */}
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-900'}`}>
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-900'}`}>
                               {r.exam}
                             </td>
 
                             {/* 6. Percentage */}
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-800'}`}>
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-800'}`}>
                               {r.pct}
                             </td>
 
@@ -948,78 +1010,96 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                               return (
                                 <React.Fragment key={s.code}>
                                   <td
-                                    style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                    style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
                                     className={`border border-slate-900 p-0 font-mono text-[10px] text-center align-middle overflow-hidden ${isTotalRow ? 'text-red-600 font-bold' : ''}`}
                                   >
                                     {isExempt ? (
                                       '-'
                                     ) : r.isFinalTotal && onUpdateSubject100 ? (
                                       <>
-                                        <div
-                                          className="cce-pdf-text hidden w-full text-center font-mono font-black text-red-600 text-[10px]"
-                                          style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
-                                        >
-                                          {markVal !== '-' ? markVal : '-'}
-                                        </div>
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          max="100"
-                                          value={markVal !== '-' ? markVal : ''}
-                                          onChange={(e) => {
-                                            const val = e.target.value.trim();
-                                            if (val === '') onUpdateSubject100(st.id, s.code, null);
-                                            else {
-                                              const n = Number(val);
-                                              if (!isNaN(n)) onUpdateSubject100(st.id, s.code, Math.min(100, Math.max(0, Math.floor(n))));
-                                            }
-                                          }}
-                                          style={{ textAlign: 'center' }}
-                                          className="cce-screen-input w-full text-center bg-transparent hover:bg-yellow-100 focus:bg-white font-mono font-black text-red-600 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                          placeholder="-"
-                                          title={`Edit ${s.nameKn} 100 Marks (2-way sync)`}
-                                        />
+                                        {(() => {
+                                          const isNil = markVal === '-' || markVal === null || markVal === undefined || markVal === 0 || markVal === '0';
+                                          const displayVal = isNil ? '-' : markVal;
+                                          const inputVal = isNil ? '' : String(markVal);
+                                          return (
+                                            <>
+                                              <div
+                                                className="cce-pdf-text hidden w-full text-center font-mono font-black text-red-600 text-[10px]"
+                                                style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
+                                              >
+                                                {displayVal}
+                                              </div>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={inputVal}
+                                                onChange={(e) => {
+                                                  const val = e.target.value.replace(/^0+(?=\d)/, '').trim();
+                                                  if (val === '') onUpdateSubject100(st.id, s.code, null);
+                                                  else {
+                                                    const n = Number(val);
+                                                    if (!isNaN(n)) onUpdateSubject100(st.id, s.code, Math.min(100, Math.max(0, Math.floor(n))));
+                                                  }
+                                                }}
+                                                style={{ textAlign: 'center' }}
+                                                className="cce-screen-input w-full text-center bg-transparent hover:bg-yellow-100 focus:bg-white font-mono font-black text-red-600 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                placeholder="-"
+                                                title={`Edit ${isKannada ? s.nameKn : s.nameEn} 100 Marks (2-way sync)`}
+                                              />
+                                            </>
+                                          );
+                                        })()}
                                       </>
                                     ) : r.subExamKey && (onUpdateExamPct || onUpdateMarks) ? (
                                       <>
-                                        <div
-                                          className="cce-pdf-text hidden w-full text-center font-mono font-bold text-slate-900 text-[10px]"
-                                          style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
-                                        >
-                                          {markVal !== '-' ? markVal : '-'}
-                                        </div>
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          max={r.prescribedMax}
-                                          value={markVal !== '-' ? markVal : ''}
-                                          onChange={(e) => {
-                                            const val = e.target.value.trim();
-                                            if (val === '') {
-                                              if (onUpdateExamPct) onUpdateExamPct(st.id, s.code, r.subExamKey!, null);
-                                              else if (onUpdateMarks) onUpdateMarks(st.id, s.code, r.subExamKey!, null);
-                                            } else {
-                                              const n = Number(val);
-                                              if (!isNaN(n)) {
-                                                const maxVal = r.prescribedMax;
-                                                const clamped = Math.min(maxVal, Math.max(0, Math.floor(n)));
-                                                if (onUpdateExamPct) onUpdateExamPct(st.id, s.code, r.subExamKey!, clamped);
-                                                else if (onUpdateMarks) onUpdateMarks(st.id, s.code, r.subExamKey!, clamped);
-                                              }
-                                            }
-                                          }}
-                                          style={{ textAlign: 'center' }}
-                                          className="cce-screen-input w-full text-center bg-transparent hover:bg-blue-50 focus:bg-white font-mono font-bold text-slate-900 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                          placeholder="-"
-                                          title={`Edit ${s.nameKn} ${r.exam} marks (Max: ${r.prescribedMax})`}
-                                        />
+                                        {(() => {
+                                          const isNil = markVal === '-' || markVal === null || markVal === undefined || markVal === 0 || markVal === '0';
+                                          const displayVal = isNil ? '-' : markVal;
+                                          const inputVal = isNil ? '' : String(markVal);
+                                          return (
+                                            <>
+                                              <div
+                                                className="cce-pdf-text hidden w-full text-center font-mono font-bold text-slate-900 text-[10px]"
+                                                style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
+                                              >
+                                                {displayVal}
+                                              </div>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                max={r.prescribedMax}
+                                                value={inputVal}
+                                                onChange={(e) => {
+                                                  const val = e.target.value.replace(/^0+(?=\d)/, '').trim();
+                                                  if (val === '') {
+                                                    if (onUpdateExamPct) onUpdateExamPct(st.id, s.code, r.subExamKey!, null);
+                                                    else if (onUpdateMarks) onUpdateMarks(st.id, s.code, r.subExamKey!, null);
+                                                  } else {
+                                                    const n = Number(val);
+                                                    if (!isNaN(n)) {
+                                                      const maxVal = r.prescribedMax;
+                                                      const clamped = Math.min(maxVal, Math.max(0, Math.floor(n)));
+                                                      if (onUpdateExamPct) onUpdateExamPct(st.id, s.code, r.subExamKey!, clamped);
+                                                      else if (onUpdateMarks) onUpdateMarks(st.id, s.code, r.subExamKey!, clamped);
+                                                    }
+                                                  }
+                                                }}
+                                                style={{ textAlign: 'center' }}
+                                                className="cce-screen-input w-full text-center bg-transparent hover:bg-blue-50 focus:bg-white font-mono font-bold text-slate-900 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                placeholder="-"
+                                                title={`Edit ${isKannada ? s.nameKn : s.nameEn} ${r.exam} marks (Max: ${r.prescribedMax})`}
+                                              />
+                                            </>
+                                          );
+                                        })()}
                                       </>
                                     ) : (
-                                      markVal
+                                      (markVal === '-' || markVal === null || markVal === undefined || markVal === 0 || markVal === '0') ? '-' : markVal
                                     )}
                                   </td>
                                   <td
-                                    style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                    style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
                                     className={`border border-slate-900 p-0 font-bold text-[10px] text-center align-middle overflow-hidden ${
                                       r.isFinalTotal ? 'text-green-600 font-black' : isTotalRow ? 'text-red-600 font-bold' : ''
                                     }`}
@@ -1031,24 +1111,24 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             })}
 
                             {/* 8. Max Marks */}
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-black text-center align-middle text-[10px] overflow-hidden ${
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-black text-center align-middle text-[10px] overflow-hidden ${
                               r.isFinalTotal ? 'bg-amber-100 text-red-600' : isTotalRow ? 'bg-amber-100 text-red-600' : 'bg-slate-50/50'
                             }`}>
                               {r.maxMarks}
                             </td>
 
                             {/* 9. Total Across 7 Subjects: ಅಂಕ, ಶೇಕಡಾ, ಶ್ರೇಣಿ */}
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
                               isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? '-' : (rowTotalMarks !== null ? rowTotalMarks : '-')}
                             </td>
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
                               r.isFinalTotal ? 'text-red-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? '-' : rowPctStr}
                             </td>
-                            <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-black text-center align-middle text-[10px] overflow-hidden ${
+                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-black text-center align-middle text-[10px] overflow-hidden ${
                               r.isFinalTotal ? 'text-green-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
                             }`}>
                               {isExempt ? (r.isFinalTotal ? 'Exempt' : '-') : rowGrade}
@@ -1057,7 +1137,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {/* 10. Part B Item 1: Art Edu / Work Exp (2 cols: Marks, Grade) - NO UNDERLINE */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1088,14 +1168,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
                                   {artSub?.sem1_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1126,14 +1206,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
                                   {artSub?.sem2_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1164,7 +1244,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
                                   {artSub?.grade || '-'}
                                 </td>
                               </>
@@ -1173,7 +1253,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {/* 11. Part B Item 2: Computer Education / ICT (2 cols: Marks, Grade) - NO UNDERLINE */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1204,14 +1284,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
                                   {ictSub?.sem1_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1242,14 +1322,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
                                   {ictSub?.sem2_grade || '-'}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
@@ -1280,7 +1360,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     </div>
                                   )}
                                 </td>
-                                <td style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
                                   {ictSub?.grade || '-'}
                                 </td>
                               </>
@@ -1295,7 +1375,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                      style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
                                       className="border border-slate-900 p-0 w-[18px] font-mono font-bold text-[10px] text-center align-middle bg-white overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
@@ -1336,7 +1416,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      style={{ height: '19.2mm', maxHeight: '19.2mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                      style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
                                       className="border border-slate-900 p-0 w-[18px] font-mono font-bold text-[10px] text-center align-middle bg-white overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
@@ -1376,7 +1456,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   return (
                                     <td
                                       key={act.key}
-                                      style={{ height: '4.8mm', maxHeight: '4.8mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                      style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
                                       className="border border-slate-900 p-0 w-[18px] font-mono font-black text-[10px] text-center align-middle bg-amber-100 text-red-600 overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
@@ -1414,7 +1494,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow0 && (
                               <td
                                 rowSpan={9}
-                                style={{ height: '43.2mm', maxHeight: '43.2mm', boxSizing: 'border-box' }}
+                                style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }}
                                 className={`border border-slate-900 p-0.5 align-middle text-center font-black overflow-hidden ${
                                   isExempt
                                     ? 'bg-purple-50 text-purple-900'
@@ -1529,6 +1609,19 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
               </div>
             </div>
           )}
+
+            {/* Clean Bottom Footer on Every Page */}
+            <div
+              className="w-full flex flex-row items-center justify-between text-[10px] font-bold text-black border-t border-black pt-1 px-1 mt-2"
+              style={{ boxSizing: 'border-box' }}
+            >
+              <div className="text-left">
+                Designed By :Shri S R Angadi 9731766727
+              </div>
+              <div className="text-right font-mono font-bold">
+                ಪುಟ {pageIdx + 1} / {chunks.length}
+              </div>
+            </div>
           </div>
         </div>
       ))}

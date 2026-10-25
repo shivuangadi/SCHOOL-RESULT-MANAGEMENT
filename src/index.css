@@ -234,16 +234,28 @@ button.cursor-not-allowed {
   }
 
   .report-page-sheet {
-    page-break-after: always !important;
     break-after: page !important;
+    page-break-after: page !important;
     margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
     border: none !important;
+  }
+
+  .report-page-sheet:last-child {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .report-page-sheet > div,

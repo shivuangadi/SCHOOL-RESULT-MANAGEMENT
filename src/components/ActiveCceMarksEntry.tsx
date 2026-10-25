@@ -482,10 +482,10 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     saveStudentMarks(diseCode, diseCode, updatedMarks, academicYear).catch(() => {});
   };
 
-  // Handle Co-Scholastic Grade Update
+  // Handle Co-Scholastic Grade Update (Sem 1, Sem 2, and Final)
   const handleUpdateCoScholastic = (
     studentId: string,
-    sem: 'sem1' | 'sem2',
+    sem: 'sem1' | 'sem2' | 'final',
     key: string,
     val: string
   ) => {
@@ -493,14 +493,15 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     if (!st) return;
 
     const existing = marksMap[studentId] || generateDefaultPrimaryMarks(st);
-    const currentSem = (existing as any)[sem + 'Co'] || {};
+    const targetKey = sem === 'sem1' ? 'sem1Co' : sem === 'sem2' ? 'sem2Co' : 'finalCo';
+    const currentSem = (existing as any)[targetKey] || {};
 
     const updatedMarks: any = {
       ...existing,
       studentId,
       diseCode,
       academicYear,
-      [sem + 'Co']: {
+      [targetKey]: {
         ...currentSem,
         [key]: val,
       },
@@ -1551,6 +1552,9 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
                 onUpdateSubject100={handleUpdateSubject100 as any}
                 onUpdateExamPct={handleUpdateExamPct as any}
                 onUpdateMarks={handleUpdateMarks as any}
+                onUpdateAttendance={handleUpdateAttendance}
+                onUpdateSemAttendance={handleUpdateSemAttendance}
+                onUpdateCoScholastic={handleUpdateCoScholastic}
               />
             ) : (
               <CcePage4Detailed400

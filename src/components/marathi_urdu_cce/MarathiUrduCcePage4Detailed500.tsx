@@ -48,7 +48,7 @@ export interface MarathiUrduCcePage4Detailed500Props {
   onUpdateSubject100?: (studentId: string, subCode: MarathiUrduSubjectCode, mark100: number) => void;
   onUpdateSemAttendance?: (studentId: string, sem: 'sem1' | 'sem2', days: number) => void;
   onUpdateAttendance?: (studentId: string, days: number) => void;
-  onUpdateCoScholastic?: (studentId: string, sem: 'sem1' | 'sem2', key: string, val: string) => void;
+  onUpdateCoScholastic?: (studentId: string, sem: 'sem1' | 'sem2' | 'final', key: string, val: string) => void;
 }
 
 export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detailed500Props> = ({
@@ -66,6 +66,8 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
   onUpdateExamPct,
   onUpdateSubject100,
   onUpdateSemAttendance,
+  onUpdateAttendance,
+  onUpdateCoScholastic,
 }) => {
   const internalReportRef = useRef<HTMLDivElement | null>(null);
   const targetReportRef = externalReportRef || internalReportRef;
@@ -126,37 +128,38 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
   const sheetHeightMm = isA4 ? 210 : 215.9;
 
   // 26 Explicit Percentage-Based Columns summing to 100.0%
-  // 5 subjects x 2 cols (M & G) = 10 cols (2 more columns than the 4-subject report)
-  // Col 3: Student Name & Details (10.0% effective), Col 26: Result (4.0% effective)
-  // Remaining space transferred directly to Left Margin (4.77cm on Legal, 4.23cm on A4)
+  // Left Margin: 2.5cm (25mm) on Legal, 2.2cm on A4
+  // Col 6 (% evaluation) increased by 2% to 4.4% with font size 10px
+  // Col 19 (Percentage (%) total secured) widened to 5.4% using freed margin space
+  // Col 3: 10.0%, Col 26: Result (4.0% effective)
   const colWeights = useMemo(() => {
     return [
       1.8,  // Col 1: SI NO
       2.2,  // Col 2: REG NO
-      11.0, // Col 3: Student Name & Details (10.0% of sheet)
+      10.0, // Col 3: Student Name & Details (10.0% of sheet)
       2.8,  // Col 4: Attendance
       3.6,  // Col 5: Exam Period (FA1..Sem1..FA3..Sem2..Total)
-      2.4,  // Col 6: % (15%, 20%, 50%, 100%)
+      4.4,  // Col 6: % (15%, 20%, 50%, 100%) - Increased by 2%, font size 10px
       3.6,  // Col 7: FL Marks
-      2.8,  // Col 8: FL Grade
+      2.7,  // Col 8: FL Grade
       3.6,  // Col 9: SL Marks
-      2.8,  // Col 10: SL Grade
+      2.7,  // Col 10: SL Grade
       3.6,  // Col 11: TL Marks
-      2.8,  // Col 12: TL Grade
+      2.7,  // Col 12: TL Grade
       3.6,  // Col 13: Maths Marks
-      2.8,  // Col 14: Maths Grade
+      2.7,  // Col 14: Maths Grade
       3.6,  // Col 15: EVS Marks
-      2.8,  // Col 16: EVS Grade
-      3.4,  // Col 17: Max 500
-      3.8,  // Col 18: Total Secured Marks
-      3.4,  // Col 19: Percentage (%)
-      2.6,  // Col 20: Overall Grade
+      2.7,  // Col 16: EVS Grade
+      3.2,  // Col 17: Max 500
+      4.2,  // Col 18: Total Secured Marks
+      5.4,  // Col 19: Percentage (%) - Total Secured % widened with freed space
+      2.7,  // Col 20: Overall Grade
       3.6,  // Col 21: Co-Scholastic 1
       3.6,  // Col 22: Co-Scholastic 2
       3.6,  // Col 23: Co-Scholastic 3
       3.6,  // Col 24: Co-Scholastic 4
       3.6,  // Col 25: Co-Scholastic 5
-      4.4,  // Col 26: Result (4.0% of sheet)
+      4.0,  // Col 26: Result (4.0% of sheet)
     ];
   }, []);
 
@@ -518,7 +521,7 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
               style={{
                 width: `${sheetWidthMm}mm`,
                 minHeight: `${sheetHeightMm}mm`,
-                paddingLeft: isA4 ? '42.3mm' : '47.7mm',
+                paddingLeft: isA4 ? '22mm' : '25mm',
                 paddingRight: '6.5mm',
                 paddingTop: '6.5mm',
                 paddingBottom: '6.5mm',
@@ -697,19 +700,19 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                           </div>
                         </th>
 
-                        {/* Percentage */}
+                        {/* Percentage (Col 6 - font size 10px) */}
                         <th
                           rowSpan={3}
                           style={{
                             width: `${colWeights[5]}%`,
-                            fontSize: `${headerFontSize}px`,
+                            fontSize: '10px',
                             verticalAlign: 'middle',
                             textAlign: 'center',
                             padding: '1px',
                           }}
                           className="border border-black align-middle text-center font-black"
                         >
-                          <span className="font-black text-center block">%</span>
+                          <span className="font-black text-center block text-[10px]">%</span>
                         </th>
 
                         {/* 5 Curricular Subjects Header (10 cols: FL, SL, TL, MATHS, EVS) */}
@@ -1158,13 +1161,13 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                   {r.exam}
                                 </td>
 
-                                {/* 6. Percentage */}
+                                {/* 6. Percentage (Col 6 - font size 10px) */}
                                 <td
                                   style={{
                                     padding: `${rowPadding}px ${colPadding}px`,
-                                    fontSize: isTotalRow ? '11px' : `${fontSize}px`,
+                                    fontSize: '10px',
                                   }}
-                                  className={`border border-black font-mono bg-white text-black ${isTotalRow ? 'font-black' : 'font-bold'}`}
+                                  className={`border border-black font-mono bg-white text-black text-[10px] ${isTotalRow ? 'font-black' : 'font-bold'}`}
                                 >
                                   {r.pct}
                                 </td>
@@ -1333,7 +1336,7 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                   {isExempted ? (r.isFinalTotal ? 'Exempt' : '-') : rowGrade}
                                 </td>
 
-                                {/* Part B Activities: Rows 0-3 (Sem 1), Rows 4-7 (Sem 2), Row 8 (Final) */}
+                                {/* Part B Activities: Rows 0-3 (Sem 1), Rows 4-7 (Sem 2), Row 8 (Final) - Editable */}
                                 {isRow0 && (
                                   <>
                                     {MARATHI_URDU_CO_ACTIVITIES.map((act) => (
@@ -1347,7 +1350,27 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                         }}
                                         className="border border-black font-mono font-bold align-middle bg-white text-black text-center overflow-hidden"
                                       >
-                                        {coSem1[act.key] || '-'}
+                                        {onUpdateCoScholastic ? (
+                                          <>
+                                            <select
+                                              value={coSem1[act.key] || ''}
+                                              onChange={(e) => onUpdateCoScholastic(st.id, 'sem1', act.key, e.target.value)}
+                                              style={{ fontSize: `${marksFontSize}px` }}
+                                              className="cce-screen-input w-full text-center font-mono font-bold text-black bg-transparent border-none outline-none p-0 cursor-pointer"
+                                              title={`Edit Sem 1 ${act.nameEn} Grade`}
+                                            >
+                                              <option value="">-</option>
+                                              <option value="A">A</option>
+                                              <option value="B">B</option>
+                                              <option value="C">C</option>
+                                            </select>
+                                            <span className="cce-pdf-text font-mono font-bold text-black" style={{ fontSize: `${marksFontSize}px` }}>
+                                              {coSem1[act.key] || '-'}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          coSem1[act.key] || '-'
+                                        )}
                                       </td>
                                     ))}
                                   </>
@@ -1365,7 +1388,27 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                         }}
                                         className="border border-black font-mono font-bold align-middle bg-white text-black text-center overflow-hidden"
                                       >
-                                        {coSem2[act.key] || '-'}
+                                        {onUpdateCoScholastic ? (
+                                          <>
+                                            <select
+                                              value={coSem2[act.key] || ''}
+                                              onChange={(e) => onUpdateCoScholastic(st.id, 'sem2', act.key, e.target.value)}
+                                              style={{ fontSize: `${marksFontSize}px` }}
+                                              className="cce-screen-input w-full text-center font-mono font-bold text-black bg-transparent border-none outline-none p-0 cursor-pointer"
+                                              title={`Edit Sem 2 ${act.nameEn} Grade`}
+                                            >
+                                              <option value="">-</option>
+                                              <option value="A">A</option>
+                                              <option value="B">B</option>
+                                              <option value="C">C</option>
+                                            </select>
+                                            <span className="cce-pdf-text font-mono font-bold text-black" style={{ fontSize: `${marksFontSize}px` }}>
+                                              {coSem2[act.key] || '-'}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          coSem2[act.key] || '-'
+                                        )}
                                       </td>
                                     ))}
                                   </>
@@ -1382,7 +1425,27 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                         }}
                                         className="border border-black font-mono font-black align-middle bg-white text-black text-center overflow-hidden"
                                       >
-                                        {coFinal[act.key] || '-'}
+                                        {onUpdateCoScholastic ? (
+                                          <>
+                                            <select
+                                              value={coFinal[act.key] || ''}
+                                              onChange={(e) => onUpdateCoScholastic(st.id, 'final', act.key, e.target.value)}
+                                              style={{ fontSize: `${marksFontSize}px` }}
+                                              className="cce-screen-input w-full text-center font-mono font-black text-black bg-transparent border-none outline-none p-0 cursor-pointer"
+                                              title={`Edit Final ${act.nameEn} Grade`}
+                                            >
+                                              <option value="">-</option>
+                                              <option value="A">A</option>
+                                              <option value="B">B</option>
+                                              <option value="C">C</option>
+                                            </select>
+                                            <span className="cce-pdf-text font-mono font-black text-black" style={{ fontSize: `${marksFontSize}px` }}>
+                                              {coFinal[act.key] || '-'}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          coFinal[act.key] || '-'
+                                        )}
                                       </td>
                                     ))}
                                   </>

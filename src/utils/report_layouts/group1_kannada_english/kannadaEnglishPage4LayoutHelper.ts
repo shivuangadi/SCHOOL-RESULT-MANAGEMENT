@@ -31,13 +31,13 @@ export {
  *    5 Co-Scholastic Activities (19.5%),
  *    Result (4.4% effective 4% of sheet).
  * 2. Strict Binding Margins:
- *    - Left Margin: Legal: 4.77cm (47.7mm), A4: 4.23cm (42.3mm)
+ *    - Left Margin: Legal: 2.5cm (25mm), A4: 2.2cm (22mm)
  *    - Right Margin: 0.65cm (6.5mm)
  *    - Top Margin: 0.65cm (6.5mm)
  *    - Bottom Margin: 0.65cm (6.5mm)
  * 3. Exact Dimensions:
- *    - Legal Landscape: 35.56cm (355.6mm) x 21.59cm (215.9mm) -> Left 4.77cm
- *    - A4 Landscape: 29.70cm (297mm) x 21.00cm (210mm) -> Left 4.23cm
+ *    - Legal Landscape: 35.56cm (355.6mm) x 21.59cm (215.9mm) -> Left 2.5cm
+ *    - A4 Landscape: 29.70cm (297mm) x 21.00cm (210mm) -> Left 2.2cm
  * 4. Stable Print Preview Bar:
  *    - Red "Return to Report", Green "Download PDF", and Blue "Print Dialog".
  *    - Blue Print Dialog invokes system print directly with iframe fallback.
@@ -107,15 +107,15 @@ export const printPrimaryCcePage4Detailed = async (
     });
 
     const isA4 = paperSize === 'a4';
-    const leftMarginCm = isA4 ? '4.23cm' : '4.77cm';
-    const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+    const leftMarginCm = isA4 ? '2.2cm' : '2.5cm';
+    const leftMarginMm = isA4 ? '22mm' : '25mm';
 
-    // Scoped CSS for strict 4.77cm / 4.23cm left margin, 0.65cm right/top/bottom, and 100% table fitting
+    // Scoped CSS for strict 2.5cm / 2.2cm left margin, 0.65cm right/top/bottom, and 100% table fitting
     const pageStyle = document.createElement('style');
     pageStyle.textContent = `
       @page {
         size: ${isA4 ? 'A4' : 'legal'} landscape !important;
-        margin: 0.65cm 0.65cm 0.65cm ${leftMarginCm} !important;
+        margin: 0 !important;
       }
 
       body.kannada-english-page4-print-active {
@@ -153,8 +153,10 @@ export const printPrimaryCcePage4Detailed = async (
         max-width: 100% !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
-        page-break-after: always !important;
+        height: auto !important;
+        min-height: 0 !important;
         break-after: page !important;
+        page-break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         box-shadow: none !important;
@@ -162,8 +164,8 @@ export const printPrimaryCcePage4Detailed = async (
       }
 
       #kannada-english-page4-isolated-portal .report-page-sheet:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
 
       #kannada-english-page4-isolated-portal table {
@@ -406,7 +408,7 @@ export const exportPrimaryCcePage4Pdf = async (
   const pageHeight = chosenSize.heightMm;
   const pdfFormat: [number, number] = [pageWidth, pageHeight];
   const isA4 = paperSize === 'a4';
-  const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+  const leftMarginMm = isA4 ? '22mm' : '25mm';
 
   const isAlreadyInPortal = Boolean(
     element.id === 'kannada-english-page4-isolated-portal' ||
@@ -652,8 +654,8 @@ export const exportPrimaryCcePage4Html = (
     } catch (_) {}
 
     const isA4 = paperSize === 'a4';
-    const leftMarginCm = isA4 ? '4.23cm' : '4.77cm';
-    const leftMarginMm = isA4 ? '42.3mm' : '47.7mm';
+    const leftMarginCm = isA4 ? '2.2cm' : '2.5cm';
+    const leftMarginMm = isA4 ? '22mm' : '25mm';
 
     const fullHtml = `<!DOCTYPE html>
 <html lang="en">

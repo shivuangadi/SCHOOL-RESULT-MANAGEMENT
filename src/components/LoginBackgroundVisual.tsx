@@ -3,8 +3,8 @@ import React from 'react';
 export const LoginBackgroundVisual: React.FC = () => {
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none -z-10 select-none">
-      {/* Clean, Deep Royal Karnataka Blue Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#0f172a]" />
+      {/* Clean, Deep Teal/Royal Karnataka Blue Gradient featuring #1f82b7 */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1f82b7] via-[#166d9c] to-[#0f172a]" />
 
       {/* Subtle modern geometric dot grid pattern */}
       <div

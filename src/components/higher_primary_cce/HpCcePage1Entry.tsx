@@ -9,6 +9,7 @@ import {
   getHpSubjectsForMedium,
   getHpCoGradeValue,
 } from '../../utils/higherPrimaryCceHelper';
+import { handleTableGridNavigation } from '../../utils/tableNavigationHelper';
 
 interface HpCcePage1EntryProps {
   students: Student[];
@@ -97,7 +98,10 @@ export const HpCcePage1Entry: React.FC<HpCcePage1EntryProps> = ({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-xs text-center border-collapse border border-slate-400">
+          <table
+            className="w-full min-w-[1100px] text-xs text-center border-collapse border border-slate-400"
+            onKeyDown={handleTableGridNavigation}
+          >
             <thead>
               <tr className="bg-blue-100/90 text-blue-950 font-black border-b border-slate-400">
                 <th rowSpan={2} className="border border-slate-400 p-1 w-10">ಕ್ರ.ಸಂ</th>
@@ -466,16 +470,35 @@ export const HpCcePage1Entry: React.FC<HpCcePage1EntryProps> = ({
                           {sub?.grade || '-'}
                         </td>
 
-                        {/* Result */}
-                        <td className={`border border-slate-400 p-1 font-black text-xs text-center ${
-                          cSt.isPassed ? 'bg-emerald-100 text-emerald-950' : 'bg-rose-100 text-rose-950'
-                        }`}>
-                          {cSt.hasCwsnMarksAllowed
-                            ? (schoolMedium === 'Kannada' ? 'ತೇರ್ಗಡೆ' : 'Promoted')
-                            : sub?.total100 !== null && sub?.total100 !== undefined
-                            ? (cSt.isPassed ? (schoolMedium === 'Kannada' ? 'ತೇರ್ಗಡೆ' : 'Promoted') : (schoolMedium === 'Kannada' ? 'ಅನುತ್ತೀರ್ಣ' : 'Failed'))
-                            : '-'}
-                        </td>
+                        {/* Result - Evaluated purely out of this subject's 100 marks (>= 30% Pass, < 30% Fail) */}
+                        {(() => {
+                          const subTotal = sub?.total100;
+                          const hasMarks = subTotal !== null && subTotal !== undefined;
+                          const subPassed = isExempt || cSt.hasCwsnMarksAllowed || (hasMarks && subTotal >= 30);
+                          return (
+                            <td className={`border border-slate-400 p-1 font-black text-xs text-center ${
+                              isExempt
+                                ? 'bg-purple-100 text-purple-950'
+                                : cSt.hasCwsnMarksAllowed
+                                ? 'bg-emerald-100 text-emerald-950'
+                                : hasMarks
+                                ? subPassed
+                                  ? 'bg-emerald-100 text-emerald-950'
+                                  : 'bg-rose-100 text-rose-950'
+                                : 'bg-slate-50 text-slate-400'
+                            }`}>
+                              {isExempt
+                                ? (schoolMedium === 'Kannada' ? 'ವಿನಾಯಿತಿ' : 'Exempt')
+                                : cSt.hasCwsnMarksAllowed
+                                ? (schoolMedium === 'Kannada' ? 'ತೇರ್ಗಡೆ (CWSN)' : 'Promoted (CWSN)')
+                                : hasMarks
+                                ? subPassed
+                                  ? (schoolMedium === 'Kannada' ? 'ತೇರ್ಗಡೆ' : 'Promoted')
+                                  : (schoolMedium === 'Kannada' ? 'ಅನುತ್ತೀರ್ಣ' : 'Failed')
+                                : '-'}
+                            </td>
+                          );
+                        })()}
                       </>
                     )}
                   </tr>
