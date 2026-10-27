@@ -82,6 +82,11 @@ import { BackupRestoreModal } from './BackupRestoreModal';
 import { BulkExcelStudentEditorModal } from './BulkExcelStudentEditorModal';
 import { StudentPhotoEditorModal } from './StudentPhotoEditorModal';
 import { StudentPhotoImg } from './StudentPhotoImg';
+import { SatsUdiseReconciliationModal } from './SatsUdiseReconciliationModal';
+import {
+  reconcileSatsWithExistingStudents,
+  ReconciliationResult,
+} from '../utils/satsUdiseReconciliationHelper';
 import {
   uploadStudentPhoto,
   deleteStudentPhoto,
@@ -213,7 +218,10 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
 
   // Excel Import State
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const satsReconciliationFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false);
+  const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null);
   const [importing, setImporting] = useState(false);
   const [parsedData, setParsedData] = useState<ParseResult | null>(null);
   const [importFileName, setImportFileName] = useState('');
@@ -710,6 +718,24 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     setImporting(true);
     try {
       const result = await parseSatsExcel(file, schoolId, diseCode, academicYear);
+      // If students already exist in this school, check if this SATS Excel matches existing students
+      // to reconcile missing SATS No and missing DOB together without creating duplicates
+      if (students.length > 0 && result.students.length > 0) {
+        const reconcResult = reconcileSatsWithExistingStudents(
+          result.students,
+          students,
+          schoolId,
+          diseCode,
+          academicYear
+        );
+
+        if (reconcResult.candidatesToUpdate.length > 0 || reconcResult.conflicts.length > 0) {
+          setReconciliationResult(reconcResult);
+          setIsReconciliationModalOpen(true);
+          return;
+        }
+      }
+
       setParsedData(result);
       setIsImportModalOpen(true);
     } catch (err: any) {
@@ -717,6 +743,32 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Dedicated SATS–UDISE Plus Reconciliation File Handler
+  const handleSatsReconciliationFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportFileName(file.name);
+    setImporting(true);
+    try {
+      const result = await parseSatsExcel(file, schoolId, diseCode, academicYear);
+      const reconcResult = reconcileSatsWithExistingStudents(
+        result.students,
+        students,
+        schoolId,
+        diseCode,
+        academicYear
+      );
+      setReconciliationResult(reconcResult);
+      setIsReconciliationModalOpen(true);
+    } catch (err: any) {
+      showToast(`⚠️ SATS File Parse Error: ${err?.message || 'Invalid format'}`);
+    } finally {
+      setImporting(false);
+      if (satsReconciliationFileInputRef.current) satsReconciliationFileInputRef.current.value = '';
     }
   };
 
@@ -970,6 +1022,25 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
           >
             <FileSpreadsheet className="w-4 h-4 text-slate-950" />
             <span>{importing ? 'Reading File...' : 'IMPORT EXCEL / JSON (SATS)'}</span>
+          </button>
+
+          {/* SATS–UDISE RECONCILIATION BUTTON */}
+          <input
+            type="file"
+            ref={satsReconciliationFileInputRef}
+            onChange={handleSatsReconciliationFile}
+            accept=".xlsx, .xls, .csv"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => satsReconciliationFileInputRef.current?.click()}
+            disabled={importing}
+            className="px-4 py-2 bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-xl text-xs flex items-center gap-2 shadow-lg transition transform hover:-translate-y-0.5 cursor-pointer ring-2 ring-cyan-300/40"
+            title="SATS–UDISE Reconciliation: Matches Name, Father's Name & Class to update missing SATS No and DOB together without creating duplicates"
+          >
+            <RefreshCw className={`w-4 h-4 text-slate-950 ${importing ? 'animate-spin' : ''}`} />
+            <span>SATS–UDISE ಹೊಂದಾಣಿಕೆ (Reconcile SATS & DOB)</span>
           </button>
 
           {/* DOWNLOAD SAMPLE TEMPLATE */}
@@ -2492,6 +2563,33 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* ========================================================
+          SATS–UDISE PLUS RECONCILIATION MODAL
+          ======================================================== */}
+      {isReconciliationModalOpen && reconciliationResult && (
+        <SatsUdiseReconciliationModal
+          isOpen={isReconciliationModalOpen}
+          onClose={() => {
+            setIsReconciliationModalOpen(false);
+            setReconciliationResult(null);
+          }}
+          reconciliationResult={reconciliationResult}
+          diseCode={diseCode}
+          academicYear={academicYear}
+          onSuccess={async (updatedCount, newAddedCount) => {
+            setIsReconciliationModalOpen(false);
+            setReconciliationResult(null);
+            const reloaded = await loadSchoolStudents(schoolId, diseCode, academicYear);
+            setStudents(reloaded);
+            await fetchDeletedCount();
+            setSuccessToast(
+              `✓ SATS–UDISE ಸಮನ್ವಯ ಯಶಸ್ವಿಯಾಗಿದೆ! ${updatedCount} ವಿದ್ಯಾರ್ಥಿಗಳ SATS No / DOB ನವೀಕರಿಸಲಾಗಿದೆ, ${newAddedCount} ಹೊಸ ವಿದ್ಯಾರ್ಥಿಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ.`
+            );
+            setTimeout(() => setSuccessToast(null), 5000);
+          }}
+        />
       )}
 
       {/* ========================================================

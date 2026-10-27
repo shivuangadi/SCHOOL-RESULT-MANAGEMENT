@@ -12,8 +12,8 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
   const { loginWithAdminEmail, loginWithGoogleAdmin, loginError, clearError } = useAuth();
   const { lang } = useLanguage();
 
-  const [adminEmail, setAdminEmail] = useState('shivu.angadi@gmail.com');
-  const [adminPassword, setAdminPassword] = useState('Admin@12345');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -40,11 +40,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
     }
   };
 
-  const handleFillCredentials = () => {
-    setAdminEmail('shivu.angadi@gmail.com');
-    setAdminPassword('Admin@12345');
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-150">
@@ -69,33 +64,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Quick Credentials Info Box for Testing */}
-          <div className="p-3 bg-amber-50 border border-amber-300/80 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-extrabold flex items-center gap-1 text-amber-900">
-                <KeyRound className="w-3.5 h-3.5 text-amber-700" />
-                <span>Administrator Credentials:</span>
-              </span>
-              <button
-                type="button"
-                onClick={handleFillCredentials}
-                className="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 font-black text-[10px] transition cursor-pointer flex items-center gap-1"
-              >
-                <Sparkles className="w-3 h-3 fill-amber-950" />
-                <span>Auto-Fill</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-0.5">
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-bold">Admin ID / Email:</span>
-                <code className="font-mono font-black text-[11px] text-blue-900">shivu.angadi@gmail.com</code>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-bold">Admin Password:</span>
-                <code className="font-mono font-black text-[11px] text-emerald-900">Admin@12345</code>
-              </div>
-            </div>
-          </div>
 
           {loginError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2">

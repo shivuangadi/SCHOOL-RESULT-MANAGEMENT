@@ -142,8 +142,8 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
   const [isTcModalOpen, setIsTcModalOpen] = useState(false);
   const [isStudyCertModalOpen, setIsStudyCertModalOpen] = useState(false);
 
-  const handleOpenReport = (openCallback: () => void) => {
-    if (isDemo) {
+  const handleOpenReport = (openCallback: () => void, isFreeInDemo: boolean = false) => {
+    if (isDemo && !isFreeInDemo) {
       setIsPaaKeyPromptOpen(true);
       return;
     }
@@ -501,7 +501,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   handleOpenReport(() => {
                     setPrimaryCceInitialTab('page4');
                     setIsPrimaryCceReportsOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 hover:from-indigo-900 hover:to-blue-900 text-white rounded-2xl text-left space-y-1.5 transition cursor-pointer shadow-lg border-2 border-amber-400 ring-2 ring-amber-400/40 transform hover:-translate-y-0.5 sm:col-span-2 lg:col-span-2 xl:col-span-2"
               >
@@ -537,7 +537,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   handleOpenReport(() => {
                     setHigherPrimaryInitialTab('consolidation_100');
                     setIsHigherPrimaryReportsOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-gradient-to-br from-purple-950 via-slate-900 to-indigo-950 hover:from-purple-900 hover:to-indigo-900 text-white rounded-2xl text-left space-y-1.5 transition cursor-pointer shadow-lg border-2 border-amber-400 ring-2 ring-amber-400/40 transform hover:-translate-y-0.5 sm:col-span-2 lg:col-span-2 xl:col-span-2"
               >
@@ -620,7 +620,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
               {/* 1. All Consolidation */}
               <button
                 type="button"
-                onClick={() => handleOpenReport(() => setActiveSubView('consolidation'))}
+                onClick={() => handleOpenReport(() => setActiveSubView('consolidation'), true)}
                 className="p-4 bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200 rounded-2xl text-left space-y-1 transition cursor-pointer shadow-xs"
               >
                 <div className="flex items-center justify-between">
@@ -662,7 +662,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                 onClick={() => {
                   handleOpenReport(() => {
                     setIsSatsGradeUploadModalOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-slate-950 rounded-2xl text-left space-y-1.5 transition cursor-pointer shadow-md border-2 border-amber-300 ring-4 ring-amber-400/40 transform hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1 xl:col-span-2"
               >
@@ -733,7 +733,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   handleOpenReport(() => {
                     setPrimaryCceInitialTab('page2');
                     setIsPrimaryCceReportsOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-rose-50/80 hover:bg-rose-100/80 border border-rose-200 rounded-2xl text-left space-y-1 transition cursor-pointer shadow-xs"
               >
@@ -751,7 +751,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   handleOpenReport(() => {
                     setConsolidationInitialTab('classwise');
                     setIsConsolidationModalOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-2xl text-left space-y-1 transition cursor-pointer shadow-xs"
               >
@@ -769,7 +769,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                   handleOpenReport(() => {
                     setConsolidationInitialTab('school');
                     setIsConsolidationModalOpen(true);
-                  });
+                  }, true);
                 }}
                 className="p-4 bg-amber-50/80 hover:bg-amber-100/80 border border-amber-300 rounded-2xl text-left space-y-1 transition cursor-pointer shadow-xs"
               >

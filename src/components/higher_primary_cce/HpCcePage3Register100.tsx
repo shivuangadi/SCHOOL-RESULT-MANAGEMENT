@@ -468,10 +468,10 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                     <colgroup>
                       {/* 1. Sl No */}
                       <col style={{ width: '2.0%' }} />
-                      {/* 2. Student Name */}
-                      <col style={{ width: '13.5%' }} />
-                      {/* 3. DOB & Gender */}
-                      <col style={{ width: '6.2%' }} />
+                      {/* 2. Student Name - Decreased by 1% */}
+                      <col style={{ width: '12.5%' }} />
+                      {/* 3. DOB & Gender - Decreased by 1% */}
+                      <col style={{ width: '5.2%' }} />
                       {/* 4. Reg No & SATS No */}
                       <col style={{ width: '7.2%' }} />
                       {/* 5. Category */}
@@ -487,8 +487,8 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                       ))}
                       {/* Grand Total */}
                       <col style={{ width: '3.2%' }} />
-                      {/* % */}
-                      <col style={{ width: '2.7%' }} />
+                      {/* % - Increased by 2% to prevent "%" symbol wrapping */}
+                      <col style={{ width: '4.7%' }} />
                       {/* Grade */}
                       <col style={{ width: '2.4%' }} />
                       {/* Art Education: Marks & Grade are EXACT SAME SIZE (2.1% each) */}
@@ -784,7 +784,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                             </td>
 
                             {/* Percentage - Font size 12 */}
-                            <td className="border border-black p-0.5 text-center font-mono font-bold align-middle text-[12px]">
+                            <td className="border border-black p-0.5 text-center font-mono font-bold align-middle text-[12px] whitespace-nowrap">
                               {cSt.isExempted ? '-' : `${cSt.percentage}%`}
                             </td>
 
@@ -881,8 +881,8 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                               );
                             })}
 
-                            {/* Result - Font size 12 */}
-                            <td className="border border-black p-0.5 text-center font-black leading-tight align-middle text-[12px]">
+                            {/* Result - Font size 10 */}
+                            <td className="border border-black p-0.5 text-center font-black leading-tight align-middle text-[10px]">
                               {cSt.isExempted
                                 ? (isKannada ? 'ವಿನಾಯಿತಿ' : 'EXEMPT')
                                 : cSt.isPassed

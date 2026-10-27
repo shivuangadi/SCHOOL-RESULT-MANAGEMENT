@@ -754,8 +754,8 @@ export const parseStudentsFromJsonText = (
       aadharNo: String(item.aadharNo || item.aadhar || '').trim() || 'N/A',
       schoolRegNo: item.schoolRegNo || undefined,
       admissionDate: formatDateToDmy(item.admissionDate || '01/06/2025'),
-      dob: formatDateToDmy(item.dob || item.dateOfBirth || '15/05/2015'),
-      dateOfBirth: formatDateToDmy(item.dateOfBirth || item.dob || '15/05/2015'),
+      dob: (item.dob || item.dateOfBirth) ? formatDateToDmy(item.dob || item.dateOfBirth) : '',
+      dateOfBirth: (item.dateOfBirth || item.dob) ? formatDateToDmy(item.dateOfBirth || item.dob) : '',
       religion: recognized.religion || normalizeReligion(item.religion),
       caste: recognized.caste,
       customCaste: recognized.customCaste || item.customCaste || undefined,
@@ -1060,15 +1060,10 @@ export const parseSatsExcel = async (
         const schoolRegNo = colRegNo !== -1 ? cleanString(row[colRegNo]) : '';
         const admissionDate = colAdmDate !== -1 ? formatDateToDmy(row[colAdmDate]) || '01/06/2026' : '01/06/2026';
 
-        // Format DOB in DD/MM/YYYY format
+        // Format DOB in DD/MM/YYYY format (Leave blank if missing in Excel file)
         let formattedDob = '';
         if (colDob !== -1 && row[colDob]) {
           formattedDob = formatDateToDmy(row[colDob]);
-        }
-        if (!formattedDob) {
-          const classInt = parseInt(classStandard, 10) || 5;
-          const birthYear = 2026 - 5 - classInt;
-          formattedDob = `01/06/${birthYear}`;
         }
 
         const rawCategory = colCategory !== -1 ? row[colCategory] : '';

@@ -176,6 +176,8 @@ export interface Student {
   academicYear?: string; // e.g. "2026-27"
   photoUrl?: string;
   photoPath?: string;
+  reconciliationBatchId?: string;
+  lastReconciledAt?: string;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string;

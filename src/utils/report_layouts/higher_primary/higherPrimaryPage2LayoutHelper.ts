@@ -102,9 +102,9 @@ export const printHigherPrimaryCcePage2Detailed = async (
     });
 
     const isA4 = paperSize === 'a4';
-    const leftMarginMm = isA4 ? '18mm' : '20mm';
+    const leftMarginMm = isA4 ? '18mm' : '20mm'; // 2.0cm left margin for binding
 
-    // Scoped CSS for strict 2.0cm (20mm) left binding margin and 0 blank interleaved pages
+    // Scoped CSS for balanced margins and 0 blank interleaved pages
     const pageStyle = document.createElement('style');
     pageStyle.textContent = `
       @page {
@@ -139,10 +139,10 @@ export const printHigherPrimaryCcePage2Detailed = async (
 
       #higher-primary-page2-isolated-portal .report-page-sheet {
         margin: 0 auto !important;
-        padding-left: ${leftMarginMm} !important; /* Left margin for binding */
-        padding-right: 6mm !important;
-        padding-top: 6mm !important;
-        padding-bottom: 6mm !important;
+        padding-left: ${leftMarginMm} !important; /* 2.0cm Left margin for binding */
+        padding-right: 6.5mm !important;
+        padding-top: 6.5mm !important;
+        padding-bottom: 3.5mm !important;
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
@@ -304,6 +304,40 @@ export const printHigherPrimaryCcePage2Detailed = async (
       }
     };
 
+    // WhatsApp Share button
+    const waBtn = document.createElement('button');
+    waBtn.type = 'button';
+    waBtn.id = 'higher-primary-page2-wa-btn';
+    waBtn.innerHTML = '&#128242; WhatsApp Share';
+    waBtn.title = 'Share report image & summary to WhatsApp';
+    waBtn.style.cssText = `
+      background: #16a34a;
+      color: #ffffff;
+      border: 1px solid #15803d;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    `;
+    waBtn.onclick = async () => {
+      waBtn.disabled = true;
+      const prevHtml = waBtn.innerHTML;
+      waBtn.innerHTML = '&#9203; Sharing...';
+      try {
+        const cleanTitle = title || 'Higher_Primary_CCE_Report';
+        await shareReportToWhatsApp(clone, `*${cleanTitle}*`, cleanTitle.replace(/\s+/g, '_'));
+      } catch (err) {
+        console.error('Error sharing to WhatsApp from preview bar:', err);
+      } finally {
+        waBtn.disabled = false;
+        waBtn.innerHTML = prevHtml;
+      }
+    };
+
     // Blue Print Dialog button
     const reprintBtn = document.createElement('button');
     reprintBtn.type = 'button';
@@ -323,22 +357,43 @@ export const printHigherPrimaryCcePage2Detailed = async (
       gap: 6px;
     `;
 
-    const triggerSystemPrint = () => {
+    const triggerSystemPrint = async () => {
       try {
+        if (window.self !== window.top) {
+          await printElementViaIframe(clone, title, paperSize, 'landscape');
+          return;
+        }
         window.focus();
         window.print();
+        return;
       } catch (err) {
         console.warn('Direct window.print() failed, falling back to iframe print:', err);
-        try {
-          printElementViaIframe(clone, title, paperSize, 'landscape');
-        } catch (_) {}
+      }
+      try {
+        await printElementViaIframe(clone, title, paperSize, 'landscape');
+      } catch (_) {
+        openCleanPrintWindow(clone, title, paperSize, 'landscape');
       }
     };
 
-    reprintBtn.onclick = () => {
-      triggerSystemPrint();
+    reprintBtn.onclick = async () => {
+      try {
+        if (window.self !== window.top) {
+          await printElementViaIframe(clone, title, paperSize, 'landscape');
+          return;
+        }
+        window.focus();
+        window.print();
+      } catch (err) {
+        try {
+          await printElementViaIframe(clone, title, paperSize, 'landscape');
+        } catch (_) {
+          openCleanPrintWindow(clone, title, paperSize, 'landscape');
+        }
+      }
     };
 
+    rightGroup.appendChild(waBtn);
     rightGroup.appendChild(pdfBtn);
     rightGroup.appendChild(reprintBtn);
 
@@ -405,9 +460,11 @@ export const exportHigherPrimaryCcePage2Pdf = async (
   paperSize: ReportPaperSize = 'legal'
 ): Promise<boolean> => {
   const chosenSize = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
-  const pdfFormat: [number, number] = [chosenSize.widthMm, chosenSize.heightMm];
+  const pageWidth = chosenSize.widthMm;
+  const pageHeight = chosenSize.heightMm;
+  const pdfFormat: [number, number] = [pageWidth, pageHeight];
   const isA4 = paperSize === 'a4';
-  const leftMarginMm = isA4 ? '18mm' : '20mm';
+  const leftMarginMm = isA4 ? '18mm' : '20mm'; // 2cm (20mm) left binding margin as requested
 
   let targetContainer: HTMLElement = element;
   let stagingPortal: HTMLElement | null = null;
@@ -419,52 +476,69 @@ export const exportHigherPrimaryCcePage2Pdf = async (
     stagingPortal = document.createElement('div');
     stagingPortal.id = 'higher-primary-page2-pdf-staging-portal';
     stagingPortal.style.cssText = `
-      position: absolute;
-      left: -99999px;
-      top: 0;
-      width: ${isA4 ? '297mm' : '355.6mm'};
+      position: fixed;
+      top: -10000px;
+      left: 0;
+      width: ${pageWidth}mm;
+      min-width: ${pageWidth}mm;
+      max-width: ${pageWidth}mm;
       background: #ffffff;
-      color: #000000;
-      box-sizing: border-box;
+      opacity: 0;
+      pointer-events: none;
       z-index: -9999;
+      overflow: hidden;
     `;
 
     const stagingStyle = document.createElement('style');
     stagingStyle.textContent = `
+      ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+      * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+
       #higher-primary-page2-pdf-staging-portal {
         background: #ffffff !important;
         color: #000000 !important;
         font-family: 'Anek Kannada', 'Noto Sans Kannada', system-ui, sans-serif !important;
+        overflow: hidden !important;
       }
       #higher-primary-page2-pdf-staging-portal .report-page-sheet {
         margin: 0 !important;
         padding-left: ${leftMarginMm} !important;
-        padding-right: 6mm !important;
-        padding-top: 6mm !important;
-        padding-bottom: 6mm !important;
-        width: 100% !important;
+        padding-right: 6.5mm !important;
+        padding-top: 6.5mm !important;
+        padding-bottom: 3.5mm !important;
+        width: ${pageWidth}mm !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-width: ${pageWidth}mm !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
         box-shadow: none !important;
         border: none !important;
+        overflow: hidden !important;
       }
       #higher-primary-page2-pdf-staging-portal table {
         width: 100% !important;
+        max-width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
-        border: 1.5px solid #000000 !important;
+        border: 2px solid #000000 !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
       #higher-primary-page2-pdf-staging-portal th,
       #higher-primary-page2-pdf-staging-portal td {
         border: 1px solid #000000 !important;
-        padding: ${isA4 ? '0.25px 0.5px' : '0.5px 1px'} !important;
-        font-size: ${isA4 ? '7px' : '8px'} !important;
+        padding: 0.5px !important;
         line-height: 1.1 !important;
         text-align: center !important;
         vertical-align: middle !important;
         box-sizing: border-box !important;
+        color: #000000 !important;
+      }
+      #higher-primary-page2-pdf-staging-portal td[style*="double"],
+      #higher-primary-page2-pdf-staging-portal td.double-bottom-border {
+        border-bottom: 3.5px double #000000 !important;
+        box-shadow: inset 0 -1px 0 #000, inset 0 -3px 0 #000 !important;
       }
       #higher-primary-page2-pdf-staging-portal select,
       #higher-primary-page2-pdf-staging-portal .cce-screen-input {
@@ -472,6 +546,8 @@ export const exportHigherPrimaryCcePage2Pdf = async (
       }
       #higher-primary-page2-pdf-staging-portal .cce-pdf-text {
         display: block !important;
+        text-align: center !important;
+        color: #000000 !important;
       }
     `;
 
@@ -528,8 +604,8 @@ export const exportHigherPrimaryCcePage2Pdf = async (
     format: pdfFormat,
   });
 
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
   let renderedAny = false;
 
   try {
@@ -556,19 +632,47 @@ export const exportHigherPrimaryCcePage2Pdf = async (
           },
         });
 
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+
+        const imgW = img.naturalWidth || sheet.offsetWidth || 1;
+        const imgH = img.naturalHeight || sheet.offsetHeight || 1;
+        const imgRatio = imgW / imgH;
+
+        let renderW = pdfWidth;
+        let renderH = pdfWidth / imgRatio;
+        if (renderH > pdfHeight) {
+          renderH = pdfHeight;
+          renderW = pdfHeight * imgRatio;
+        }
+
+        const offsetY = 0;
+
         if (renderedAny) {
           pdf.addPage(pdfFormat, 'landscape');
         }
 
-        pdf.addImage(dataUrl, 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+        pdf.addImage(dataUrl, 'PNG', 0, offsetY, renderW, renderH, undefined, 'FAST');
         renderedAny = true;
       } catch (err) {
         console.warn(`toPng capture failed for page ${sIdx + 1}:`, err);
         try {
           const fallback = await captureCleanReportCanvas(sheet);
           if (fallback?.dataUrl) {
+            const fRatio = (fallback.width || 1) / (fallback.height || 1);
+            let fW = pdfWidth;
+            let fH = pdfWidth / fRatio;
+            if (fH > pdfHeight) {
+              fH = pdfHeight;
+              fW = pdfHeight * fRatio;
+            }
+            const fOffsetY = 0;
             if (renderedAny) pdf.addPage(pdfFormat, 'landscape');
-            pdf.addImage(fallback.dataUrl, 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+            pdf.addImage(fallback.dataUrl, 'PNG', 0, fOffsetY, fW, fH, undefined, 'FAST');
             renderedAny = true;
           }
         } catch (_) {}

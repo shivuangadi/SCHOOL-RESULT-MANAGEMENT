@@ -564,10 +564,9 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
         {/* Clickable Class-Wise Progress Cards */}
         <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto pb-1 pt-0.5">
           {schoolCceSummary.classSummaries.map((clsSummary) => {
-            const ep = clsSummary.examProgress[schoolCceSummary.currentExam];
-            const pct = ep.percent ?? 0;
-            const isComplete = ep.percent === 100;
-            const isAlert = ep.percent !== null && ep.percent < 50;
+            const pct = clsSummary.overallClassPercent ?? 0;
+            const isComplete = pct === 100;
+            const display = clsSummary.overallClassPercentDisplay;
 
             const barBg =
               isComplete
@@ -596,14 +595,14 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
                 key={clsSummary.classStandard}
                 onClick={() => setSelectedDetailClass(clsSummary.classStandard)}
                 className="flex-1 min-w-[90px] sm:min-w-[115px] max-w-[170px] p-2 bg-slate-50 hover:bg-blue-50/80 rounded-xl border border-slate-200 hover:border-blue-400 transition-all cursor-pointer shadow-xs shrink-0 group space-y-1.5"
-                title={`Click to view detailed CCE Progress for Class ${clsSummary.classStandard} (${ep.display})`}
+                title={`Click to view detailed CCE Progress for Class ${clsSummary.classStandard} (${display} • ${clsSummary.totalClassCompleted}/${clsSummary.totalClassRequired})`}
               >
                 <div className="flex items-center justify-between text-[11px] font-bold">
                   <span className="text-slate-800 group-hover:text-blue-900 truncate">
                     Class {clsSummary.classStandard}
                   </span>
                   <span className={`font-mono font-black ${textColor}`}>
-                    {ep.display}
+                    {display}
                   </span>
                 </div>
                 {/* Horizontal progress bar */}
@@ -613,9 +612,9 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
                     className={`h-full rounded-full transition-all duration-300 ${barBg}`}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                  <span>{schoolCceSummary.currentExamLabel}</span>
-                  <span>{ep.completed}/{ep.totalRequired}</span>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                  <span className="text-[9px] text-slate-400">CCE Status</span>
+                  <span>{clsSummary.totalClassCompleted}/{clsSummary.totalClassRequired}</span>
                 </div>
               </div>
             );

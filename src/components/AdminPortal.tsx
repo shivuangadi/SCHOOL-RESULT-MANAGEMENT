@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { SchoolRecord, AccountStatus, SubscriptionStatus } from '../types';
+import { SchoolRecord, AccountStatus, SubscriptionStatus, SchoolMedium } from '../types';
 import {
   collection,
   onSnapshot,
@@ -297,6 +297,8 @@ export const AdminPortal: React.FC = () => {
   // Selected school for editing / inspection
   const [selectedSchool, setSelectedSchool] = useState<SchoolRecord | null>(null);
   const [isEditingDates, setIsEditingDates] = useState(false);
+  const [editSchoolName, setEditSchoolName] = useState('');
+  const [editSchoolMedium, setEditSchoolMedium] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editExpiryDate, setEditExpiryDate] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -547,6 +549,8 @@ export const AdminPortal: React.FC = () => {
     setActionLoading(true);
 
     const updateData: Partial<SchoolRecord> = {
+      schoolName: editSchoolName.trim() || selectedSchool.schoolName,
+      schoolMedium: ((editSchoolMedium.trim() as SchoolMedium) || selectedSchool.schoolMedium || 'Kannada') as SchoolMedium,
       subscriptionStart: editStartDate,
       subscriptionExpiry: editExpiryDate,
       paymentNotes: editNotes,
@@ -567,6 +571,9 @@ export const AdminPortal: React.FC = () => {
 
     try {
       await updateDoc(doc(db, 'schools', selectedSchool.schoolId), updateData);
+      if (selectedSchool.diseCode && selectedSchool.diseCode !== selectedSchool.schoolId) {
+        await updateDoc(doc(db, 'schools', selectedSchool.diseCode), updateData).catch(() => {});
+      }
     } catch (err) {
       console.warn('Firestore save dates notice (local updated):', err);
     }
@@ -1163,6 +1170,8 @@ export const AdminPortal: React.FC = () => {
                           <button
                             onClick={() => {
                               setSelectedSchool(sch);
+                              setEditSchoolName(sch.schoolName || '');
+                              setEditSchoolMedium(sch.schoolMedium || 'Kannada');
                               setEditStartDate(sch.subscriptionStart || new Date().toISOString().split('T')[0]);
                               setEditExpiryDate(
                                 sch.subscriptionExpiry ||
@@ -1176,7 +1185,7 @@ export const AdminPortal: React.FC = () => {
                               setIsEditingDates(false);
                             }}
                             className="p-1.5 text-slate-500 hover:text-blue-900 rounded-lg hover:bg-slate-100 transition cursor-pointer"
-                            title="Inspect & Edit Subscription Dates"
+                            title="Inspect & Edit School Details / Dates"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -1471,12 +1480,12 @@ export const AdminPortal: React.FC = () => {
                 </p>
               </div>
 
-              {/* Subscription Validity Customizer */}
+              {/* School Details & Subscription Validity Customizer */}
               <div className="border border-slate-200 rounded-2xl p-4 space-y-4 bg-white">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar className="w-4 h-4 text-blue-900" />
-                    <span>Subscription Dates & Administrative Notes</span>
+                    <span>School Details, Dates & Administrative Notes</span>
                   </span>
                   <div className="flex items-center gap-2">
                     {!isEditingDates ? (
@@ -1484,7 +1493,7 @@ export const AdminPortal: React.FC = () => {
                         onClick={() => setIsEditingDates(true)}
                         className="px-3 py-1 bg-blue-50 text-blue-900 hover:bg-blue-100 rounded-lg font-bold transition cursor-pointer"
                       >
-                        Edit Dates
+                        Edit Details & Dates
                       </button>
                     ) : (
                       <button
@@ -1493,9 +1502,45 @@ export const AdminPortal: React.FC = () => {
                         className="inline-flex items-center gap-1 px-3 py-1 bg-blue-950 text-white rounded-lg font-bold transition shadow-xs cursor-pointer"
                       >
                         <Save className="w-3.5 h-3.5" />
-                        <span>{actionLoading ? 'Saving...' : 'Save Dates'}</span>
+                        <span>{actionLoading ? 'Saving...' : 'Save Changes'}</span>
                       </button>
                     )}
+                  </div>
+                </div>
+
+                {/* Admin School Name & Medium Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-2 border-b border-slate-100">
+                  <div>
+                    <label className="block text-slate-700 mb-1 text-[11px] font-bold">
+                      School Name (ಶಾಲೆಯ ಹೆಸರು - Admin Only)
+                    </label>
+                    <input
+                      type="text"
+                      disabled={!isEditingDates}
+                      value={editSchoolName}
+                      onChange={(e) => setEditSchoolName(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl disabled:bg-slate-100 text-xs font-bold text-slate-900"
+                      placeholder="School Name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 mb-1 text-[11px] font-bold">
+                      Medium of Instruction (ಬೋಧನಾ ಮಾಧ್ಯಮ)
+                    </label>
+                    <select
+                      disabled={!isEditingDates}
+                      value={editSchoolMedium}
+                      onChange={(e) => setEditSchoolMedium(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl disabled:bg-slate-100 text-xs font-bold text-slate-900 bg-white cursor-pointer"
+                    >
+                      <option value="Kannada">Kannada Medium (ಕನ್ನಡ)</option>
+                      <option value="English">English Medium (ಆಂಗ್ಲ)</option>
+                      <option value="Urdu">Urdu Medium (ಉರ್ದು)</option>
+                      <option value="Marathi">Marathi Medium (ಮರಾಠಿ)</option>
+                      <option value="Hindi">Hindi Medium (ಹಿಂದಿ)</option>
+                      <option value="Telugu">Telugu Medium (ತೆಲುಗು)</option>
+                      <option value="Tamil">Tamil Medium (ತಮಿಳು)</option>
+                    </select>
                   </div>
                 </div>
 

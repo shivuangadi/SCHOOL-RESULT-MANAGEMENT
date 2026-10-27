@@ -22,32 +22,24 @@ export const CceProgressTicker: React.FC<CceProgressTickerProps> = ({
     <div
       role="region"
       aria-label="CCE Progress Bulletin"
-      className={`relative w-full rounded-2xl overflow-hidden border shadow-sm transition-all ${
-        hasAlerts
-          ? 'bg-gradient-to-r from-rose-900 via-red-950 to-rose-900 text-white border-rose-700/80'
-          : 'bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white border-emerald-700/80'
-      }`}
+      className="relative w-full rounded-2xl overflow-hidden border shadow-md transition-all bg-gradient-to-r from-[#ea580c] via-[#f97316] to-[#d97706] text-white border-amber-300"
     >
       <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 gap-2">
         {/* Left Badge: Clickable to trigger Consolidated Progress */}
         <button
           type="button"
           onClick={onClickBulletin}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
-            hasAlerts
-              ? 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400'
-              : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400'
-          }`}
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs bg-[#7c2d12] hover:bg-[#9a3412] text-amber-100 border border-amber-400/60"
           title="Click to open Consolidated CCE Progress Report"
         >
           {hasAlerts ? (
-            <AlertCircle className="w-3.5 h-3.5 text-white animate-pulse" />
+            <AlertCircle className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
           ) : (
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-200" />
+            <CheckCircle className="w-3.5 h-3.5 text-amber-300" />
           )}
           <span className="hidden sm:inline">CCE BULLETIN</span>
           <span className="sm:hidden font-mono">{currentExamLabel}</span>
-          <span className="px-1.5 py-0.2 bg-black/30 rounded text-[10px] font-mono">
+          <span className="px-1.5 py-0.2 bg-black/40 rounded text-[10px] font-mono font-bold text-amber-200">
             {overallPercentDisplay}
           </span>
         </button>
@@ -64,7 +56,7 @@ export const CceProgressTicker: React.FC<CceProgressTickerProps> = ({
           title="Click to view detailed class-wise CCE status"
         >
           <div
-            className={`whitespace-nowrap flex items-center gap-8 font-sans text-xs sm:text-[13px] font-bold ${
+            className={`whitespace-nowrap flex items-center gap-8 font-sans text-xs sm:text-[13px] font-extrabold text-white drop-shadow-xs ${
               isPaused ? 'cce-ticker-paused' : 'cce-ticker-running'
             }`}
             style={{
@@ -72,7 +64,7 @@ export const CceProgressTicker: React.FC<CceProgressTickerProps> = ({
             }}
           >
             <span>{bulletinText}</span>
-            <span className="text-amber-300 font-black">• Click banner for consolidated report •</span>
+            <span className="text-yellow-200 font-black">• Click banner for consolidated report •</span>
             <span>{bulletinText}</span>
           </div>
         </div>
@@ -85,17 +77,17 @@ export const CceProgressTicker: React.FC<CceProgressTickerProps> = ({
               e.stopPropagation();
               setIsPaused(!isPaused);
             }}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            className="p-1 rounded-lg text-amber-100 hover:text-white hover:bg-black/20 transition cursor-pointer"
             title={isPaused ? 'Play scrolling animation' : 'Pause scrolling animation'}
             aria-label={isPaused ? 'Resume ticker' : 'Pause ticker'}
           >
-            {isPaused ? <Play className="w-3.5 h-3.5 text-emerald-400" /> : <Pause className="w-3.5 h-3.5" />}
+            {isPaused ? <Play className="w-3.5 h-3.5 text-yellow-200" /> : <Pause className="w-3.5 h-3.5" />}
           </button>
 
           <button
             type="button"
             onClick={onClickBulletin}
-            className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-[11px] font-bold transition cursor-pointer border border-white/10"
+            className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#7c2d12] hover:bg-[#9a3412] text-amber-100 hover:text-white text-[11px] font-black transition cursor-pointer border border-amber-400/60 shadow-xs"
             title="Open Consolidated CCE Progress Report"
           >
             <span>View All</span>
@@ -115,7 +107,7 @@ export const CceProgressTicker: React.FC<CceProgressTickerProps> = ({
           }
         }
         .cce-ticker-running {
-          animation: cceTickerScroll 32s linear infinite;
+          animation: cceTickerScroll 65s linear infinite;
         }
         .cce-ticker-paused {
           animation-play-state: paused !important;

@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { SchoolMedium } from '../types';
+import { SchoolMedium, SchoolRecord, Student } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { getStudentsFromLocal } from '../utils/studentStore';
+import { PrimaryCceReportsModal } from './PrimaryCceReportsModal';
+import { HigherPrimaryCceReportsModal } from './HigherPrimaryCceReportsModal';
 import {
   DEMO_SCHOOL_INFO,
   DemoStudent,
@@ -68,6 +70,52 @@ export const DemoDashboard: React.FC<DemoDashboardProps> = ({
     'results' | 'marks' | 'marksCard' | 'students' | 'analysis'
   >('results');
 
+  // Real Reports Modals in Demo Mode
+  const [isPrimaryReportsOpen, setIsPrimaryReportsOpen] = useState(false);
+  const [primaryInitialTab, setPrimaryInitialTab] = useState<'page2' | 'page4'>('page4');
+  const [isHigherPrimaryReportsOpen, setIsHigherPrimaryReportsOpen] = useState(false);
+  const [higherPrimaryInitialTab, setHigherPrimaryInitialTab] = useState<'consolidation_100' | 'consolidation_9line'>('consolidation_9line');
+
+  const demoSchoolRecord: SchoolRecord = useMemo(() => {
+    return {
+      schoolId: 'demo-school',
+      diseCode: diseCode || DEMO_SCHOOL_INFO.diseCode,
+      schoolName: schoolRecord?.schoolName || DEMO_SCHOOL_INFO.schoolName,
+      schoolType: schoolRecord?.schoolType || 'Government',
+      schoolMedium: selectedMedium,
+      medium: selectedMedium,
+      headmasterName: schoolRecord?.headmasterName || DEMO_SCHOOL_INFO.headmasterName,
+      taluk: schoolRecord?.taluk || DEMO_SCHOOL_INFO.taluk,
+      district: schoolRecord?.district || DEMO_SCHOOL_INFO.district,
+      mobile: schoolRecord?.mobile || '9731766727',
+      email: schoolRecord?.email || 'srms.demo@karnataka.gov.in',
+      academicYear: schoolRecord?.academicYear || DEMO_SCHOOL_INFO.academicYear,
+      status: 'APPROVED',
+      subscriptionStatus: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    };
+  }, [schoolRecord, diseCode, selectedMedium]);
+
+  const handleOpenConsolidation100 = () => {
+    if (filterClass <= 5) {
+      setPrimaryInitialTab('page2');
+      setIsPrimaryReportsOpen(true);
+    } else {
+      setHigherPrimaryInitialTab('consolidation_100');
+      setIsHigherPrimaryReportsOpen(true);
+    }
+  };
+
+  const handleOpenConsolidation9Line = () => {
+    if (filterClass <= 5) {
+      setPrimaryInitialTab('page4');
+      setIsPrimaryReportsOpen(true);
+    } else {
+      setHigherPrimaryInitialTab('consolidation_9line');
+      setIsHigherPrimaryReportsOpen(true);
+    }
+  };
+
   // Students roster generated dynamically for the selected medium and class
   const [studentRosterMap, setStudentRosterMap] = useState<Record<string, DemoStudent[]>>(() => {
     return {
@@ -94,6 +142,29 @@ export const DemoDashboard: React.FC<DemoDashboardProps> = ({
     const fresh = generateStudentsForMediumAndClass(selectedMedium, filterClass);
     return fresh;
   }, [studentRosterMap, currentKey, selectedMedium, filterClass, diseCode]);
+
+  // Full Student records for real CCE reports suite in demo mode
+  const modalStudents: Student[] = useMemo(() => {
+    const local = diseCode ? getStudentsFromLocal(diseCode) : [];
+    if (local && local.length > 0) return local;
+    return students.map((s) => ({
+      id: s.id,
+      schoolId: 'demo-school',
+      diseCode: diseCode || DEMO_SCHOOL_INFO.diseCode,
+      studentName: s.name,
+      fatherName: s.fatherName,
+      motherName: s.motherName,
+      classStandard: String(s.classStandard) as any,
+      division: (s.section || 'A') as any,
+      satsNo: s.satsNo,
+      penNo: '',
+      aadharNo: '',
+      gender: s.gender,
+      caste: s.casteCategory as any,
+      dob: '2014-06-01',
+      admissionDate: '2024-06-01',
+    }));
+  }, [diseCode, students]);
 
   // Selected student for marks card
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -262,17 +333,37 @@ export const DemoDashboard: React.FC<DemoDashboardProps> = ({
           </div>
 
           {/* Right: Quick Action Buttons */}
-          <div className="flex items-center gap-2.5 self-start lg:self-center shrink-0">
+          <div className="flex items-center gap-2 self-start lg:self-center shrink-0 flex-wrap">
+            {/* View Real 100 Marks Consolidation Report in Demo Mode */}
+            <button
+              onClick={handleOpenConsolidation100}
+              className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+              title="Open Real 100 Marks Consolidation Register in Demo Mode"
+            >
+              <Award className="w-4 h-4 text-slate-950" />
+              <span>100 Marks Consolidation</span>
+            </button>
+
+            {/* View Real 9-Line Consolidation Report in Demo Mode */}
+            <button
+              onClick={handleOpenConsolidation9Line}
+              className="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+              title="Open Real 9-Line Consolidation Register in Demo Mode"
+            >
+              <Layers className="w-4 h-4 text-white" />
+              <span>9-Line Consolidation</span>
+            </button>
+
             <button
               onClick={onOpenPaymentModal}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg transition cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-lg transition cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4 fill-white" />
-              <span>Buy Pass Key / Pay ₹500</span>
+              <span>Buy Pass Key</span>
             </button>
             <button
               onClick={onExitDemo}
-              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Exit Demo</span>
@@ -1154,6 +1245,30 @@ export const DemoDashboard: React.FC<DemoDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Real CCE Reports Modals accessible in Demo Mode */}
+      {isPrimaryReportsOpen && (
+        <PrimaryCceReportsModal
+          isOpen={isPrimaryReportsOpen}
+          onClose={() => setIsPrimaryReportsOpen(false)}
+          students={modalStudents}
+          schoolRecord={demoSchoolRecord}
+          academicYear={DEMO_SCHOOL_INFO.academicYear}
+          initialTab={primaryInitialTab}
+        />
+      )}
+
+      {isHigherPrimaryReportsOpen && (
+        <HigherPrimaryCceReportsModal
+          isOpen={isHigherPrimaryReportsOpen}
+          onClose={() => setIsHigherPrimaryReportsOpen(false)}
+          students={modalStudents}
+          schoolRecord={demoSchoolRecord}
+          academicYear={DEMO_SCHOOL_INFO.academicYear}
+          initialClass={String(filterClass >= 6 && filterClass <= 8 ? filterClass : 7)}
+          initialTab={higherPrimaryInitialTab}
+        />
       )}
     </div>
   );

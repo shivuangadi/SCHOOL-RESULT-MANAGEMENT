@@ -10,6 +10,10 @@ import {
   getHpExamGrade,
 } from '../utils/higherPrimaryCceHelper';
 import {
+  computeMarathiUrduStudentCce,
+  MarathiUrduSubjectCode,
+} from '../utils/marathiUrduCceHelper';
+import {
   loadSchoolMarks,
   subscribeSchoolMarks,
 } from '../utils/marksStore';
@@ -151,22 +155,44 @@ export const SatsGradeUploadContent: React.FC<SatsGradeUploadContentProps> = ({
     setTimeout(() => setStatusMessage(null), 3500);
   };
 
-  // Determine subjects based on class (1-5 vs 6-8) and medium (Kannada vs English)
+  // Determine subjects based on class (1-5 vs 6-8) and medium (Kannada, English, Marathi, Urdu)
   const currentSubjects: SatsSubjectConfig[] = useMemo(() => {
     const classNum = parseInt(selectedClass, 10);
     const isHigher = classNum >= 6;
-    const isEng = medium.toLowerCase().includes('english');
+    const medLower = medium.toLowerCase();
+    const isMarathi = medLower.includes('marathi');
+    const isUrdu = medLower.includes('urdu');
+    const isEng = medLower.includes('english');
 
     if (isHigher) {
-      // 6-8th Standard Subjects: FL, SL, TL, Math, Science, Social Science
+      if (isMarathi) {
+        return [
+          { code: 'FL', nameEn: 'First Language (Marathi)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (ಮರಾಠಿ)' },
+          { code: 'SL', nameEn: 'Second Language (Kannada)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಕನ್ನಡ)' },
+          { code: 'TL', nameEn: 'Third Language (English)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಇಂಗ್ಲಿಷ್)' },
+          { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
+          { code: 'SCI', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
+          { code: 'SOC', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
+        ];
+      }
+      if (isUrdu) {
+        return [
+          { code: 'FL', nameEn: 'First Language (Urdu)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (ಉರ್ದು)' },
+          { code: 'SL', nameEn: 'Second Language (Kannada)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಕನ್ನಡ)' },
+          { code: 'TL', nameEn: 'Third Language (English)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಇಂಗ್ಲಿಷ್)' },
+          { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
+          { code: 'SCI', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
+          { code: 'SOC', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
+        ];
+      }
       if (isEng) {
         return [
           { code: 'FL', nameEn: 'First Language (English)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (English)' },
           { code: 'SL', nameEn: 'Second Language (Kannada)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಕನ್ನಡ)' },
           { code: 'TL', nameEn: 'Third Language (Hindi)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಹಿಂದಿ)' },
           { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
-          { code: 'SCIENCE', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
-          { code: 'SOCIAL', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
+          { code: 'SCI', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
+          { code: 'SOC', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
         ];
       }
       return [
@@ -174,12 +200,30 @@ export const SatsGradeUploadContent: React.FC<SatsGradeUploadContentProps> = ({
         { code: 'SL', nameEn: 'Second Language (English)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಇಂಗ್ಲಿಷ್)' },
         { code: 'TL', nameEn: 'Third Language (Hindi)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಹಿಂದಿ)' },
         { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
-        { code: 'SCIENCE', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
-        { code: 'SOCIAL', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
+        { code: 'SCI', nameEn: 'Science', nameKn: 'ವಿಜ್ಞಾನ' },
+        { code: 'SOC', nameEn: 'Social Science', nameKn: 'ಸಮಾಜ ವಿಜ್ಞಾನ' },
       ];
     }
 
-    // 1-5th Standard Primary Subjects: FL, SL, Mathematics, EVS
+    // 1-5th Standard Primary Subjects: 5 Subjects for Marathi & Urdu, 4 Subjects for Kannada & English
+    if (isMarathi) {
+      return [
+        { code: 'FL', nameEn: 'First Language (Marathi)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (ಮರಾಠಿ)' },
+        { code: 'SL', nameEn: 'Second Language (Kannada)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಕನ್ನಡ)' },
+        { code: 'TL', nameEn: 'Third Language (English)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಇಂಗ್ಲಿಷ್)' },
+        { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
+        { code: 'EVS', nameEn: 'Environmental Studies', nameKn: 'ಪರಿಸರ ಅಧ್ಯಯನ (EVS)' },
+      ];
+    }
+    if (isUrdu) {
+      return [
+        { code: 'FL', nameEn: 'First Language (Urdu)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (ಉರ್ದು)' },
+        { code: 'SL', nameEn: 'Second Language (Kannada)', nameKn: 'ದ್ವಿತೀಯ ಭಾಷೆ (ಕನ್ನಡ)' },
+        { code: 'TL', nameEn: 'Third Language (English)', nameKn: 'ತೃತೀಯ ಭಾಷೆ (ಇಂಗ್ಲಿಷ್)' },
+        { code: 'MATHS', nameEn: 'Mathematics', nameKn: 'ಗಣಿತ' },
+        { code: 'EVS', nameEn: 'Environmental Studies', nameKn: 'ಪರಿಸರ ಅಧ್ಯಯನ (EVS)' },
+      ];
+    }
     if (isEng) {
       return [
         { code: 'FL', nameEn: 'First Language (English)', nameKn: 'ಪ್ರಥಮ ಭಾಷೆ (English)' },
@@ -209,11 +253,49 @@ export const SatsGradeUploadContent: React.FC<SatsGradeUploadContentProps> = ({
       // 6-8 Higher Primary computation
       const computedHp = computeHpStudentCce(student, medium, m);
       const isExempt = computedHp.isExempted;
-      const subMark = (computedHp.subjects as any)[subCode];
+      const normalizedCode =
+        subCode === 'SCIENCE' || subCode === 'SCI' ? 'SCI' :
+        subCode === 'SOCIAL' || subCode === 'SOC' || subCode === 'SOCIAL SCIENCE' ? 'SOC' :
+        subCode === 'MATH' || subCode === 'MATHS' ? 'MATHS' : subCode;
+      const subMark = (computedHp.subjects as any)[normalizedCode] || (computedHp.subjects as any)[subCode];
       return getHpExamGrade(subMark, isExempt, exam);
     }
 
-    // 1-5 Primary computation
+    const medLower = medium.toLowerCase();
+    const isMarathi = medLower.includes('marathi');
+    const isUrdu = medLower.includes('urdu');
+
+    // 1-5 Primary computation for Marathi or Urdu (5 subjects)
+    if (isMarathi || isUrdu) {
+      const computedMu = computeMarathiUrduStudentCce(
+        student,
+        isUrdu ? 'Urdu' : 'Marathi',
+        m
+      );
+      if (computedMu.isExempted) return 'Exempt';
+      const sub = computedMu.subjects[subCode as MarathiUrduSubjectCode];
+      if (!sub) return '-';
+
+      switch (exam) {
+        case 'FA-1':
+          return sub.fa1_grade || '-';
+        case 'FA-2':
+          return sub.fa2_grade || '-';
+        case 'SA-1':
+          return sub.sa1_grade || '-';
+        case 'FA-3':
+          return sub.fa3_grade || '-';
+        case 'FA-4':
+          return sub.fa4_grade || '-';
+        case 'SA-2':
+          return sub.sa2_grade || '-';
+        case 'TOTAL':
+        default:
+          return sub.grade || '-';
+      }
+    }
+
+    // 1-5 Primary computation for Kannada & English (4 subjects)
     const primaryMarks = m || generateDefaultPrimaryMarks(student);
     const computed = computeStudentCceDetails(student, primaryMarks);
     const isExempt = computed.isExempted;

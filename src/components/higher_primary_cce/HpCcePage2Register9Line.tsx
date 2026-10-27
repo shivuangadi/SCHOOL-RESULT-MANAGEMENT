@@ -63,6 +63,35 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
     !medium;
   const subjects = getHpSubjectsForMedium(medium);
 
+  // 36 Columns exact percentages summing to 100.0%
+  // 3rd column decreased to 7.2%, last column decreased to 2.8%
+  // Freed width distributed to subject grade columns and Part B activities (2.2% each)
+  const colWeights = useMemo(() => [
+    2.0,  // 1. Sl No
+    2.4,  // 2. Adm / Reg No
+    7.2,  // 3. Student Name & Details (Decreased by 2.6% from 9.8%)
+    3.2,  // 4. Days Attended
+    3.0,  // 5. Evaluation Period
+    2.8,  // 6. Percentage
+    // 7 to 20: 7 Curricular Subjects x 2 cols (Marks 2.7%, Grade 2.7% = 5.4% each x 7 = 37.8%)
+    2.7, 2.7, // Subject 1
+    2.7, 2.7, // Subject 2
+    2.7, 2.7, // Subject 3
+    2.7, 2.7, // Subject 4
+    2.7, 2.7, // Subject 5
+    2.7, 2.7, // Subject 6
+    2.7, 2.7, // Subject 7
+    2.6,  // 21. Max Marks (700)
+    3.8,  // 22. Total Secured Marks
+    3.8,  // 23. Total Percentage (%)
+    2.8,  // 24. Overall Grade
+    2.6, 2.6, // 25, 26. Part B Art Education (Marks 2.6%, Grade 2.6%)
+    2.6, 2.6, // 27, 28. Part B Computer / ICT (Marks 2.6%, Grade 2.6%)
+    // 29 to 35: 7 Co-Scholastic Activities (2.2% each = 15.4%)
+    2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 2.2,
+    2.8,  // 36. Result (Decreased to 2.8%)
+  ], []);
+
   const effectiveTeacherName =
     (classTeacherName &&
      classTeacherName !== 'ಶ್ರೀ ಎಸ್ ಆರ್ ಅಂಗಡಿ' &&
@@ -72,52 +101,42 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
     getSavedClassTeacher(schoolRecord, selectedClass) ||
     '';
 
-  // Chunk students into pages:
-  // Per official requirements, 3 students per page.
-  // BUT when total students is a multiple of 3 (e.g. 3, 6, 9, 12, ...),
-  // there is no space left on the last page for the 2cm gap, signatures, and Part B co-scholastic subjects info.
-  // Therefore, in that case:
-  // - the last-but-one page gets 2 students
-  // - the last page gets 1 student
+  // Group students into chunks strictly per sheet following the user's multiple-of-3 rule
+  // (matching 1-5 9-line consolidation):
+  // When total students is multiple of 3, penultimate page has 2 students, last page has 1 student
   // and below the table on the last page, the signatures & Part B subject info are placed cleanly!
   const chunks = useMemo(() => {
     const total = computedList.length;
     if (total === 0) return [[]];
 
-    if (studentsPerPage === 3) {
-      if (total % 3 === 0) {
-        if (total === 3) {
-          return [computedList.slice(0, 2), computedList.slice(2, 3)];
-        }
-        const pages: ComputedHpStudent[][] = [];
-        let i = 0;
-        // All pages prior to the final 2 pages get 3 students each
-        while (i < total - 3) {
-          pages.push(computedList.slice(i, i + 3));
-          i += 3;
-        }
-        // Last-but-one page gets 2 students
-        pages.push(computedList.slice(i, i + 2));
-        // Last page gets 1 student
-        pages.push(computedList.slice(i + 2, i + 3));
-        return pages;
-      } else {
-        // Not a multiple of 3 (e.g. 1, 2, 4, 5, 7, 8...) -> last page naturally has 1 or 2 students
-        const pages: ComputedHpStudent[][] = [];
-        for (let i = 0; i < total; i += 3) {
-          pages.push(computedList.slice(i, i + 3));
-        }
-        return pages;
+    if (studentsPerPage === 3 && total % 3 === 0 && total >= 3) {
+      const res: ComputedHpStudent[][] = [];
+      const fullPages = Math.floor(total / 3) - 1; // pages with 3 students each
+      for (let p = 0; p < fullPages; p++) {
+        res.push(computedList.slice(p * 3, p * 3 + 3));
       }
+      const start = fullPages * 3;
+      res.push(computedList.slice(start, start + 2)); // penultimate page: 2 students
+      res.push(computedList.slice(start + 2, start + 3)); // final page: 1 student
+      return res;
     }
 
-    // Fallback if user explicitly changed studentsPerPage to 1 or 2
-    const pages: ComputedHpStudent[][] = [];
+    const res: ComputedHpStudent[][] = [];
     for (let i = 0; i < total; i += studentsPerPage) {
-      pages.push(computedList.slice(i, i + studentsPerPage));
+      res.push(computedList.slice(i, i + studentsPerPage));
     }
-    return pages.length > 0 ? pages : [[]];
+    return res.length > 0 ? res : [[]];
   }, [computedList, studentsPerPage]);
+
+  const chunkStartIndices = useMemo(() => {
+    const indices: number[] = [];
+    let current = 0;
+    for (const c of chunks) {
+      indices.push(current);
+      current += c.length;
+    }
+    return indices;
+  }, [chunks]);
 
   const talukName = schoolRecord?.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ';
   const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
@@ -164,8 +183,8 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
   const handleShareWhatsApp = async () => {
     if (reportRef?.current) {
       const sName = schoolName.replace(/\s+/g, '_');
-      const filename = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation`;
-      const summary = `*${schoolName}*\n*Classes 6-8 100 Marks Consolidation Register*\nClass: ${selectedClass}th Standard\nAcademic Year: ${academicYear}\nTotal Students: ${computedList.length}`;
+      const filename = `${sName}_Class_${selectedClass}_${academicYear}_9Line_Consolidation`;
+      const summary = `*${schoolName}*\n*Classes 6-8 9-Line Consolidation Register (9 ಸಾಲಿನ ಕ್ರೋಢೀಕೃತ ವರದಿ)*\nClass: ${selectedClass}th Standard\nAcademic Year: ${academicYear}\nTotal Students: ${computedList.length}`;
       setStatusMessage('📱 WhatsApp ಚಿತ್ರಗಳು ಸಿದ್ಧವಾಗುತ್ತಿವೆ (ಪ್ರತಿ ಪುಟ ಪ್ರತ್ಯೇಕ ಚಿತ್ರ)...');
       await shareReportToWhatsApp(reportRef.current, summary, filename);
       setStatusMessage('✅ WhatsApp ಹಂಚಿಕೆ ಯಶಸ್ವಿಯಾಗಿದೆ!');
@@ -177,15 +196,25 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
     <div ref={reportRef} className="space-y-6 legal-landscape cce-9line-container">
       {/* Scoped Print and PDF B&W Styles for 6-8 9-Line Consolidation Report Only */}
       <style>{`
+        /* Suppress all scrollbars completely to eliminate horizontal & vertical navigation bars */
+        ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+        * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+
         /* Screen UI: Full color retained as defined in Tailwind classes */
 
         /* PDF and Print Visibility Toggle: screen inputs vs clean centered text */
         .cce-screen-input {
           display: block;
           text-align: center !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          color: #000000 !important;
         }
         .cce-pdf-text {
           display: none !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          color: #000000 !important;
         }
 
         /* Active PDF Generation Mode (.cce-pdf-mode) */
@@ -198,11 +227,21 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           margin: 0 auto !important;
           width: 100% !important;
           line-height: 1.1 !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          color: #000000 !important;
         }
 
         /* Global Compact Table & Input Styles for 9-Line Consolidation */
+        .cce-9line-sheet {
+          overflow: hidden !important;
+        }
         .cce-9line-sheet table {
           margin: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
         }
         .cce-9line-sheet th,
         .cce-9line-sheet td {
@@ -212,12 +251,13 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           text-align: center !important;
         }
         .cce-screen-input {
-          height: 5.0mm !important;
-          max-height: 5.0mm !important;
-          line-height: 5.0mm !important;
+          height: 5.33mm !important;
+          max-height: 5.33mm !important;
+          line-height: 5.33mm !important;
           padding: 0 !important;
           margin: 0 !important;
           text-align: center !important;
+          vertical-align: middle !important;
         }
         input[type="number"], input {
           text-align: center !important;
@@ -226,6 +266,12 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           page-break-inside: avoid !important;
           break-inside: avoid !important;
           display: table-row-group !important;
+        }
+        .student-tbody tr {
+          height: 5.33mm !important;
+          min-height: 5.33mm !important;
+          max-height: 5.33mm !important;
+          box-sizing: border-box !important;
         }
 
         @media print {
@@ -239,15 +285,18 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           .cce-pdf-text {
             display: block !important;
             text-align: center !important;
+            vertical-align: middle !important;
             margin: 0 auto !important;
             width: 100% !important;
             line-height: 1.1 !important;
+            font-weight: 700 !important;
+            color: #000000 !important;
           }
           .cce-9line-sheet {
             padding-left: 20mm !important;
-            padding-right: 6mm !important;
-            padding-top: 6mm !important;
-            padding-bottom: 6mm !important;
+            padding-right: 6.5mm !important;
+            padding-top: 6.5mm !important;
+            padding-bottom: 3.5mm !important;
             margin: 0 !important;
             margin-bottom: 0 !important;
             border: none !important;
@@ -263,6 +312,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            overflow: hidden !important;
           }
           .cce-9line-sheet:last-child {
             break-after: avoid !important;
@@ -270,6 +320,8 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
           }
           .cce-9line-sheet table {
             margin: 0 !important;
+            table-layout: fixed !important;
+            width: 100% !important;
           }
           .cce-9line-sheet th,
           .cce-9line-sheet td {
@@ -379,9 +431,9 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
             width: paperSize === 'a4' ? '297mm' : '355.6mm',
             minHeight: paperSize === 'a4' ? '210mm' : '215.9mm',
             paddingLeft: '20mm',
-            paddingRight: '6mm',
-            paddingTop: '6mm',
-            paddingBottom: '6mm',
+            paddingRight: '6.5mm',
+            paddingTop: '6.5mm',
+            paddingBottom: '3.5mm',
             boxSizing: 'border-box',
           }}
           className="report-page-sheet cce-9line-sheet bg-white rounded-2xl border border-slate-300 shadow-sm space-y-1 break-after-page mb-6 mx-auto print:border-none print:shadow-none print:rounded-none"
@@ -391,196 +443,167 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
             style={{
               marginLeft: '0mm',
               marginRight: '0mm',
-              marginTop: '5mm',
-              marginBottom: '5mm',
+              marginTop: '0mm',
+              marginBottom: '0mm',
               paddingLeft: '0px',
               paddingRight: '0px',
               width: '100%',
               boxSizing: 'border-box',
             }}
           >
-          {/* 2-Line Header with side boxes matching user specifications */}
+          {/* Header matching 1-5 500 marks consolidation */}
           <div
-            style={{ minHeight: '12mm', boxSizing: 'border-box' }}
-            className="relative border-b-2 border-slate-900 pb-1 mb-1 flex items-center justify-between"
+            className="relative border-b-2 border-black pb-0.5 text-black flex items-center justify-center text-center"
+            style={{ height: '1.25cm', maxHeight: '1.25cm', boxSizing: 'border-box' }}
           >
-            {/* Top Left Corner: Page No details in a text box */}
-            <div className="absolute left-0 top-0 text-left">
-              <span className="inline-block text-[9px] font-black text-slate-950 bg-slate-50 border border-slate-600 px-2 py-0.5 rounded shadow-2xs font-mono">
-                ಪುಟ: {pageIdx + 1} / {chunks.length}
-              </span>
-            </div>
-
-            {/* Center: Exactly 2 lines above the table */}
-            <div className="w-full text-center px-32">
-              {/* 1st line: School Name */}
-              <h2 className="text-[12px] sm:text-[13px] font-black text-slate-950 leading-tight truncate">
-                {schoolName}
+            <div className="text-center px-2 flex-1 flex flex-col justify-center h-full space-y-0.5 overflow-hidden">
+              <h2 className="text-[11px] font-black text-black font-serif leading-tight uppercase truncate">
+                {isKannada
+                  ? `ಕ್ಷೇತ್ರ ಶಿಕ್ಷಣಾಧಿಕಾರಿಗಳ ಹಾಗೂ ಕ್ಷೇತ್ರ ಸಮನ್ವಯಾಧಿಕಾರಿಗಳ ಕಾರ್ಯಾಲಯ, ${talukName}`
+                  : `OFFICE OF THE BLOCK EDUCATION OFFICER & BRC, ${talukName.toUpperCase()}`}
               </h2>
-              {/* 2nd line: Academic Year & Consolidation Register Name with Class */}
-              <p className="text-[10px] sm:text-[10.5px] font-black text-slate-900 leading-tight truncate mt-0.5">
-                {academicYear} ನೇ ಸಾಲಿನ ವಿಷಯವಾರು ರೂಪನಾತ್ಮಕ ಹಾಗೂ ಸಂಕಲನಾತ್ಮಕ ಮೌಲ್ಯಮಾಪನ ಕ್ರೋಢೀಕರಣ ವಹಿ- {selectedClass}ನೇ ತರಗತಿ
+              <h3 className="text-[12.5px] font-black text-black leading-tight uppercase truncate">
+                {schoolName}
+                {schoolRecord?.diseCode ? ` • ${isKannada ? 'ಯು-ಡೈಸ್' : 'DISE'}: ${schoolRecord.diseCode}` : ''}
+              </h3>
+              <p className="text-[11px] font-black text-black leading-tight truncate">
+                {isKannada
+                  ? `${academicYear} ನೇ ಸಾಲಿನ ೬ ರಿಂದ ೮ ನೇ ತರಗತಿಗಳ ಸಿಸಿಇ ೯-ಸಾಲುಗಳ ವಾರ್ಷಿಕ ಫಲಿತಾಂಶ ಕ್ರೋಢೀಕರಣ ವಹಿ`
+                  : `CCE CONTINUOUS COMPREHENSIVE EVALUATION (CLASSES 6 TO 8) - 9-LINE CONSOLIDATION REGISTER - ${academicYear}`}
               </p>
-            </div>
-
-            {/* Top Right Corner: Working days & Class teacher name in text boxes */}
-            <div className="absolute right-0 top-0 text-right flex flex-col items-end gap-1">
-              <span className="inline-block text-[8.5px] font-black text-slate-950 bg-slate-50 border border-slate-600 px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">
-                ಶಾಲೆ ನಡೆದ ದಿನಗಳ ಸಂಖ್ಯೆ: <span className="font-mono font-black">{workingDays}</span>
-              </span>
-              <span className="inline-block text-[8.5px] font-black text-slate-950 bg-slate-50 border border-slate-600 px-1.5 py-0.5 rounded shadow-2xs whitespace-nowrap">
-                ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು: <span className="font-bold">{effectiveTeacherName || '____________________'}</span>
-              </span>
             </div>
           </div>
 
-          {/* 9-Line Consolidation Table: Target table heading height 18mm */}
-          <div className="overflow-x-auto print:overflow-visible">
+          {/* Subheader: Class, Year, Class Teacher's Name, Working Days in ONE row on a single line */}
+          <div
+            className="w-full flex flex-row flex-nowrap justify-between items-center text-[10px] font-bold text-black border-b border-black py-0.5 px-1 mt-0.5 mb-1 whitespace-nowrap"
+            style={{ boxSizing: 'border-box', whiteSpace: 'nowrap', lineHeight: 1.2 }}
+          >
+            <div className="text-left whitespace-nowrap shrink-0">
+              {isKannada ? 'ತರಗತಿ' : 'Class'}: <span className="font-black">{selectedClass}{isKannada ? 'ನೇ ತರಗತಿ' : 'th Standard'}</span> | {isKannada ? 'ಶೈಕ್ಷಣಿಕ ವರ್ಷ' : 'Year'}: <span className="font-mono font-black">{academicYear}</span>
+            </div>
+            <div className="text-center font-bold whitespace-nowrap shrink-0">
+              {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು' : "CLASS TEACHER'S NAME"}: <span className="font-black uppercase">{effectiveTeacherName || '____________________'}</span>
+            </div>
+            <div className="text-right whitespace-nowrap shrink-0">
+              {isKannada ? 'ಶಾಲಾ ಕರ್ತವ್ಯ ದಿನಗಳು' : 'Working Days'}: <span className="font-mono font-black">{workingDays || 241}</span>
+            </div>
+          </div>
+
+          {/* 9-Line Consolidation Table: 36 Percentage-Based Columns, Pure Black & White */}
+          <div className="w-full overflow-hidden" style={{ boxSizing: 'border-box' }}>
             <table
-              className="w-full text-[7.5px] sm:text-[8px] text-center border-collapse border-2 border-slate-900 table-fixed"
+              className="w-full text-[7.5px] sm:text-[8px] text-center border-collapse border-2 border-black bg-white text-black table-fixed"
+              style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
               onKeyDown={handleTableGridNavigation}
             >
               <colgroup>
-                {/* 1. Sl No */}
-                <col style={{ width: '22px' }} />
-                {/* 2. Reg No */}
-                <col style={{ width: '26px' }} />
-                {/* 3. Student Name - Width 62px */}
-                <col style={{ width: '62px' }} />
-                {/* 4. Days Attended (Attendance) - Width 28px */}
-                <col style={{ width: '28px' }} />
-                {/* 5. Evaluation Period - Decreased by 0.5cm to 18px */}
-                <col style={{ width: '18px' }} />
-                {/* 6. Percentage - Decreased by 0.5cm to 18px */}
-                <col style={{ width: '18px' }} />
-                {/* 7 Curricular Subjects * 2 = 14 columns (Marks: 20px, Grade: 15px) */}
-                {subjects.map((s) => (
-                  <React.Fragment key={s.code}>
-                    <col style={{ width: '20px' }} />
-                    <col style={{ width: '15px' }} />
-                  </React.Fragment>
+                {colWeights.map((w, idx) => (
+                  <col key={idx} style={{ width: `${w}%` }} />
                 ))}
-                {/* 8. Max Marks (700) */}
-                <col style={{ width: '26px' }} />
-                {/* 9. Total Sub-columns: Marks (24px), % (28px), Grade (18px) */}
-                <col style={{ width: '24px' }} />
-                <col style={{ width: '28px' }} />
-                <col style={{ width: '18px' }} />
-                {/* 10. Part B Art Edu: Marks (20px), Grade (15px) */}
-                <col style={{ width: '20px' }} />
-                <col style={{ width: '15px' }} />
-                {/* Part B Computer: Marks (20px), Grade (15px) */}
-                <col style={{ width: '20px' }} />
-                <col style={{ width: '15px' }} />
-                {/* 7 Co-Scholastic Activities */}
-                {HP_CO_ACTIVITIES.map((act) => (
-                  <col key={act.key} style={{ width: '18px' }} />
-                ))}
-                {/* 11. Result */}
-                <col style={{ width: '28px' }} />
               </colgroup>
-              <thead style={{ height: '17mm', maxHeight: '17mm' }}>
-                {/* Header Row 1 - Height 5.5mm */}
-                <tr className="bg-slate-100 font-black text-slate-950 border-b border-slate-900" style={{ height: '5.5mm', maxHeight: '5.5mm', boxSizing: 'border-box' }}>
+              <thead style={{ height: '14mm', maxHeight: '14mm' }}>
+                {/* Header Row 1 - Height 5.0mm */}
+                <tr className="bg-white font-black text-black border-b border-black" style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}>
                   {/* 1. Sl No */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[22px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
                       {isKannada ? 'ಕ್ರ. ಸಂಖ್ಯೆ' : 'Sl. No.'}
                     </span>
                   </th>
 
                   {/* 2. Admission / Reg No */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[26px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
                       {isKannada ? 'ದಾಖಲಾತಿ ಸಂಖ್ಯೆ' : 'Adm. / Reg No.'}
                     </span>
                   </th>
 
                   {/* 3. Student Name */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[62px] max-w-[62px] min-w-[62px] align-middle font-black text-slate-950 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle font-black text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
                     <div className="leading-tight text-[7.5px] break-words">
                       {isKannada ? 'ವಿದ್ಯಾರ್ಥಿಗಳ ಹೆಸರು' : 'Student Name'}
                     </div>
                   </th>
 
                   {/* 4. Days Attended */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[28px] max-w-[28px] min-w-[28px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7px]">
                       {isKannada ? 'ಹಾಜರಾದ ದಿನಗಳು' : 'Days Attended'}
                     </span>
                   </th>
 
                   {/* 5. Evaluation Period */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[18px] max-w-[18px] min-w-[18px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
                       {isKannada ? 'ಮೌಲ್ಯಮಾಪನ' : 'Evaluation'}
                     </span>
                   </th>
 
                   {/* 6. Percentage */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[18px] max-w-[18px] min-w-[18px] align-middle bg-slate-50 overflow-hidden" style={{ height: '17mm', maxHeight: '17mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '15.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[6.5px]">
                       {isKannada ? 'ಶೇಕಡಾ' : 'Percentage'}
                     </span>
                   </th>
 
                   {/* 7. Curricular Subjects Group Header */}
-                  <th colSpan={14} className="border border-slate-900 p-0.5 bg-red-50 text-red-600 font-black text-[8.5px] border-r-2 border-r-slate-900 overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th colSpan={14} className="border border-black p-0.5 bg-white text-black font-black text-[8.5px] border-r-2 border-r-black overflow-hidden leading-tight" style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಅ. ವಿದ್ಯಾರ್ಥಿಯ ಶೈಕ್ಷಣಿಕ ಸಾಧನೆ ಪಠ್ಯ ವಿಷಯಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ' : "A. Student's Academic Achievement in Curricular Subjects"}
                   </th>
 
                   {/* 8. Max Marks (700) */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[26px] align-middle bg-amber-50 font-black overflow-hidden" style={{ height: '18mm', maxHeight: '18mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '16.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black font-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[7.5px]">
                       {isKannada ? 'ಗರಿಷ್ಠ 700' : 'Max 700'}
                     </span>
                   </th>
 
                   {/* 9. Total Header */}
-                  <th colSpan={3} className="border border-slate-900 p-0.5 bg-amber-100 font-black text-slate-950 text-[8.5px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th colSpan={3} className="border border-black p-0.5 bg-white font-black text-black text-[8.5px] overflow-hidden leading-tight" style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಒಟ್ಟು ಪಡೆದ ಅಂಕಗಳು' : 'Total Marks Secured'}
                   </th>
 
                   {/* 10. Part B Header */}
-                  <th colSpan={11} className="border border-slate-900 p-0.5 bg-red-50 text-red-600 font-black text-[8.5px] border-l-2 border-l-red-600 overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th colSpan={11} className="border border-black p-0.5 bg-white text-black font-black text-[8.5px] border-l-2 border-l-black overflow-hidden leading-tight" style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಆ. ಸಹ ಪಠ್ಯ ವಿಷಯಗಳು & ಶ್ರೇಣಿಗಳು (ಭಾಗ-ಬಿ)' : 'B. Co-Curricular Activities & Grades (Part-B)'}
                   </th>
 
                   {/* 11. Result Header */}
-                  <th rowSpan={3} className="border border-slate-900 p-0.5 w-[28px] align-middle bg-emerald-50 text-red-600 font-black overflow-hidden" style={{ height: '18mm', maxHeight: '18mm', boxSizing: 'border-box' }}>
-                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '16.5mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[8px]">
+                  <th rowSpan={3} className="border border-black p-0.5 align-middle bg-white text-black font-black overflow-hidden" style={{ height: '14mm', maxHeight: '14mm', boxSizing: 'border-box' }}>
+                    <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '13mm' }} className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[8px]">
                       {isKannada ? 'ಫಲಿತಾಂಶ' : 'Result'}
                     </span>
                   </th>
                 </tr>
 
-                {/* Sub-Header Row 2 - Height 6mm */}
-                <tr className="bg-slate-50 text-[7.5px] font-bold text-slate-900 border-b border-slate-900" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                {/* Sub-Header Row 2 - Height 4.5mm */}
+                <tr className="bg-white text-[7.5px] font-bold text-black border-b border-black" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                   {/* 7 Curricular Subjects */}
                   {subjects.map((s) => (
-                    <th key={s.code} colSpan={2} className="border border-slate-900 p-0.5 truncate font-black text-[7.5px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                    <th key={s.code} colSpan={2} className="border border-black p-0.5 truncate font-black text-[7.5px] overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                       {isKannada ? s.nameKn : s.nameEn}
                     </th>
                   ))}
 
                   {/* Total Sub-columns */}
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[24px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                  <th rowSpan={2} className="border border-black p-0.5 font-black bg-white text-black text-[7.5px] overflow-hidden" style={{ height: '9mm', maxHeight: '9mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಅಂಕ' : 'Marks'}
                   </th>
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[28px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                  <th rowSpan={2} className="border border-black p-0.5 font-black bg-white text-black text-[7.5px] overflow-hidden" style={{ height: '9mm', maxHeight: '9mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಶೇಕಡಾ' : '%'}
                   </th>
-                  <th rowSpan={2} className="border border-slate-900 p-0.5 w-[18px] font-black bg-amber-50 text-[7.5px] overflow-hidden" style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}>
+                  <th rowSpan={2} className="border border-black p-0.5 font-black bg-white text-black text-[7.5px] overflow-hidden" style={{ height: '9mm', maxHeight: '9mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
                   </th>
 
                   {/* Part B Subject 1: Art Edu / Work Exp */}
-                  <th colSpan={2} className="border border-slate-900 p-0.5 bg-indigo-50 text-indigo-950 font-black text-[7px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th colSpan={2} className="border border-black p-0.5 bg-white text-black font-black text-[7px] overflow-hidden leading-tight" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? <>ಕಲಾ ಶಿಕ್ಷಣ /<br />ಕಾರ್ಯಾನುಭವ</> : <>Art Edu. /<br />Work Exp.</>}
                   </th>
 
                   {/* Part B Subject 2: Computer / ICT */}
-                  <th colSpan={2} className="border border-slate-900 p-0.5 bg-blue-50 text-blue-950 font-black text-[7px] overflow-hidden leading-tight" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th colSpan={2} className="border border-black p-0.5 bg-white text-black font-black text-[7px] overflow-hidden leading-tight" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? <>ಕಂಪ್ಯೂಟರ್<br />ಶಿಕ್ಷಣ (ICT)</> : <>Computer<br />Edu. (ICT)</>}
                   </th>
 
@@ -589,39 +612,39 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                     <th
                       key={act.key}
                       rowSpan={2}
-                      className="border border-slate-900 p-0.5 w-[18px] align-middle text-center font-black bg-purple-50 text-purple-950 text-[9.5px] overflow-hidden"
+                      className="border border-black p-0.5 align-middle text-center font-black bg-white text-black text-[9.5px] overflow-hidden"
                       title={`${act.num}. ${isKannada ? act.nameKn : act.nameEn}`}
-                      style={{ height: '12mm', maxHeight: '12mm', boxSizing: 'border-box' }}
+                      style={{ height: '9mm', maxHeight: '9mm', boxSizing: 'border-box' }}
                     >
                       {act.num}
                     </th>
                   ))}
                 </tr>
 
-                {/* Sub-Header Row 3 - Height 6mm: Marks & Grade */}
-                <tr className="bg-slate-100 text-[7px] font-black text-slate-900 border-b-2 border-slate-900" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                {/* Sub-Header Row 3 - Height 4.5mm: Marks & Grade */}
+                <tr className="bg-white text-[7px] font-black text-black border-b-2 border-black" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                   {subjects.map((s) => (
                     <React.Fragment key={s.code}>
-                      <th className="border border-slate-900 p-0.5 w-[20px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                      <th className="border border-black p-0.5 overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                         {isKannada ? 'ಅಂಕ' : 'Marks'}
                       </th>
-                      <th className="border border-slate-900 p-0.5 w-[15px] overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                      <th className="border border-black p-0.5 overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                         {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
                       </th>
                     </React.Fragment>
                   ))}
                   {/* Art Edu subheaders */}
-                  <th className="border border-slate-900 p-0.5 w-[20px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th className="border border-black p-0.5 bg-white text-black overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಅಂಕ' : 'Marks'}
                   </th>
-                  <th className="border border-slate-900 p-0.5 w-[15px] bg-indigo-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th className="border border-black p-0.5 bg-white text-black overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
                   </th>
                   {/* Computer Edu subheaders */}
-                  <th className="border border-slate-900 p-0.5 w-[20px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th className="border border-black p-0.5 bg-white text-black overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಅಂಕ' : 'Marks'}
                   </th>
-                  <th className="border border-slate-900 p-0.5 w-[15px] bg-blue-50 overflow-hidden" style={{ height: '6mm', maxHeight: '6mm', boxSizing: 'border-box' }}>
+                  <th className="border border-black p-0.5 bg-white text-black overflow-hidden" style={{ height: '4.5mm', maxHeight: '4.5mm', boxSizing: 'border-box' }}>
                     {isKannada ? 'ಶ್ರೇಣಿ' : 'Grade'}
                   </th>
                 </tr>
@@ -753,44 +776,38 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                         return (
                           <tr
                             key={rIdx}
-                            style={{ height: '5.0mm', minHeight: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box' }}
-                            className={`border-b border-slate-300 text-[8px] ${
-                              r.isFinalTotal
-                                ? 'bg-amber-100 font-black border-b-2 border-slate-900 text-red-600'
-                                : isTotalRow
-                                ? 'bg-yellow-50 font-black border-b border-dashed border-amber-400 text-red-600'
-                                : 'hover:bg-slate-50 text-slate-900'
-                            }`}
+                            style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', lineHeight: '1.0' }}
+                            className="border-b border-black text-black bg-white"
                           >
-                            {/* 1. Sl No - Spans 9 Rows (Fit in 45.0mm height) */}
+                            {/* 1. Sl No - Spans 9 Rows (Height 48.0mm / 4.8cm - exactly 5.333mm x 9) */}
                             {isRow0 && (
-                              <td rowSpan={9} style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
+                              <td rowSpan={9} style={{ height: '48.0mm', minHeight: '48.0mm', maxHeight: '48.0mm', boxSizing: 'border-box', borderBottom: '3px double #000000' }} className="border border-black p-0 font-mono font-bold align-middle bg-white text-black text-center overflow-hidden">
                                 {globalIdx + 1}
                               </td>
                             )}
 
-                            {/* 2. Registered No - Spans 9 Rows - Vertical Bottom to Top */}
+                            {/* 2. Registered No - Spans 9 Rows - Vertical Bottom to Top (Height 48.0mm / 4.8cm - No fake auto numbers) */}
                             {isRow0 && (
-                              <td rowSpan={9} style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }} className="border border-slate-900 p-0 font-mono font-bold align-middle bg-white text-center overflow-hidden">
+                              <td rowSpan={9} style={{ height: '48.0mm', minHeight: '48.0mm', maxHeight: '48.0mm', boxSizing: 'border-box', borderBottom: '3px double #000000' }} className="border border-black p-0 font-mono font-bold align-middle bg-white text-black text-center overflow-hidden">
                                 <span
-                                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '39mm' }}
-                                  className="inline-block whitespace-nowrap text-center py-0.5 mx-auto text-[7.5px]"
+                                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '44mm' }}
+                                  className="inline-block whitespace-nowrap text-center py-0.5 mx-auto text-[8.5px]"
                                 >
-                                  {st.schoolRegNo?.trim() || (st as any).admissionNo || (st as any).regNo || `${100 + globalIdx + 1}`}
+                                  {st.schoolRegNo?.trim() || ''}
                                 </span>
                               </td>
                             )}
 
-                            {/* 3. Student Name & Meta Info - Spans 9 Rows - Width 62px - Multi-line name wrapping */}
+                            {/* 3. Student Name & Meta Info - Spans 9 Rows (Height 48.0mm / 4.8cm) */}
                             {isRow0 && (
                               <td
                                 rowSpan={9}
-                                style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }}
-                                className="border border-slate-900 p-0.5 text-center align-middle bg-white w-[62px] max-w-[62px] min-w-[62px] overflow-hidden"
+                                style={{ height: '48.0mm', minHeight: '48.0mm', maxHeight: '48.0mm', boxSizing: 'border-box', borderBottom: '3px double #000000' }}
+                                className="border border-black p-0.5 text-center align-middle bg-white text-black overflow-hidden"
                               >
-                                <div className="flex flex-col justify-center items-center text-center h-full py-0.5 space-y-0.5">
-                                  {/* Student Name Aligned in Center, Multi-line (First, Middle, Last) */}
-                                  <div className="font-black text-slate-950 text-[8.5px] leading-tight tracking-tight text-center w-full px-0.5 break-words" title={st.studentName}>
+                                <div className="flex flex-col justify-center items-center text-center h-full py-0.2 space-y-0.5">
+                                  {/* Student Name Aligned in Center, Multi-line - Font size 12 */}
+                                  <div className="font-black text-black text-[12px] leading-tight tracking-tight text-center w-full px-0.5 break-words" title={st.studentName}>
                                     {(() => {
                                       const parts = (st.studentName || '').trim().split(/\s+/).filter(Boolean);
                                       if (parts.length <= 1) {
@@ -815,24 +832,26 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   </div>
                                   {isExempt && (
                                     <div className="my-0.2">
-                                      <span className="inline-block bg-purple-700 text-white font-black px-1 py-0.2 rounded text-[6px] shadow-xs cce-badge">
+                                      <span className="inline-block border border-black text-black font-black px-1 py-0.2 rounded text-[7px]">
                                         CWSN (EXEMPT)
                                       </span>
                                     </div>
                                   )}
                                   {cSt.hasCwsnMarksAllowed && (
                                     <div className="my-0.2">
-                                      <span className="inline-block bg-indigo-700 text-white font-black px-1 py-0.2 rounded text-[6px] shadow-xs cce-badge">
+                                      <span className="inline-block border border-black text-black font-black px-1 py-0.2 rounded text-[7px]">
                                         (CWSN)
                                       </span>
                                     </div>
                                   )}
-                                  {/* CASTE, DOB, SATS NO, GENDER: Centered in cell */}
-                                  <div className="w-full text-[7.5px] leading-tight text-slate-950 font-mono text-center flex flex-col items-center justify-center">
-                                    <div className="truncate w-full"><span className="font-bold">C:</span> {st.caste || 'GM'}</div>
+                                  {/* CASTE, DOB, SATS NO, GENDER: Centered in cell - Font size 12 */}
+                                  <div className="w-full text-[12px] leading-tight text-black font-mono text-center flex flex-col items-center justify-center space-y-0.5">
+                                    <div className="truncate w-full"><span className="font-bold">Caste:</span> {st.caste || 'GM'}</div>
                                     <div className="truncate w-full"><span className="font-bold">DOB:</span> {st.dob || st.dateOfBirth || '-'}</div>
-                                    <div className="truncate w-full"><span className="font-bold">S:</span> {st.satsNo || '-'}</div>
-                                    <div className="truncate w-full"><span className="font-bold">G:</span> {st.gender === 'Girl' ? 'F' : 'M'}</div>
+                                    {st.satsNo && st.satsNo.trim() !== '' && st.satsNo.trim() !== 'N/A' && st.satsNo.trim() !== '-' && (
+                                      <div className="truncate w-full"><span className="font-bold">SATS No:</span> {st.satsNo.trim()}</div>
+                                    )}
+                                    <div className="truncate w-full"><span className="font-bold">Gender:</span> {st.gender === 'Girl' ? 'Girl' : 'Boy'}</div>
                                   </div>
                                 </div>
                               </td>
@@ -842,15 +861,15 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow0 && (
                               <td
                                 rowSpan={4}
-                                style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
-                                className="border border-slate-900 p-0 text-center align-middle font-bold bg-white overflow-hidden w-[28px] max-w-[28px]"
+                                style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
+                                className="border border-black p-0 text-center align-middle font-bold bg-white text-black overflow-hidden"
                               >
-                                <div className="flex flex-col items-center justify-center h-full text-center py-1">
-                                  <div className="text-slate-800 text-[7px] leading-none mb-0.5">1ನೇ Sem</div>
+                                <div className="flex flex-col items-center justify-center h-full text-center py-0.5">
+                                  <div className="text-black text-[7px] leading-none mb-0.5">1ನೇ Sem</div>
                                   {onUpdateSemAttendance ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-blue-900 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {cSt.sem1Attendance ?? '-'}
@@ -867,12 +886,12 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdateSemAttendance(st.id, 'sem1', clamped);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center font-mono font-black text-blue-900 text-[10px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center font-mono font-black text-black text-[11px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         title={`Edit Sem 1 Attendance (Max: ${Math.max(0, workingDays - (cSt.sem2Attendance || 0))})`}
                                       />
                                     </>
                                   ) : (
-                                    <div className="font-mono font-black text-blue-900 text-[10px] text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="font-mono font-black text-black text-[11px] text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {cSt.sem1Attendance ?? '-'}
                                     </div>
                                   )}
@@ -882,15 +901,15 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             {isRow4 && (
                               <td
                                 rowSpan={4}
-                                style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
-                                className="border border-slate-900 p-0 text-center align-middle font-bold bg-white overflow-hidden w-[28px] max-w-[28px]"
+                                style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
+                                className="border border-black p-0 text-center align-middle font-bold bg-white text-black overflow-hidden"
                               >
-                                <div className="flex flex-col items-center justify-center h-full text-center py-1">
-                                  <div className="text-slate-800 text-[7px] leading-none mb-0.5">2ನೇ Sem</div>
+                                <div className="flex flex-col items-center justify-center h-full text-center py-0.5">
+                                  <div className="text-black text-[7px] leading-none mb-0.5">2ನೇ Sem</div>
                                   {onUpdateSemAttendance ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-indigo-900 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {cSt.sem2Attendance ?? '-'}
@@ -907,12 +926,12 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdateSemAttendance(st.id, 'sem2', clamped);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center font-mono font-black text-indigo-900 text-[10px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center font-mono font-black text-black text-[11px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         title={`Edit Sem 2 Attendance (Max: ${Math.max(0, workingDays - (cSt.sem1Attendance || 0))})`}
                                       />
                                     </>
                                   ) : (
-                                    <div className="font-mono font-black text-indigo-900 text-[10px] text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="font-mono font-black text-black text-[11px] text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {cSt.sem2Attendance ?? '-'}
                                     </div>
                                   )}
@@ -921,14 +940,14 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             )}
                             {isRow8 && (
                               <td
-                                style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center' }}
-                                className="border border-slate-900 p-0 text-center align-middle font-black bg-amber-100 text-red-600 overflow-hidden w-[28px] max-w-[28px]"
+                                style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', verticalAlign: 'middle', textAlign: 'center', borderBottom: '3px double #000000' }}
+                                className="border border-black p-0 text-center align-middle font-black bg-white text-black overflow-hidden"
                               >
                                 <div className="flex items-center justify-center h-full text-center">
                                   {onUpdateAttendance ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-red-600 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {cSt.attendanceDays ?? '-'}
@@ -944,12 +963,12 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdateAttendance(st.id, clamped);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center font-mono font-black text-red-600 text-[10px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center font-mono font-black text-black text-[11px] bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         title={`Total Attendance: ${cSt.attendanceDays || 0} / ${workingDays}`}
                                       />
                                     </>
                                   ) : (
-                                    <div className="font-mono text-[10px] font-black leading-none text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="font-mono text-[11px] font-black leading-none text-center" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {cSt.attendanceDays ?? '-'}
                                     </div>
                                   )}
@@ -958,16 +977,16 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             )}
 
                             {/* 5. Exam Period */}
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-900'}`}>
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-bold text-center align-middle overflow-hidden text-black text-[8px]">
                               {r.exam}
                             </td>
 
                             {/* 6. Percentage */}
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle overflow-hidden ${isTotalRow ? 'bg-amber-100 text-red-600 font-black' : 'text-slate-800'}`}>
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-mono font-bold text-center align-middle overflow-hidden text-black text-[8px]">
                               {r.pct}
                             </td>
 
-                            {/* 7. Curricular 7 Subjects (ಅಂಕ, ಶ್ರೇಣಿ) - NO UNDERLINE FOR MARKS & GRADES */}
+                            {/* 7. Curricular 7 Subjects (ಅಂಕ, ಶ್ರೇಣಿ) - Both font size 11 and bold */}
                             {subjects.map((s) => {
                               const sub = cSt.subjects[s.code];
                               let markVal: number | string = '-';
@@ -1003,15 +1022,15 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   gradeVal = sub.sem2_total !== null ? calculateHpGrade(sub.sem2_total, 50) : '-';
                                 } else if (rIdx === 8) {
                                   markVal = sub.total100 ?? '-';
-                                  gradeVal = sub.grade || '-';
+                                  gradeVal = sub.grade || (sub.total100 !== null && sub.total100 !== undefined ? calculateHpGrade(sub.total100, 100) : '-');
                                 }
                               }
 
                               return (
                                 <React.Fragment key={s.code}>
                                   <td
-                                    style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
-                                    className={`border border-slate-900 p-0 font-mono text-[10px] text-center align-middle overflow-hidden ${isTotalRow ? 'text-red-600 font-bold' : ''}`}
+                                    style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }}
+                                    className="border border-black p-0 font-mono text-[11px] font-bold text-center align-middle overflow-hidden text-black bg-white"
                                   >
                                     {isExempt ? (
                                       '-'
@@ -1024,7 +1043,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           return (
                                             <>
                                               <div
-                                                className="cce-pdf-text hidden w-full text-center font-mono font-black text-red-600 text-[10px]"
+                                                className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                                 style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                               >
                                                 {displayVal}
@@ -1043,7 +1062,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                                   }
                                                 }}
                                                 style={{ textAlign: 'center' }}
-                                                className="cce-screen-input w-full text-center bg-transparent hover:bg-yellow-100 focus:bg-white font-mono font-black text-red-600 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 placeholder="-"
                                                 title={`Edit ${isKannada ? s.nameKn : s.nameEn} 100 Marks (2-way sync)`}
                                               />
@@ -1060,7 +1079,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           return (
                                             <>
                                               <div
-                                                className="cce-pdf-text hidden w-full text-center font-mono font-bold text-slate-900 text-[10px]"
+                                                className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                                 style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                               >
                                                 {displayVal}
@@ -1086,7 +1105,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                                   }
                                                 }}
                                                 style={{ textAlign: 'center' }}
-                                                className="cce-screen-input w-full text-center bg-transparent hover:bg-blue-50 focus:bg-white font-mono font-bold text-slate-900 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 placeholder="-"
                                                 title={`Edit ${isKannada ? s.nameKn : s.nameEn} ${r.exam} marks (Max: ${r.prescribedMax})`}
                                               />
@@ -1099,10 +1118,8 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     )}
                                   </td>
                                   <td
-                                    style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
-                                    className={`border border-slate-900 p-0 font-bold text-[10px] text-center align-middle overflow-hidden ${
-                                      r.isFinalTotal ? 'text-green-600 font-black' : isTotalRow ? 'text-red-600 font-bold' : ''
-                                    }`}
+                                    style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }}
+                                    className="border border-black p-0 font-bold text-[11px] text-center align-middle overflow-hidden text-black bg-white"
                                   >
                                     {gradeVal}
                                   </td>
@@ -1111,37 +1128,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                             })}
 
                             {/* 8. Max Marks */}
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-black text-center align-middle text-[10px] overflow-hidden ${
-                              r.isFinalTotal ? 'bg-amber-100 text-red-600' : isTotalRow ? 'bg-amber-100 text-red-600' : 'bg-slate-50/50'
-                            }`}>
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] overflow-hidden text-black bg-white">
                               {r.maxMarks}
                             </td>
 
-                            {/* 9. Total Across 7 Subjects: ಅಂಕ, ಶೇಕಡಾ, ಶ್ರೇಣಿ */}
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
-                              isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
-                            }`}>
+                            {/* 9. Total Across 7 Subjects: Marks, %, Grade - Font size 12 Bold */}
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-mono font-black text-center align-middle text-[12px] overflow-hidden text-black bg-white">
                               {isExempt ? '-' : (rowTotalMarks !== null ? rowTotalMarks : '-')}
                             </td>
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-mono font-bold text-center align-middle text-[10px] overflow-hidden ${
-                              r.isFinalTotal ? 'text-red-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
-                            }`}>
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-mono font-black text-center align-middle text-[12px] overflow-hidden text-black bg-white">
                               {isExempt ? '-' : rowPctStr}
                             </td>
-                            <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className={`border border-slate-900 p-0 font-black text-center align-middle text-[10px] overflow-hidden ${
-                              r.isFinalTotal ? 'text-green-600 font-black bg-amber-100' : isTotalRow ? 'text-red-600 font-black bg-amber-100' : ''
-                            }`}>
+                            <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', ...(isRow8 ? { borderBottom: '3px double #000000' } : {}) }} className="border border-black p-0 font-black text-center align-middle text-[12px] overflow-hidden text-black bg-white">
                               {isExempt ? (r.isFinalTotal ? 'Exempt' : '-') : rowGrade}
                             </td>
 
-                            {/* 10. Part B Item 1: Art Edu / Work Exp (2 cols: Marks, Grade) - NO UNDERLINE */}
+                            {/* 10. Part B Item 1: Art Edu / Work Exp (2 cols: Marks, Grade) - Font size 11 */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-indigo-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {artSub?.sem1 !== null && artSub?.sem1 !== undefined ? artSub.sem1 : '-'}
@@ -1157,29 +1166,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'art_workexp', 'sem1', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Art Edu Sem 1 Marks (Max 50)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {artSub?.sem1 !== null && artSub?.sem1 !== undefined ? artSub.sem1 : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
-                                  {artSub?.sem1_grade || '-'}
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {artSub?.sem1_grade || (artSub?.sem1 !== null && artSub?.sem1 !== undefined ? calculateHpGrade(artSub.sem1, 50) : '-')}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-indigo-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-indigo-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {artSub?.sem2 !== null && artSub?.sem2 !== undefined ? artSub.sem2 : '-'}
@@ -1195,29 +1204,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'art_workexp', 'sem2', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-indigo-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Art Edu Sem 2 Marks (Max 50)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {artSub?.sem2 !== null && artSub?.sem2 !== undefined ? artSub.sem2 : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-indigo-50/40 text-indigo-950 text-[10px] overflow-hidden">
-                                  {artSub?.sem2_grade || '-'}
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {artSub?.sem2_grade || (artSub?.sem2 !== null && artSub?.sem2 !== undefined ? calculateHpGrade(artSub.sem2, 50) : '-')}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', borderBottom: '3px double #000000' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-indigo-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {artSub?.total !== null && artSub?.total !== undefined ? artSub.total : '-'}
@@ -1233,31 +1242,31 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'art_workexp', 'total', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-indigo-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Art Edu Total Marks (Max 100)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-black" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {artSub?.total !== null && artSub?.total !== undefined ? artSub.total : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-indigo-950 text-[10px] overflow-hidden">
-                                  {artSub?.grade || '-'}
+                                <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', borderBottom: '3px double #000000' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {artSub?.grade || (artSub?.total !== null && artSub?.total !== undefined ? calculateHpGrade(artSub.total, 100) : '-')}
                                 </td>
                               </>
                             )}
 
-                            {/* 11. Part B Item 2: Computer Education / ICT (2 cols: Marks, Grade) - NO UNDERLINE */}
+                            {/* 11. Part B Item 2: Computer Education / ICT (2 cols: Marks, Grade) - Font size 11 */}
                             {isRow0 && (
                               <>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-blue-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {ictSub?.sem1 !== null && ictSub?.sem1 !== undefined ? ictSub.sem1 : '-'}
@@ -1273,29 +1282,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'ict_computer', 'sem1', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Computer Edu Sem 1 Marks (Max 50)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {ictSub?.sem1 !== null && ictSub?.sem1 !== undefined ? ictSub.sem1 : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
-                                  {ictSub?.sem1_grade || '-'}
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {ictSub?.sem1_grade || (ictSub?.sem1 !== null && ictSub?.sem1 !== undefined ? calculateHpGrade(ictSub.sem1, 50) : '-')}
                                 </td>
                               </>
                             )}
                             {isRow4 && (
                               <>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-bold text-center align-middle bg-blue-50/40 text-[10px] overflow-hidden">
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-blue-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {ictSub?.sem2 !== null && ictSub?.sem2 !== undefined ? ictSub.sem2 : '-'}
@@ -1311,29 +1320,29 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'ict_computer', 'sem2', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-bold text-blue-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Computer Edu Sem 2 Marks (Max 50)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {ictSub?.sem2 !== null && ictSub?.sem2 !== undefined ? ictSub.sem2 : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td rowSpan={4} style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-bold text-center align-middle bg-blue-50/40 text-blue-950 text-[10px] overflow-hidden">
-                                  {ictSub?.sem2_grade || '-'}
+                                <td rowSpan={4} style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {ictSub?.sem2_grade || (ictSub?.sem2 !== null && ictSub?.sem2 !== undefined ? calculateHpGrade(ictSub.sem2, 50) : '-')}
                                 </td>
                               </>
                             )}
                             {isRow8 && (
                               <>
-                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-mono font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
+                                <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', borderBottom: '3px double #000000' }} className="border border-black p-0 font-mono font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
                                   {onUpdatePartBMarks ? (
                                     <>
                                       <div
-                                        className="cce-pdf-text hidden w-full text-center font-mono font-black text-blue-950 text-[10px]"
+                                        className="cce-pdf-text hidden w-full text-center font-mono font-bold text-black text-[11px]"
                                         style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                       >
                                         {ictSub?.total !== null && ictSub?.total !== undefined ? ictSub.total : '-'}
@@ -1349,24 +1358,24 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                           onUpdatePartBMarks(st.id, 'ict_computer', 'total', n);
                                         }}
                                         style={{ textAlign: 'center' }}
-                                        className="cce-screen-input w-full text-center bg-transparent hover:bg-white focus:bg-white font-mono font-black text-blue-950 border-0 border-none outline-none focus:outline-none focus:ring-0 text-[10px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="cce-screen-input w-full text-center bg-transparent font-mono font-bold text-black border-0 border-none outline-none focus:outline-none focus:ring-0 text-[11px] p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         placeholder="-"
                                         title="Edit Computer Edu Total Marks (Max 100)"
                                       />
                                     </>
                                   ) : (
-                                    <div className="text-center font-mono font-black" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                    <div className="text-center font-mono font-bold text-[11px]" style={{ textAlign: 'center', margin: '0 auto' }}>
                                       {ictSub?.total !== null && ictSub?.total !== undefined ? ictSub.total : '-'}
                                     </div>
                                   )}
                                 </td>
-                                <td style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }} className="border border-slate-900 p-0 font-black text-center align-middle bg-amber-100 text-blue-950 text-[10px] overflow-hidden">
-                                  {ictSub?.grade || '-'}
+                                <td style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', borderBottom: '3px double #000000' }} className="border border-black p-0 font-bold text-center align-middle text-[11px] bg-white text-black overflow-hidden">
+                                  {ictSub?.grade || (ictSub?.total !== null && ictSub?.total !== undefined ? calculateHpGrade(ictSub.total, 100) : '-')}
                                 </td>
                               </>
                             )}
 
-                            {/* 12. 7 Co-Scholastic Activities - NO UNDERLINE */}
+                            {/* 12. 7 Co-Scholastic Activities - Vertical Center Align & Clear Text Inputs (No select arrow clipping!) */}
                             {isRow0 && (
                               <>
                                 {HP_CO_ACTIVITIES.map((act) => {
@@ -1375,32 +1384,34 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
-                                      className="border border-slate-900 p-0 w-[18px] font-mono font-bold text-[10px] text-center align-middle bg-white overflow-hidden"
+                                      style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                      className="border border-black p-0 font-mono font-bold text-[11px] text-center align-middle bg-white text-black overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
                                         <>
                                           <div
-                                            className="cce-pdf-text hidden w-full text-center font-bold text-[10px]"
+                                            className="cce-pdf-text hidden w-full text-center font-bold text-[11px] text-black"
                                             style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                           >
                                             {grd || '-'}
                                           </div>
-                                          <select
-                                            value={grd !== '-' ? grd : ''}
-                                            onChange={(e) => onUpdateCoGrade(st.id, 'sem1', act.key, e.target.value)}
+                                          <input
+                                            type="text"
+                                            maxLength={2}
+                                            value={grd && grd !== '-' ? grd : ''}
+                                            placeholder="-"
+                                            onChange={(e) => {
+                                              const v = e.target.value.trim().toUpperCase();
+                                              onUpdateCoGrade(st.id, 'sem1', act.key, v);
+                                            }}
                                             style={{ textAlign: 'center' }}
-                                            className="cce-screen-input bg-transparent font-bold text-[10px] text-slate-800 border-0 border-none outline-none focus:outline-none focus:ring-0 cursor-pointer p-0 m-0 text-center w-full"
-                                          >
-                                            <option value="">-</option>
-                                            <option value="A">A</option>
-                                            <option value="B">B</option>
-                                            <option value="C">C</option>
-                                          </select>
+                                            className="cce-screen-input w-full text-center bg-transparent font-bold text-[11px] text-black border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 uppercase"
+                                            title={`${act.num} Sem 1 Grade (Type A, B, C)`}
+                                          />
                                         </>
                                       ) : (
-                                        <div className="text-center font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
-                                          {grd}
+                                        <div className="text-center font-bold text-[11px] text-black" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                          {grd || '-'}
                                         </div>
                                       )}
                                     </td>
@@ -1416,32 +1427,34 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                     <td
                                       key={act.key}
                                       rowSpan={4}
-                                      style={{ height: '20.0mm', maxHeight: '20.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
-                                      className="border border-slate-900 p-0 w-[18px] font-mono font-bold text-[10px] text-center align-middle bg-white overflow-hidden"
+                                      style={{ height: '21.33mm', minHeight: '21.33mm', maxHeight: '21.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
+                                      className="border border-black p-0 font-mono font-bold text-[11px] text-center align-middle bg-white text-black overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
                                         <>
                                           <div
-                                            className="cce-pdf-text hidden w-full text-center font-bold text-[10px]"
+                                            className="cce-pdf-text hidden w-full text-center font-bold text-[11px] text-black"
                                             style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                           >
                                             {grd || '-'}
                                           </div>
-                                          <select
-                                            value={grd !== '-' ? grd : ''}
-                                            onChange={(e) => onUpdateCoGrade(st.id, 'sem2', act.key, e.target.value)}
+                                          <input
+                                            type="text"
+                                            maxLength={2}
+                                            value={grd && grd !== '-' ? grd : ''}
+                                            placeholder="-"
+                                            onChange={(e) => {
+                                              const v = e.target.value.trim().toUpperCase();
+                                              onUpdateCoGrade(st.id, 'sem2', act.key, v);
+                                            }}
                                             style={{ textAlign: 'center' }}
-                                            className="cce-screen-input bg-transparent font-bold text-[10px] text-slate-800 border-0 border-none outline-none focus:outline-none focus:ring-0 cursor-pointer p-0 m-0 text-center w-full"
-                                          >
-                                            <option value="">-</option>
-                                            <option value="A">A</option>
-                                            <option value="B">B</option>
-                                            <option value="C">C</option>
-                                          </select>
+                                            className="cce-screen-input w-full text-center bg-transparent font-bold text-[11px] text-black border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 uppercase"
+                                            title={`${act.num} Sem 2 Grade (Type A, B, C)`}
+                                          />
                                         </>
                                       ) : (
-                                        <div className="text-center font-bold" style={{ textAlign: 'center', margin: '0 auto' }}>
-                                          {grd}
+                                        <div className="text-center font-bold text-[11px] text-black" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                          {grd || '-'}
                                         </div>
                                       )}
                                     </td>
@@ -1456,32 +1469,34 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   return (
                                     <td
                                       key={act.key}
-                                      style={{ height: '5.0mm', maxHeight: '5.0mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle' }}
-                                      className="border border-slate-900 p-0 w-[18px] font-mono font-black text-[10px] text-center align-middle bg-amber-100 text-red-600 overflow-hidden"
+                                      style={{ height: '5.33mm', minHeight: '5.33mm', maxHeight: '5.33mm', boxSizing: 'border-box', textAlign: 'center', verticalAlign: 'middle', borderBottom: '3px double #000000' }}
+                                      className="border border-black p-0 font-mono font-bold text-[11px] text-center align-middle bg-white text-black overflow-hidden"
                                     >
                                       {onUpdateCoGrade ? (
                                         <>
                                           <div
-                                            className="cce-pdf-text hidden w-full text-center font-black text-[10px]"
+                                            className="cce-pdf-text hidden w-full text-center font-bold text-[11px] text-black"
                                             style={{ textAlign: 'center', margin: '0 auto', width: '100%' }}
                                           >
                                             {grd || '-'}
                                           </div>
-                                          <select
-                                            value={grd !== '-' ? grd : ''}
-                                            onChange={(e) => onUpdateCoGrade(st.id, 'final', act.key, e.target.value)}
+                                          <input
+                                            type="text"
+                                            maxLength={2}
+                                            value={grd && grd !== '-' ? grd : ''}
+                                            placeholder="-"
+                                            onChange={(e) => {
+                                              const v = e.target.value.trim().toUpperCase();
+                                              onUpdateCoGrade(st.id, 'final', act.key, v);
+                                            }}
                                             style={{ textAlign: 'center' }}
-                                            className="cce-screen-input bg-transparent font-black text-[10px] text-red-600 border-0 border-none outline-none focus:outline-none focus:ring-0 cursor-pointer p-0 m-0 text-center w-full"
-                                          >
-                                            <option value="">-</option>
-                                            <option value="A">A</option>
-                                            <option value="B">B</option>
-                                            <option value="C">C</option>
-                                          </select>
+                                            className="cce-screen-input w-full text-center bg-transparent font-bold text-[11px] text-black border-0 border-none outline-none focus:outline-none focus:ring-0 p-0 m-0 uppercase"
+                                            title={`${act.num} Annual Grade (Type A, B, C)`}
+                                          />
                                         </>
                                       ) : (
-                                        <div className="text-center font-black" style={{ textAlign: 'center', margin: '0 auto' }}>
-                                          {grd}
+                                        <div className="text-center font-bold text-[11px] text-black" style={{ textAlign: 'center', margin: '0 auto' }}>
+                                          {grd || '-'}
                                         </div>
                                       )}
                                     </td>
@@ -1490,28 +1505,16 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                               </>
                             )}
 
-                            {/* 13. Result - Spans 9 Rows */}
+                            {/* 13. Result - Spans 9 Rows (Height 48.0mm / 4.8cm - Matches Columns 1, 2, 3) */}
                             {isRow0 && (
                               <td
                                 rowSpan={9}
-                                style={{ height: '45.0mm', maxHeight: '45.0mm', boxSizing: 'border-box' }}
-                                className={`border border-slate-900 p-0.5 align-middle text-center font-black overflow-hidden ${
-                                  isExempt
-                                    ? 'bg-purple-50 text-purple-900'
-                                    : cSt.isPassed
-                                    ? 'bg-emerald-50 text-emerald-900'
-                                    : 'bg-rose-50 text-rose-900'
-                                }`}
+                                style={{ height: '48.0mm', minHeight: '48.0mm', maxHeight: '48.0mm', boxSizing: 'border-box', borderBottom: '3px double #000000', textAlign: 'center', verticalAlign: 'middle' }}
+                                className="border border-black p-0.5 align-middle text-center font-black overflow-hidden bg-white text-black"
                               >
                                 <span
-                                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '39mm' }}
-                                  className={`inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[8.5px] ${
-                                    isExempt
-                                      ? 'text-purple-800'
-                                      : cSt.isPassed
-                                      ? 'text-emerald-700'
-                                      : 'text-rose-700'
-                                  }`}
+                                  style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '44mm' }}
+                                  className="inline-block whitespace-nowrap py-0.5 mx-auto font-black text-[11px] text-black"
                                 >
                                   {isExempt
                                     ? (medium === 'Kannada' ? 'ತೇರ್ಗಡೆ (ವಿನಾಯಿತಿ)' : 'Promoted (Exempt)')

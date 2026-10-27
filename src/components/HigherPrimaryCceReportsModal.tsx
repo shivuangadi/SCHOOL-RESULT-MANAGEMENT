@@ -19,6 +19,10 @@ import {
   exportElementAsImage,
   shareReportToWhatsApp,
   ReportPaperSize,
+  printHpCcePage2_9Line,
+  exportHpCcePage2_9LinePdf,
+  printHigherPrimaryCcePage2Detailed,
+  exportHigherPrimaryCcePage2Pdf,
 } from '../utils/printPdfHelper';
 import { getSavedClassTeacher, persistClassTeacherLocally } from '../utils/teacherHelper';
 import {
@@ -646,22 +650,35 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               </button>
             </div>
 
+            {/* WhatsApp Share Button */}
             <button
               type="button"
               onClick={async () => {
                 if (reportRef.current) {
                   const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
                   const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
-                  const summary = `*${schoolRecord?.schoolName || 'ಶಾಲೆ'}*\n*ವರದಿ (${academicYear})*\nತರಗತಿ: ${selectedClass}ನೇ ತರಗತಿ\nದಿನಾಂಕ: ${new Date().toLocaleDateString('kn-IN')}`;
+                  let tabTitleKn = 'ಕ್ರೋಢೀಕೃತ ವರದಿ';
+                  if (activeTab === 'consolidation_9line' || activeTab === 'page2') {
+                    tabTitleKn = '6-8 9-ಸಾಲಿನ ಕ್ರೋಢೀಕೃತ ವರದಿ (9-Line Consolidation Register)';
+                  } else if (activeTab === 'consolidation_100' || activeTab === 'page3') {
+                    tabTitleKn = '6-8 100 ಅಂಕಗಳ ಕ್ರೋಢೀಕೃತ ವರದಿ (100 Marks Consolidation Register)';
+                  } else if (activeTab === 'class_abstract' || activeTab === 'page5') {
+                    tabTitleKn = '6-8 ತರಗತಿವಾರು ಘೋಷವಾರ (Class Abstract)';
+                  } else if (activeTab === 'master_abstract' || activeTab === 'page6') {
+                    tabTitleKn = '1-8 ಮಹಾ ಘೋಷವಾರ (Master Abstract)';
+                  }
+                  const summary = `*${schoolRecord?.schoolName || 'ಶಾಲೆ'}*\n*${tabTitleKn} (${academicYear})*\nತರಗತಿ: ${selectedClass}ನೇ ತರಗತಿ\nಒಟ್ಟು ವಿದ್ಯಾರ್ಥಿಗಳು: ${currentClassComputedList.length}\nದಿನಾಂಕ: ${new Date().toLocaleDateString('kn-IN')}`;
                   await shareReportToWhatsApp(reportRef.current, summary, filename);
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
               title="Share report image & summary to WhatsApp"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>WhatsApp</span>
             </button>
+
+            {/* HTML Download Button */}
             <button
               type="button"
               onClick={() => {
@@ -677,31 +694,47 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
               <FileCode className="w-3.5 h-3.5" />
               <span>HTML ಡೌನ್‌ಲೋಡ್</span>
             </button>
+
+            {/* Print Button - Blue color matching table print preview button */}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (reportRef.current) {
                   const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
                   const docTitle = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
-                  executeReportPrint(reportRef.current, docTitle, paperSize);
+                  if (activeTab === 'consolidation_9line' || activeTab === 'page2') {
+                    await printHpCcePage2_9Line(reportRef.current, docTitle, paperSize);
+                  } else if (activeTab === 'consolidation_100' || activeTab === 'page3') {
+                    await printHigherPrimaryCcePage2Detailed(reportRef.current, docTitle, paperSize);
+                  } else {
+                    await executeReportPrint(reportRef.current, docTitle, paperSize);
+                  }
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
               title={`Print in ${paperSize === 'a4' ? 'A4 (297×210mm)' : 'Legal (355.6×215.9mm)'}`}
             >
               <Printer className="w-3.5 h-3.5" />
               <span>ಮುದ್ರಿಸಿ ({paperSize === 'a4' ? 'A4' : 'Legal'})</span>
             </button>
+
+            {/* PDF Download Button - Indigo color matching dedicated PDF exporters */}
             <button
               type="button"
               onClick={async () => {
                 if (reportRef.current) {
                   const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
                   const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
-                  await downloadElementAsPdf(reportRef.current, filename, paperSize);
+                  if (activeTab === 'consolidation_9line' || activeTab === 'page2') {
+                    await exportHpCcePage2_9LinePdf(reportRef.current, filename, paperSize);
+                  } else if (activeTab === 'consolidation_100' || activeTab === 'page3') {
+                    await exportHigherPrimaryCcePage2Pdf(reportRef.current, filename, paperSize);
+                  } else {
+                    await downloadElementAsPdf(reportRef.current, filename, paperSize);
+                  }
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
               title={`Download PDF in ${paperSize === 'a4' ? 'A4 (297×210mm)' : 'Legal (355.6×215.9mm)'}`}
             >
               <Download className="w-3.5 h-3.5" />

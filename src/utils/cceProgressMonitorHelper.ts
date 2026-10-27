@@ -147,6 +147,8 @@ export interface ClassCceProgress {
   currentExamLabel: string;
   overallClassPercent: number | null; // Weighted aggregate
   overallClassPercentDisplay: string;
+  totalClassRequired: number;
+  totalClassCompleted: number;
   examProgress: Record<CceExamKey, {
     totalRequired: number;
     completed: number;
@@ -298,9 +300,9 @@ export const isSubjectExamCompleted = (
   const valRaw = (sub as any)[examKey];
   const pctRaw = (sub as any)[`${examKey}_pct`];
 
-  // Must be non-empty, valid number >= 0
-  const hasDirect = valRaw !== null && valRaw !== undefined && valRaw !== '' && !isNaN(Number(valRaw));
-  const hasPct = pctRaw !== null && pctRaw !== undefined && pctRaw !== '' && !isNaN(Number(pctRaw));
+  // Must be non-empty, valid entered score > 0
+  const hasDirect = valRaw !== null && valRaw !== undefined && valRaw !== '' && !isNaN(Number(valRaw)) && Number(valRaw) > 0;
+  const hasPct = pctRaw !== null && pctRaw !== undefined && pctRaw !== '' && !isNaN(Number(pctRaw)) && Number(pctRaw) > 0;
 
   return hasDirect || hasPct;
 };
@@ -419,6 +421,8 @@ export const calculateSingleClassProgress = (
     currentExamLabel: CCE_EXAMS.find((e) => e.key === currentExam)?.labelEn || 'FA-1',
     overallClassPercent,
     overallClassPercentDisplay: overallClassPercent !== null ? `${overallClassPercent}%` : 'N/A',
+    totalClassRequired,
+    totalClassCompleted,
     examProgress,
     subjectTableRows,
   };

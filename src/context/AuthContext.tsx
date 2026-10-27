@@ -450,7 +450,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: payload.email.trim(),
       status: 'PENDING', // Must remain PENDING until Root Admin Shri S R Angadi explicitly approves
       paymentStatus: 'PENDING',
-      subscriptionStatus: 'INACTIVE',
+      subscriptionStatus: 'PENDING',
       subscriptionExpiry: '',
       ownerUid: uid,
       firebaseAuthUid: uid,

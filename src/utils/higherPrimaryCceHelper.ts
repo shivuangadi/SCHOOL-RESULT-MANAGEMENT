@@ -553,15 +553,20 @@ export const getHpExamGrade = (
 ): string => {
   if (isExempted) return 'EXEMPT';
   if (!sub) return '-';
-  switch (exam.toLowerCase()) {
+  const clean = (exam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  switch (clean) {
     case 'fa1': return sub.fa1_grade || '-';
     case 'fa2': return sub.fa2_grade || '-';
     case 'sa1': return sub.sa1_grade || '-';
     case 'fa3': return sub.fa3_grade || '-';
     case 'fa4': return sub.fa4_grade || '-';
     case 'sa2': return sub.sa2_grade || '-';
+    case 'sem1': return sub.sem1_total !== null ? calculateHpGrade(sub.sem1_total, 50) : '-';
+    case 'sem2': return sub.sem2_total !== null ? calculateHpGrade(sub.sem2_total, 50) : '-';
     case 'total':
     case 'annual':
+    case 'annualtotal':
+      return sub.grade || '-';
     default:
       return sub.grade || '-';
   }
