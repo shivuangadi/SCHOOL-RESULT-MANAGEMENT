@@ -20,9 +20,9 @@ export {
 };
 
 export {
-  printHigherPrimaryCcePage2Detailed,
-  exportHigherPrimaryCcePage2Pdf,
-} from './report_layouts/higher_primary/higherPrimaryPage2LayoutHelper';
+  printHpCce100MarksReport as printHigherPrimaryCcePage2Detailed,
+  exportHpCce100MarksPdf as exportHigherPrimaryCcePage2Pdf,
+} from './report_layouts/higher_primary/hpCce100MarksLayoutHelper';
 
 /**
  * ============================================================================
@@ -316,15 +316,24 @@ export {
 } from './report_layouts/group1_kannada_english/kannadaEnglishPage4LayoutHelper';
 
 // ============================================================================
-// 3. HIGHER PRIMARY CCE PAGE 2 (100 MARKS 35-COLUMN CONSOLIDATION REGISTER)
+// 3. HIGHER PRIMARY CCE 9-LINE CONSOLIDATION (36 COLUMNS, 9 ROWS/STUDENT)
 // ============================================================================
 export {
-  printHigherPrimaryCcePage2Detailed as printHpCcePage2_9Line,
-  exportHigherPrimaryCcePage2Pdf as exportHpCcePage2_9LinePdf,
-  exportHigherPrimaryCcePage2Html as exportHpCcePage2_9LineHtml,
-  printHigherPrimaryCcePage2Detailed as printHpCcePage3Register,
-  exportHigherPrimaryCcePage2Pdf as exportHpCcePage3RegisterPdf,
-} from './report_layouts/higher_primary/higherPrimaryPage2LayoutHelper';
+  printHpCce9LineReport as printHpCcePage2_9Line,
+  exportHpCce9LinePdf as exportHpCcePage2_9LinePdf,
+  exportHpCce9LineHtml as exportHpCcePage2_9LineHtml,
+  share9LineViaCleanStaging,
+} from './report_layouts/higher_primary/hpCce9LineLayoutHelper';
+
+// ============================================================================
+// 4. HIGHER PRIMARY CCE PAGE 3 (100 MARKS 23-COLUMN CONSOLIDATION REGISTER)
+// ============================================================================
+export {
+  printHpCce100MarksReport as printHpCcePage3Register,
+  exportHpCce100MarksPdf as exportHpCcePage3RegisterPdf,
+  exportHpCce100MarksHtml as exportHpCcePage3RegisterHtml,
+  share100MarksViaCleanStaging,
+} from './report_layouts/higher_primary/hpCce100MarksLayoutHelper';
 
 // ============================================================================
 // 5. MARATHI / URDU CCE PAGE 2 (500 MARKS REGISTER - 24 COLS, 5 SUBJECTS)

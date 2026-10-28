@@ -102,6 +102,7 @@ export const printHigherPrimaryCcePage2Detailed = async (
     });
 
     const isA4 = paperSize === 'a4';
+    const pageWidth = isA4 ? 297 : 355.6;
     const leftMarginMm = isA4 ? '18mm' : '20mm'; // 2.0cm left margin for binding
 
     // Scoped CSS for balanced margins and 0 blank interleaved pages
@@ -138,13 +139,14 @@ export const printHigherPrimaryCcePage2Detailed = async (
       }
 
       #higher-primary-page2-isolated-portal .report-page-sheet {
-        margin: 0 auto !important;
+        margin: 20px auto !important;
         padding-left: ${leftMarginMm} !important; /* 2.0cm Left margin for binding */
         padding-right: 6.5mm !important;
         padding-top: 6.5mm !important;
-        padding-bottom: 3.5mm !important;
-        width: 100% !important;
-        max-width: 100% !important;
+        padding-bottom: 6.5mm !important;
+        width: ${pageWidth}mm !important;
+        min-width: ${pageWidth}mm !important;
+        max-width: ${pageWidth}mm !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
         height: auto !important;
@@ -153,8 +155,9 @@ export const printHigherPrimaryCcePage2Detailed = async (
         page-break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        box-shadow: none !important;
-        border: none !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid #cbd5e1 !important;
+        overflow: visible !important;
       }
 
       #higher-primary-page2-isolated-portal .report-page-sheet:last-child {
@@ -167,7 +170,7 @@ export const printHigherPrimaryCcePage2Detailed = async (
         max-width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
-        border: 1.5px solid #000000 !important;
+        border: 2px solid #000000 !important;
         background: #ffffff !important;
         color: #000000 !important;
       }
@@ -175,21 +178,18 @@ export const printHigherPrimaryCcePage2Detailed = async (
       #higher-primary-page2-isolated-portal th,
       #higher-primary-page2-isolated-portal td {
         border: 1px solid #000000 !important;
-        padding: ${isA4 ? '0.25px 0.5px' : '0.5px 1px'} !important;
-        font-size: ${isA4 ? '7px' : '8px'} !important;
         line-height: 1.1 !important;
         text-align: center !important;
         vertical-align: middle !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
         box-sizing: border-box !important;
       }
 
-      #higher-primary-page2-isolated-portal th {
-        font-weight: 800 !important;
-      }
-
       @media print {
+        #higher-primary-page2-isolated-portal .report-page-sheet {
+          margin: 0 !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
         .hp-page2-preview-bar,
         .hp-page2-no-print {
           display: none !important;
@@ -295,10 +295,17 @@ export const printHigherPrimaryCcePage2Detailed = async (
       const prevHtml = pdfBtn.innerHTML;
       pdfBtn.innerHTML = '&#9203; Downloading...';
       try {
-        await exportHigherPrimaryCcePage2Pdf(clone, `${title.replace(/\s+/g, '_')}.pdf`, paperSize);
+        // Temporarily reveal #root and hide portal so element has full styles & dimensions
+        portal.style.display = 'none';
+        document.body.classList.remove('hp-page2-print-active');
+
+        // Use the exact same working export pipeline as the purple main window button
+        await exportHigherPrimaryCcePage2Pdf(element, `${title.replace(/\s+/g, '_')}.pdf`, paperSize);
       } catch (err) {
         console.error('Error downloading PDF from preview bar:', err);
       } finally {
+        document.body.classList.add('hp-page2-print-active');
+        portal.style.display = 'block';
         pdfBtn.disabled = false;
         pdfBtn.innerHTML = prevHtml;
       }
@@ -338,7 +345,7 @@ export const printHigherPrimaryCcePage2Detailed = async (
       }
     };
 
-    // Blue Print Dialog button
+    // Blue Print Dialog button - Opens native system print dialog reliably
     const reprintBtn = document.createElement('button');
     reprintBtn.type = 'button';
     reprintBtn.id = 'higher-primary-page2-reprint-btn';
@@ -357,41 +364,16 @@ export const printHigherPrimaryCcePage2Detailed = async (
       gap: 6px;
     `;
 
-    const triggerSystemPrint = async () => {
+    const triggerSystemPrint = () => {
+      window.focus();
       try {
-        if (window.self !== window.top) {
-          await printElementViaIframe(clone, title, paperSize, 'landscape');
-          return;
-        }
-        window.focus();
         window.print();
-        return;
       } catch (err) {
-        console.warn('Direct window.print() failed, falling back to iframe print:', err);
-      }
-      try {
-        await printElementViaIframe(clone, title, paperSize, 'landscape');
-      } catch (_) {
-        openCleanPrintWindow(clone, title, paperSize, 'landscape');
+        console.warn('Direct window.print() failed:', err);
       }
     };
 
-    reprintBtn.onclick = async () => {
-      try {
-        if (window.self !== window.top) {
-          await printElementViaIframe(clone, title, paperSize, 'landscape');
-          return;
-        }
-        window.focus();
-        window.print();
-      } catch (err) {
-        try {
-          await printElementViaIframe(clone, title, paperSize, 'landscape');
-        } catch (_) {
-          openCleanPrintWindow(clone, title, paperSize, 'landscape');
-        }
-      }
-    };
+    reprintBtn.onclick = triggerSystemPrint;
 
     rightGroup.appendChild(waBtn);
     rightGroup.appendChild(pdfBtn);
@@ -433,12 +415,6 @@ export const printHigherPrimaryCcePage2Detailed = async (
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-
-    // Allow browser engine to parse DOM
-    await new Promise((resolve) => setTimeout(resolve, 80));
-
-    // Automatically invoke print dialog immediately
-    triggerSystemPrint();
 
     return true;
   } catch (err) {
@@ -537,8 +513,7 @@ export const exportHigherPrimaryCcePage2Pdf = async (
       }
       #higher-primary-page2-pdf-staging-portal td[style*="double"],
       #higher-primary-page2-pdf-staging-portal td.double-bottom-border {
-        border-bottom: 3.5px double #000000 !important;
-        box-shadow: inset 0 -1px 0 #000, inset 0 -3px 0 #000 !important;
+        border-bottom: 2px double #000000 !important;
       }
       #higher-primary-page2-pdf-staging-portal select,
       #higher-primary-page2-pdf-staging-portal .cce-screen-input {

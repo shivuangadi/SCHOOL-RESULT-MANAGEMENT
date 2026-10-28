@@ -668,7 +668,63 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
                     tabTitleKn = '1-8 ಮಹಾ ಘೋಷವಾರ (Master Abstract)';
                   }
                   const summary = `*${schoolRecord?.schoolName || 'ಶಾಲೆ'}*\n*${tabTitleKn} (${academicYear})*\nತರಗತಿ: ${selectedClass}ನೇ ತರಗತಿ\nಒಟ್ಟು ವಿದ್ಯಾರ್ಥಿಗಳು: ${currentClassComputedList.length}\nದಿನಾಂಕ: ${new Date().toLocaleDateString('kn-IN')}`;
-                  await shareReportToWhatsApp(reportRef.current, summary, filename);
+
+                  // Clone cleanly identical to print preview
+                  const clone = reportRef.current.cloneNode(true) as HTMLElement;
+                  clone
+                    .querySelectorAll('.print\\:hidden, .cce-print-hidden, button, select, input[type="button"]')
+                    .forEach((el) => {
+                      if (el.tagName === 'SELECT') {
+                        const sel = el as HTMLSelectElement;
+                        const text = sel.options[sel.selectedIndex]?.text || sel.value || '-';
+                        const span = document.createElement('span');
+                        span.className = 'font-bold text-center block w-full text-black';
+                        span.textContent = text;
+                        el.parentNode?.replaceChild(span, el);
+                      } else {
+                        el.remove();
+                      }
+                    });
+
+                  const originalInputs = reportRef.current.querySelectorAll<HTMLInputElement>('input:not([type="button"]):not([type="submit"])');
+                  const clonedInputs = clone.querySelectorAll<HTMLInputElement>('input:not([type="button"]):not([type="submit"])');
+                  originalInputs.forEach((orig, idx) => {
+                    const c = clonedInputs[idx];
+                    if (c) {
+                      c.value = orig.value;
+                      const parent = c.parentElement;
+                      const pdfEl = parent?.querySelector('.cce-pdf-text') as HTMLElement | null;
+                      if (pdfEl && orig.value && orig.value.trim() !== '') {
+                        pdfEl.textContent = orig.value.trim();
+                      }
+                    }
+                  });
+
+                  // Attach clone in document.body staging portal so browser computes exact Legal styles and high-res layout
+                  const portal = document.createElement('div');
+                  portal.id = 'hp-modal-whatsapp-portal';
+                  portal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: ${paperSize === 'a4' ? '297mm' : '355.6mm'};
+                    background: #ffffff;
+                    z-index: -9999;
+                    opacity: 0.001;
+                    pointer-events: none;
+                  `;
+                  clone.classList.add('cce-pdf-mode');
+                  clone.querySelectorAll('.report-page-sheet').forEach((s) => s.classList.add('cce-pdf-mode'));
+                  portal.appendChild(clone);
+                  document.body.appendChild(portal);
+
+                  try {
+                    await shareReportToWhatsApp(clone, summary, filename);
+                  } finally {
+                    if (document.body.contains(portal)) {
+                      portal.remove();
+                    }
+                  }
                 }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs shadow-xs transition cursor-pointer"
@@ -702,9 +758,9 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
                 if (reportRef.current) {
                   const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
                   const docTitle = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
-                  if (activeTab === 'consolidation_9line' || activeTab === 'page2') {
+                  if (activeTab === 'consolidation_9line' || activeTab === 'page4') {
                     await printHpCcePage2_9Line(reportRef.current, docTitle, paperSize);
-                  } else if (activeTab === 'consolidation_100' || activeTab === 'page3') {
+                  } else if (activeTab === 'consolidation_100' || activeTab === 'page2' || activeTab === 'page3') {
                     await printHigherPrimaryCcePage2Detailed(reportRef.current, docTitle, paperSize);
                   } else {
                     await executeReportPrint(reportRef.current, docTitle, paperSize);
@@ -725,9 +781,9 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
                 if (reportRef.current) {
                   const sName = (schoolRecord?.schoolName || 'School').replace(/\s+/g, '_');
                   const filename = `${sName}_Class_${selectedClass}_${academicYear}_${activeTab}_${paperSize.toUpperCase()}`;
-                  if (activeTab === 'consolidation_9line' || activeTab === 'page2') {
+                  if (activeTab === 'consolidation_9line' || activeTab === 'page4') {
                     await exportHpCcePage2_9LinePdf(reportRef.current, filename, paperSize);
-                  } else if (activeTab === 'consolidation_100' || activeTab === 'page3') {
+                  } else if (activeTab === 'consolidation_100' || activeTab === 'page2' || activeTab === 'page3') {
                     await exportHigherPrimaryCcePage2Pdf(reportRef.current, filename, paperSize);
                   } else {
                     await downloadElementAsPdf(reportRef.current, filename, paperSize);

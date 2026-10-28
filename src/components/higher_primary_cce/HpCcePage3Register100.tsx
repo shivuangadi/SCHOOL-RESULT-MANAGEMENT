@@ -8,10 +8,11 @@ import {
 } from '../../utils/higherPrimaryCceHelper';
 import { Printer, Download, CheckCircle2, FileCode, Sliders, Plus, Minus, Users, Share2 } from 'lucide-react';
 import {
-  printHigherPrimaryCcePage2Detailed,
-  exportHigherPrimaryCcePage2Pdf,
+  printHpCcePage3Register,
+  exportHpCcePage3RegisterPdf,
   downloadElementAsHtml,
   shareReportToWhatsApp,
+  share100MarksViaCleanStaging,
   ReportPaperSize,
   REPORT_PAPER_SIZES,
 } from '../../utils/reportPrintPdfHelpers';
@@ -93,7 +94,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
     if (reportRef?.current) {
       const sName = schoolName.replace(/\s+/g, '_');
       const docTitle = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation_${paperSize.toUpperCase()}`;
-      printHigherPrimaryCcePage2Detailed(reportRef.current, docTitle, paperSize);
+      printHpCcePage3Register(reportRef.current, docTitle, paperSize);
     }
   };
 
@@ -104,7 +105,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
       try {
         const sName = schoolName.replace(/\s+/g, '_');
         const filename = `${sName}_Class_${selectedClass}_${academicYear}_100Marks_Consolidation_${paperSize.toUpperCase()}`;
-        await exportHigherPrimaryCcePage2Pdf(reportRef.current, filename, paperSize);
+        await exportHpCcePage3RegisterPdf(reportRef.current, filename, paperSize);
         setStatusMessage('PDF ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!');
       } catch (err) {
         console.error('PDF error:', err);
@@ -123,7 +124,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
       const summary = `*${schoolName}*\n*${isKannada ? '100 ಅಂಕಗಳ ಕ್ರೋಢೀಕರಣ ವರದಿ' : '100 Marks Consolidation Register'} (${academicYear})*\n${isKannada ? 'ತರಗತಿ' : 'Class'}: ${selectedClass} | ${isKannada ? 'ದಿನಾಂಕ' : 'Date'}: ${new Date().toLocaleDateString('en-IN')}`;
       setStatusMessage('WhatsApp ಚಿತ್ರಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ... / Preparing WhatsApp images...');
       try {
-        await shareReportToWhatsApp(reportRef.current, summary, filename);
+        await share100MarksViaCleanStaging(reportRef.current, summary, filename, paperSize);
         setStatusMessage('ಚಿತ್ರಗಳು ಡೌನ್‌ಲೋಡ್ ಆಗಿವೆ! / Images downloaded!');
       } catch (e) {
         console.error('WhatsApp share error:', e);
@@ -466,43 +467,43 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                     }}
                   >
                     <colgroup>
-                      {/* 1. Sl No */}
-                      <col style={{ width: '2.0%' }} />
-                      {/* 2. Student Name - Decreased by 1% */}
-                      <col style={{ width: '12.5%' }} />
-                      {/* 3. DOB & Gender - Decreased by 1% */}
-                      <col style={{ width: '5.2%' }} />
-                      {/* 4. Reg No & SATS No */}
-                      <col style={{ width: '7.2%' }} />
-                      {/* 5. Category */}
-                      <col style={{ width: '3.3%' }} />
-                      {/* 6. Attendance in 6th Column */}
-                      <col style={{ width: '3.3%' }} />
-                      {/* Curricular Subjects: Marks & Grade are EXACT SAME SIZE (2.2% each) */}
+                      {/* 1. Sl No: 2.2% */}
+                      <col style={{ width: '2.2%' }} />
+                      {/* 2. Student Name: 12.0% */}
+                      <col style={{ width: '12.0%' }} />
+                      {/* 3. DOB & Gender: 5.5% */}
+                      <col style={{ width: '5.5%' }} />
+                      {/* 4. Reg No & SATS No: 7.5% */}
+                      <col style={{ width: '7.5%' }} />
+                      {/* 5. Category: 3.2% */}
+                      <col style={{ width: '3.2%' }} />
+                      {/* 6. Attendance in 6th Column: 3.2% */}
+                      <col style={{ width: '3.2%' }} />
+                      {/* Curricular Subjects (7 subjects x 2 cols): 14 cols x 2.4% = 33.6% */}
                       {subjects.map((s) => (
                         <React.Fragment key={s.code}>
-                          <col style={{ width: '2.2%' }} />
-                          <col style={{ width: '2.2%' }} />
+                          <col style={{ width: '2.4%' }} />
+                          <col style={{ width: '2.4%' }} />
                         </React.Fragment>
                       ))}
-                      {/* Grand Total */}
+                      {/* Grand Total (700): 3.2% */}
                       <col style={{ width: '3.2%' }} />
-                      {/* % - Increased by 2% to prevent "%" symbol wrapping */}
-                      <col style={{ width: '4.7%' }} />
-                      {/* Grade */}
-                      <col style={{ width: '2.4%' }} />
-                      {/* Art Education: Marks & Grade are EXACT SAME SIZE (2.1% each) */}
-                      <col style={{ width: '2.1%' }} />
-                      <col style={{ width: '2.1%' }} />
-                      {/* Computer Education: Marks & Grade are EXACT SAME SIZE (2.1% each) */}
-                      <col style={{ width: '2.1%' }} />
-                      <col style={{ width: '2.1%' }} />
-                      {/* Part B (7 activities: 2.4% each) */}
+                      {/* %: 3.8% */}
+                      <col style={{ width: '3.8%' }} />
+                      {/* Overall Grade: 2.6% */}
+                      <col style={{ width: '2.6%' }} />
+                      {/* Art Education: Marks (2.0%), Grade (2.0%) = 4.0% */}
+                      <col style={{ width: '2.0%' }} />
+                      <col style={{ width: '2.0%' }} />
+                      {/* Computer Education: Marks (2.0%), Grade (2.0%) = 4.0% */}
+                      <col style={{ width: '2.0%' }} />
+                      <col style={{ width: '2.0%' }} />
+                      {/* Part B (7 activities: 1.8% each = 12.6%) */}
                       {HP_CO_ACTIVITIES.map((act) => (
-                        <col key={act.key} style={{ width: '2.4%' }} />
+                        <col key={act.key} style={{ width: '1.8%' }} />
                       ))}
-                      {/* Result */}
-                      <col style={{ width: '4.6%' }} />
+                      {/* Result: 2.6% */}
+                      <col style={{ width: '2.6%' }} />
                     </colgroup>
                     <thead className="text-[10px]">
                       {/* Tier 1 Header (Target height: 15mm, combined header = 25mm = 2.5cm) */}
