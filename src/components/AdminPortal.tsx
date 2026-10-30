@@ -45,7 +45,12 @@ import {
   Image as ImageIcon,
   Loader2,
   Lock,
+  LogIn,
+  Users,
+  BarChart3,
+  ExternalLink,
 } from 'lucide-react';
+import { getStudentsFromLocal } from '../utils/studentStore';
 
 interface ApprovalNotificationData {
   school: SchoolRecord;
@@ -145,7 +150,7 @@ const generateWhatsAppApprovalMessage = (
 ಯೂಸರ್ ನೇಮ್ (DISE / Username): *${diseCode}*
 ಪಾಸ್‌ವರ್ಡ್ (Password): *${password || 'ನೀವು ನೋಂದಣಿ ಸಮಯದಲ್ಲಿ ನೀಡಿದ ಪಾಸ್‌ವರ್ಡ್'}*
 
-ವೆಬ್‌ಸೈಟ್ ಲಿಂಕ್: https://ais-dev-5jkxqjxvh5omqwaxfdqucu-66844162673.asia-east1.run.app
+ವೆಬ್‌ಸೈಟ್ ಲಿಂಕ್: https://srmsbysrangadi.ai.studio/
 
 ಈಗ ಲಾಗಿನ್ ಆಗಿ ನಿಮ್ಮ ಶಾಲೆಯ CCE ಫಲಿತಾಂಶ ಬ್ರಾಡ್ ಶೀಟ್, ಗ್ರೇಡ್ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು ವಿದ್ಯಾರ್ಥಿಗಳ ಅಂಕಪಟ್ಟಿಗಳನ್ನು ಮುದ್ರಿಸಿಕೊಳ್ಳಬಹುದು.
 
@@ -156,13 +161,13 @@ const generateWhatsAppApprovalMessage = (
 };
 
 export const AdminPortal: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, impersonateSchool } = useAuth();
   const { lang } = useLanguage();
 
   const [schools, setSchools] = useState<SchoolRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | AccountStatus | 'BACKUP'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | AccountStatus | 'BACKUP' | 'PROGRESS'>('ALL');
   const [deletedSchools, setDeletedSchools] = useState<SchoolRecord[]>([]);
 
   // Creator Photo Management State (Admin Only)
@@ -919,6 +924,19 @@ export const AdminPortal: React.FC = () => {
             <Archive className="w-3.5 h-3.5 text-purple-400" />
             <span>Deleted Schools Backup ({deletedSchools.length})</span>
           </button>
+
+          {/* School Progress Monitor Tab */}
+          <button
+            onClick={() => setStatusFilter('PROGRESS')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              statusFilter === 'PROGRESS'
+                ? 'bg-emerald-900 text-white shadow-xs ring-2 ring-emerald-500'
+                : 'bg-emerald-50 text-emerald-950 border border-emerald-300 hover:bg-emerald-100'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>📊 ಶಾಲಾ ಪ್ರಗತಿ ಪರಿಶೀಲನೆ (Progress Monitor)</span>
+          </button>
         </div>
       </div>
 
@@ -964,8 +982,8 @@ export const AdminPortal: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-xs">
-                    {deletedSchools.map((ds) => (
-                      <tr key={ds.diseCode} className="hover:bg-purple-50/30 transition">
+                    {deletedSchools.map((ds, idx) => (
+                      <tr key={`deleted-${ds.schoolId || ds.diseCode || idx}`} className="hover:bg-purple-50/30 transition">
                         <td className="py-3.5 px-4 font-sans">
                           <div className="font-bold text-slate-900">{ds.schoolName}</div>
                           <div className="font-mono text-blue-900 font-bold text-[11px]">DISE: {ds.diseCode}</div>
@@ -998,6 +1016,126 @@ export const AdminPortal: React.FC = () => {
               </div>
             )}
           </div>
+        ) : statusFilter === 'PROGRESS' ? (
+          <div className="p-5 space-y-5">
+            {/* Header of Progress Monitor */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-4 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shadow-xs shrink-0">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                    ಶಾಲಾ ಪ್ರಗತಿ ಪರಿಶೀಲನಾ ವಿಂಡೋ (Registered Schools Progress & Marks Monitor)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    ಯಾವುದೇ ಶಾಲೆಯ <strong>DISE ಕೋಡ್</strong> ಅಥವಾ <strong>'ಲಾಗಿನ್'</strong> ಬಟನ್ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿದರೆ, ಆ ಶಾಲೆಯ ಖಾತೆಗೆ ನೇರವಾಗಿ ಪ್ರವೇಶಿಸಿ (Impersonate) ವಿದ್ಯಾರ್ಥಿಗಳ ದಾಖಲಾತಿ, ಅಂಕಗಳು ಹಾಗೂ ವರದಿಗಳನ್ನು ಪರಿಶೀಲಿಸಬಹುದು.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* School Progress Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredSchools.map((sch, idx) => {
+                const schoolStudents = getStudentsFromLocal(sch.diseCode);
+                const studentCount = schoolStudents.length;
+                const isApproved = sch.status === 'APPROVED';
+                const fromDate = sch.subscriptionStart ? formatDateDMY(sch.subscriptionStart) : '31/03/2026';
+                const toDate = sch.subscriptionExpiry ? formatDateDMY(sch.subscriptionExpiry) : '31/03/2027';
+
+                return (
+                  <div
+                    key={`progress-${sch.schoolId || sch.diseCode || idx}`}
+                    className="p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-400 bg-white hover:shadow-md transition flex flex-col justify-between gap-3 text-xs"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm leading-tight">
+                            {sch.schoolName}
+                          </h4>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">
+                            {sch.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ'} • {sch.district || 'Belagavi'}
+                          </span>
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                            isApproved
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}
+                        >
+                          {sch.status}
+                        </span>
+                      </div>
+
+                      {/* Clickable DISE Button */}
+                      <div className="p-2.5 bg-blue-50/80 rounded-xl border border-blue-200 flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] text-blue-700 font-bold block uppercase tracking-wider">
+                            DISE / UDISE Code (ಕ್ಲಿಕ್ ಮಾಡಿ ಲಾಗಿನ್ ಆಗಿ):
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => impersonateSchool(sch.diseCode)}
+                            className="font-mono text-sm font-black text-blue-900 hover:underline flex items-center gap-1.5 cursor-pointer mt-0.5"
+                            title="Click this DISE to log into this school account"
+                          >
+                            <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                            <span>{sch.diseCode}</span>
+                            <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-sans">
+                              Login ➜
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-500 block">ವಿದ್ಯಾರ್ಥಿಗಳು:</span>
+                          <span className="font-extrabold text-sm text-slate-900 font-mono">
+                            {studentCount} Students
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Details Row */}
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">ಮುಖ್ಯಗುರುಗಳು:</span>
+                          <span className="font-medium text-slate-800 truncate block">
+                            {sch.headmasterName || 'Headmaster'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">ಮೊಬೈಲ್:</span>
+                          <span className="font-mono font-medium text-slate-800 block">
+                            {sch.mobile}
+                          </span>
+                        </div>
+                        <div className="col-span-2 border-t border-slate-200/60 pt-1 flex items-center justify-between text-[10px]">
+                          <span>ಪಾಸ್ ಕೀ ಮಾನ್ಯತೆ:</span>
+                          <span className="font-bold text-slate-700">
+                            {fromDate} - {toDate}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Impersonate Button */}
+                    <button
+                      type="button"
+                      onClick={() => impersonateSchool(sch.diseCode)}
+                      className="w-full py-2 px-3 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+                      title="Log into this school to monitor status and student marks"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>ಈ ಶಾಲೆಯ ಸ್ಥಿತಿ ಪರಿಶೀಲಿಸಿ / ಲಾಗಿನ್ ಆಗಿ (Log in to School)</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : loading ? (
           <div className="p-12 text-center text-slate-500 text-xs">Loading school records...</div>
         ) : filteredSchools.length === 0 ? (
@@ -1027,12 +1165,12 @@ export const AdminPortal: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSchools.map((sch) => {
+                {filteredSchools.map((sch, idx) => {
                   const isPending = sch.status === 'PENDING';
                   const isApproved = sch.status === 'APPROVED';
                   return (
                     <tr
-                      key={sch.schoolId}
+                      key={`table-${sch.schoolId || sch.diseCode || idx}`}
                       className={`hover:bg-slate-50/80 transition ${
                         isPending ? 'bg-amber-50/40' : ''
                       }`}
@@ -1040,9 +1178,15 @@ export const AdminPortal: React.FC = () => {
                       {/* DISE & School */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-900 text-xs">{sch.schoolName}</div>
-                        <div className="font-mono text-[11px] text-blue-700 font-semibold mt-0.5">
-                          DISE: {sch.diseCode}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => impersonateSchool(sch.diseCode)}
+                          className="font-mono text-[11px] text-blue-700 hover:text-blue-950 font-bold mt-1 inline-flex items-center gap-1 hover:underline cursor-pointer bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition"
+                          title="Click DISE code to log in as this school and inspect student records & reports"
+                        >
+                          <LogIn className="w-3 h-3 text-blue-600" />
+                          <span>DISE: {sch.diseCode}</span>
+                        </button>
                       </td>
 
                       {/* Type & Medium */}

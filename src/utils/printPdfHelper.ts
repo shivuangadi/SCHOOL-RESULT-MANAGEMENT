@@ -97,13 +97,15 @@ export const buildPrintableHtmlDocument = (
     }
     @page {
       size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
-      margin: 5mm ${chosenSize.marginRightMm}mm 5mm ${chosenSize.marginLeftMm}mm;
+      margin: ${isLandscape ? `5mm ${chosenSize.marginRightMm}mm 5mm ${chosenSize.marginLeftMm}mm` : '10mm 6.5mm 10mm 6.5mm'};
     }
     @page :left {
       size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
+      margin: ${isLandscape ? `5mm ${chosenSize.marginRightMm}mm 5mm ${chosenSize.marginLeftMm}mm` : '10mm 6.5mm 10mm 6.5mm'};
     }
     @page :right {
       size: ${paperSize === 'a4' ? 'A4' : 'legal'} ${orientation};
+      margin: ${isLandscape ? `5mm ${chosenSize.marginRightMm}mm 5mm ${chosenSize.marginLeftMm}mm` : '10mm 6.5mm 10mm 6.5mm'};
     }
     .print-sheet {
       width: 100% !important;
@@ -743,11 +745,22 @@ export const captureCleanReportCanvas = async (
 export const downloadElementAsPdf = async (
   element: HTMLElement,
   filename: string = 'School_Document.pdf',
-  paperSize: ReportPaperSize = 'legal'
+  paperSize: ReportPaperSize = 'legal',
+  orientation: 'portrait' | 'landscape' = 'landscape',
+  forceSinglePage: boolean = false
 ): Promise<boolean> => {
   try {
+    const isPortrait = orientation === 'portrait';
     const chosenSize = REPORT_PAPER_SIZES[paperSize] || REPORT_PAPER_SIZES.legal;
-    const pdfFormat: [number, number] = [chosenSize.widthMm, chosenSize.heightMm];
+    
+    // Calculate page dimensions dynamically based on paperSize and orientation
+    const pWidth = isPortrait
+      ? (paperSize === 'a4' ? 210 : 215.9)
+      : (paperSize === 'a4' ? 297 : 355.6);
+    const pHeight = isPortrait
+      ? (paperSize === 'a4' ? 297 : 355.6)
+      : (paperSize === 'a4' ? 210 : 215.9);
+    const pdfFormat: [number, number] = [pWidth, pHeight];
 
     // 1. Check if the element contains designated page sheets (.report-page-sheet) or is a sheet itself
     const pageSheets = element.classList.contains('report-page-sheet')
@@ -758,7 +771,7 @@ export const downloadElementAsPdf = async (
       pageSheets.forEach(s => s.classList.add('cce-pdf-mode'));
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation,
         unit: 'mm',
         format: pdfFormat,
       });
@@ -773,17 +786,17 @@ export const downloadElementAsPdf = async (
             const capturedSheet = await captureCleanReportCanvas(sheet);
             if (!capturedSheet) continue;
             if (renderedAny) {
-              pdf.addPage(pdfFormat, 'landscape');
+              pdf.addPage(pdfFormat, orientation);
             }
 
-            // Render sheet directly at 0mm left margin, scaled cleanly to fit within page bounds
+            // Render sheet scaled cleanly to fit within page bounds
             const scale = Math.min(
               pageWidth / (capturedSheet.width || 1),
               pageHeight / (capturedSheet.height || 1)
             );
             const renderW = capturedSheet.width * scale;
             const renderH = capturedSheet.height * scale;
-            const offsetX = 0; // Starts at 0mm left edge
+            const offsetX = (pageWidth - renderW) / 2;
             const offsetY = Math.max(0, (pageHeight - renderH) / 2);
             pdf.addImage(capturedSheet.dataUrl, 'PNG', offsetX, offsetY, renderW, renderH, undefined, 'FAST');
             renderedAny = true;
@@ -816,10 +829,10 @@ export const downloadElementAsPdf = async (
       }
       // If canvas capture failed, fall back to native print dialog
       console.warn('Canvas PDF export could not capture canvas, triggering native print dialog for Save as PDF');
-      return await executeReportPrint(element, filename, paperSize, 'landscape');
+      return await executeReportPrint(element, filename, paperSize, orientation);
     }
 
-    // 2. Fallback for single container elements
+    // 2. Single container elements (e.g. Transfer Certificate or single-page certificates)
     const captured = await captureCleanReportCanvas(element);
     if (!captured) {
       throw new Error('Failed to capture report element');
@@ -828,7 +841,7 @@ export const downloadElementAsPdf = async (
     const { dataUrl: imgData, width: imgWidthPx, height: imgHeightPx } = captured;
 
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation,
       unit: 'mm',
       format: pdfFormat,
     });
@@ -836,24 +849,31 @@ export const downloadElementAsPdf = async (
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    const marginLeftMm = 0; // 0mm left margin as requested
-    const marginRightMm = chosenSize.marginRightMm || 2;
-    const marginTopMm = chosenSize.marginTopMm || 5;
-    const marginBottomMm = chosenSize.marginBottomMm || 5;
-
-    if (imgHeightPx / imgWidthPx <= (pageHeight / pageWidth) * 1.05) {
-      // Single page document: scale cleanly to fit page width and height starting at 0mm left margin
-      const scale = Math.min(
-        pageWidth / (imgWidthPx || 1),
-        pageHeight / (imgHeightPx || 1)
-      );
-      const renderW = imgWidthPx * scale;
-      const renderH = imgHeightPx * scale;
-      const offsetX = 0; // Starts at 0mm left margin
-      const offsetY = Math.max(0, (pageHeight - renderH) / 2);
-      pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+    // If forceSinglePage OR portrait mode OR aspect ratio fits within 1 page: scale directly to single page!
+    if (forceSinglePage || isPortrait || imgHeightPx / imgWidthPx <= (pageHeight / pageWidth) * 1.05) {
+      if (isPortrait) {
+        // Exact user specified margins: 1cm (10mm) top & bottom, 0.65cm (6.5mm) left & right
+        const mLeft = 6.5;
+        const mTop = 10;
+        const availW = pageWidth - mLeft * 2;
+        const availH = pageHeight - mTop * 2;
+        pdf.addImage(imgData, 'PNG', mLeft, mTop, availW, availH, undefined, 'FAST');
+      } else {
+        const safeMarginMm = 2;
+        const availW = pageWidth - safeMarginMm * 2;
+        const availH = pageHeight - safeMarginMm * 2;
+        const scale = Math.min(
+          availW / (imgWidthPx || 1),
+          availH / (imgHeightPx || 1)
+        );
+        const renderW = imgWidthPx * scale;
+        const renderH = imgHeightPx * scale;
+        const offsetX = (pageWidth - renderW) / 2;
+        const offsetY = (pageHeight - renderH) / 2;
+        pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+      }
     } else {
-      // Multi-page document: slice canvas cleanly by page aspect ratio
+      // Multi-page document: slice canvas cleanly by page aspect ratio (for massive broadsheets)
       const pageCanvasHeight = Math.floor(imgWidthPx / (pageWidth / pageHeight));
       let renderedPx = 0;
       let pageNum = 0;

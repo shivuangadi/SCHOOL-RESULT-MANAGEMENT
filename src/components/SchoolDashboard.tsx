@@ -22,6 +22,7 @@ import { StudentDropboxModal } from './StudentDropboxModal';
 import { StudentListDetailsModal } from './StudentListDetailsModal';
 import { SubjectStructureModal } from './SubjectStructureModal';
 import { BackupRestoreModal } from './BackupRestoreModal';
+import { CoverPageDesignerModal } from './CoverPageDesignerModal';
 import { loadSchoolStudents, subscribeSchoolStudents } from '../utils/studentStore';
 import {
   Database,
@@ -66,7 +67,8 @@ export type SchoolNavCategory =
   | 'marksEntry'
   | 'reportPrinting'
   | 'subjectStructure'
-  | 'schoolProfile';
+  | 'schoolProfile'
+  | 'coverPageDesigner';
 
 interface SchoolDashboardProps {
   onOpenPaymentModal: () => void;
@@ -118,15 +120,20 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
     onSelectCategory?.(cat);
     if (cat === 'subjectStructure') {
       setIsSubjectStructureModalOpen(true);
+    } else if (cat === 'coverPageDesigner') {
+      setIsCoverPageModalOpen(true);
     }
   };
 
   const [activeSubView, setActiveSubView] = useState<'overview' | 'addStudent' | 'masterList' | 'cceEngine' | 'consolidation'>('overview');
   const [isSubjectStructureModalOpen, setIsSubjectStructureModalOpen] = useState(false);
+  const [isCoverPageModalOpen, setIsCoverPageModalOpen] = useState(false);
 
   useEffect(() => {
     if (propActiveCategory === 'subjectStructure') {
       setIsSubjectStructureModalOpen(true);
+    } else if (propActiveCategory === 'coverPageDesigner') {
+      setIsCoverPageModalOpen(true);
     } else if (propActiveCategory) {
       setInternalCategory(propActiveCategory);
     }
@@ -779,6 +786,30 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
                 </div>
                 <p className="text-[11px] text-amber-800">School-wise Overall Analytical Goshware</p>
               </button>
+
+              {/* 10. Cover Page Designer / ಮುಖಪುಟ ವಿನ್ಯಾಸಕ */}
+              <button
+                type="button"
+                onClick={() => setIsCoverPageModalOpen(true)}
+                className="p-4 bg-gradient-to-br from-amber-500 via-amber-400 to-yellow-300 text-slate-950 rounded-2xl text-left space-y-1 transition cursor-pointer shadow-md border-2 border-amber-600 sm:col-span-2 lg:col-span-2 xl:col-span-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-slate-950 text-amber-400 rounded-lg">
+                      <FileText className="w-4 h-4" />
+                    </span>
+                    <span className="font-black text-slate-950 text-sm">
+                      ೧೦. ಮುಖಪುಟ ವಿನ್ಯಾಸಕ (School Result Cover Page Designer)
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-0.5 bg-slate-950 text-amber-300 font-black text-[10px] rounded-full uppercase tracking-wider">
+                    Official A4 / Legal Landscape
+                  </span>
+                </div>
+                <p className="text-xs text-slate-900 font-bold leading-snug">
+                  ಕರ್ನಾಟಕ ಸರ್ಕಾರದ ಅಧಿಕೃತ ಶೈಲಿಯ ಫಲಿತಾಂಶ ಕಡತ ಮುಖಪುಟ • ವೃತ್ತಾಕಾರದ ಮುದ್ರೆ • ಗಂಡಭೇರುಂಡ ಲಾಂಛನ • A4 & Legal Landscape • ಬಣ್ಣದ & ಕಪ್ಪು-ಬಿಳಿ PDF ಡೌನ್‌ಲೋಡ್.
+                </p>
+              </button>
             </div>
           </div>
 
@@ -1324,6 +1355,15 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
             const list = await loadSchoolStudents(diseCode, diseCode, currentAcademicYear);
             setStudents(list);
           }}
+        />
+      )}
+
+      {/* Cover Page Designer Modal (ಮುಖಪುಟ ವಿನ್ಯಾಸಕ) */}
+      {isCoverPageModalOpen && (
+        <CoverPageDesignerModal
+          isOpen={isCoverPageModalOpen}
+          onClose={() => setIsCoverPageModalOpen(false)}
+          overrideSchoolRecord={schoolRecord}
         />
       )}
 

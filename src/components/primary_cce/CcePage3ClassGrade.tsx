@@ -186,8 +186,8 @@ export const CcePage3ClassGrade: React.FC<CcePage3ClassGradeProps> = ({
           <div className="shrink-0">
             ದಿನಾಂಕ: <span className="font-mono">{currentDate}</span>
           </div>
-          <div className="shrink-0">ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ: <span className="font-black text-slate-950">{classTeacherName || 'ವರ್ಗ ಶಿಕ್ಷಕರು'}</span></div>
-          <div className="shrink-0">ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ: <span className="font-black text-slate-950">{schoolRecord?.headmasterName || 'Headmaster'}</span></div>
+          <div className="shrink-0">ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ</div>
+          <div className="shrink-0">ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ</div>
         </div>
       </div>
     </div>

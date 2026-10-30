@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * LOCKED MODULE: PRIMARY (1–5) 100 MARKS CONSOLIDATION REGISTER (PAGE 2)
+ * STATUS: 100% PERFECT & LOCKED BY USER REQUEST
+ * DO NOT MODIFY THE LAYOUT, COLUMN WIDTHS, FONT SIZE (14), SYSTEM PRINT,
+ * OR PDF EXPORT WITHOUT EXPLICIT PERMISSION FROM THE USER.
+ * IF A COMMAND RISKS MODIFYING THIS REPORT, REMIND THE USER FIRST!
+ * ============================================================================
+ */
 import React, { useState, useMemo, useRef } from 'react';
 import { SchoolRecord, isCwsnStudent, formatClassOrdinal, formatClassStd } from '../../types';
 import {
@@ -73,11 +82,11 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
   // Paper & Layout settings
   const [paperSize, setPaperSize] = useState<ReportPaperSize>('legal');
 
-  // Calibrated and strictly locked dimensions:
+  // Calibrated dimensions:
   // - Locked row height: 1.5cm
-  // - Marks & grades font size: 11pt
+  // - Marks & grades font size: 14pt (as requested)
   const rowHeightCm = 1.5;
-  const fontSizeMarksPt = 11;
+  const fontSizeMarksPt = 14;
 
   // Status message for feedback
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -424,7 +433,7 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                     {academicYear} {isKannada ? 'ನೇ ಸಾಲಿನ ರೂಪಣಾತ್ಮಕ ಹಾಗೂ ಸಂಕಲನಾತ್ಮಕ ಮೌಲ್ಯಮಾಪನ ಕ್ರೋಢೀಕರಣ ವಹಿ (100 ಅಂಕಗಳ ವಹಿ)' : 'Formative & Summative Assessment Consolidation Report (100 Marks Register)'}
                   </h2>
 
-                  {/* Sub-Header Row: Class, Working Days, Teacher Name, Page number (Single row, no wrapping) */}
+                  {/* Sub-Header Row: Class, Working Days, Teacher, Page number (Single row, no wrapping) */}
                   <div className="flex flex-row items-center justify-between flex-nowrap whitespace-nowrap text-[10.5px] font-bold text-black pt-0.5 px-2 border-t border-black mt-0.5 leading-tight">
                     <div>
                       <span>ತರಗತಿ (CLASS): <strong>{formatClassStd(selectedClass)}</strong></span>
@@ -433,7 +442,7 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                       <span>ಶಾಲೆ ನಡೆದ ದಿನಗಳು (WORKING DAYS): <strong>{workingDays}</strong></span>
                     </div>
                     <div>
-                      <span>ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು (TEACHER): <strong>{classTeacherName || 'Class Teacher'}</strong></span>
+                      <span>ವರ್ಗ ಶಿಕ್ಷಕರು (CLASS TEACHER)</span>
                     </div>
                     <div>
                       <span>ಪುಟ (PAGE): <strong>{pageIdx + 1} / {chunks.length}</strong></span>
@@ -448,31 +457,31 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                     style={{ tableLayout: 'fixed', width: '100%' }}
                     onKeyDown={handleTableGridNavigation}
                   >
-                    {/* Fixed percentage widths: All 22 columns sum to exactly 100% to fit printable area */}
+                    {/* Fixed percentage widths: Student Name decreased by 2%, curricular subjects +0.25% each */}
                     <colgroup>
                       {/* 1. Sl No */}
                       <col style={{ width: '2.5%' }} />
                       {/* 2. Reg No + SATS No */}
                       <col style={{ width: '7.5%' }} />
-                      {/* 3. Student Name + DOB */}
-                      <col style={{ width: '16.5%' }} />
+                      {/* 3. Student Name + DOB (Decreased by 2% from 16.5% to 14.5%) */}
+                      <col style={{ width: '14.5%' }} />
                       {/* 4. Gender + Category (Boy or Girl) */}
                       <col style={{ width: '4.5%' }} />
                       {/* 5. Attendance */}
                       <col style={{ width: '4.0%' }} />
-                      {/* 6-13. Part-A 4 Subjects x 2 cols = 8 cols (30.8%) */}
+                      {/* 6-13. Part-A 4 Subjects x 2 cols = 8 cols (32.8%) */}
                       {/* FL Marks & Grade */}
-                      <col style={{ width: '4.2%' }} />
-                      <col style={{ width: '3.5%' }} />
+                      <col style={{ width: '4.45%' }} />
+                      <col style={{ width: '3.75%' }} />
                       {/* SL Marks & Grade */}
-                      <col style={{ width: '4.2%' }} />
-                      <col style={{ width: '3.5%' }} />
+                      <col style={{ width: '4.45%' }} />
+                      <col style={{ width: '3.75%' }} />
                       {/* MATHS Marks & Grade */}
-                      <col style={{ width: '4.2%' }} />
-                      <col style={{ width: '3.5%' }} />
+                      <col style={{ width: '4.45%' }} />
+                      <col style={{ width: '3.75%' }} />
                       {/* EVS Marks & Grade */}
-                      <col style={{ width: '4.2%' }} />
-                      <col style={{ width: '3.5%' }} />
+                      <col style={{ width: '4.45%' }} />
+                      <col style={{ width: '3.75%' }} />
                       {/* 14. Total 400 */}
                       <col style={{ width: '4.5%' }} />
                       {/* 15. Percentage % */}
@@ -878,7 +887,7 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                                 {cSt.overallGrade || '-'}
                               </td>
 
-                              {/* 13. Part-B 5 Co-Scholastic Grades (0.75cm width each, Font size 12pt, Center aligned) */}
+                              {/* 13. Part-B 5 Co-Scholastic Grades (Font size 14, Center aligned, PDF visible) */}
                               {CO_SCHOLASTIC_ACTIVITIES.map((act) => (
                                 <td
                                   key={act.key}
@@ -886,19 +895,32 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
                                   className="border border-black p-0.5 font-bold font-mono text-center"
                                 >
                                   {onUpdateFinalCoGrade ? (
-                                    <select
-                                      value={co[act.key] || ''}
-                                      onChange={(e) => onUpdateFinalCoGrade(st.id, act.key, e.target.value)}
-                                      style={{ fontSize: `${fontSizeMarksPt}px` }}
-                                      className="bg-transparent font-bold font-mono text-black border-none outline-none cursor-pointer text-center"
-                                    >
-                                      <option value="">-</option>
-                                      <option value="A">A</option>
-                                      <option value="B">B</option>
-                                      <option value="C">C</option>
-                                    </select>
+                                    <>
+                                      <select
+                                        value={co[act.key] || ''}
+                                        onChange={(e) => onUpdateFinalCoGrade(st.id, act.key, e.target.value)}
+                                        style={{ fontSize: `${fontSizeMarksPt}px` }}
+                                        className="cce-screen-input bg-transparent font-bold font-mono text-black border-none outline-none cursor-pointer text-center"
+                                      >
+                                        <option value="">-</option>
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                      </select>
+                                      <span
+                                        className="cce-pdf-text hidden font-bold font-mono text-center inline-block w-full text-black"
+                                        style={{ fontSize: `${fontSizeMarksPt}px` }}
+                                      >
+                                        {co[act.key] || '-'}
+                                      </span>
+                                    </>
                                   ) : (
-                                    co[act.key] || '-'
+                                    <span
+                                      className="font-bold font-mono text-center inline-block w-full text-black"
+                                      style={{ fontSize: `${fontSizeMarksPt}px` }}
+                                    >
+                                      {co[act.key] || '-'}
+                                    </span>
                                   )}
                                 </td>
                               ))}
@@ -972,50 +994,30 @@ export const CcePage2Register: React.FC<CcePage2RegisterProps> = ({
 
                       {/* Signature 1: Class Teacher */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          {classTeacherName || ' '}
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ</div>
-                        <div className="text-[9px] font-semibold text-black">(Class Teacher Signature)</div>
+                        <div className="text-[9px] font-semibold text-black">(Class Teacher Sign)</div>
                       </div>
 
                       {/* Signature 2: Head Master & Seal */}
                       <div className="text-center space-y-1">
-                        <div className="w-48 border-b border-black pb-1 font-bold text-center">
-                          {schoolRecord?.headmasterName || ' '}
-                        </div>
+                        <div className="w-48 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">ಮುಖ್ಯೋಪಾಧ್ಯಾಯರ ಸಹಿ & ಮೊಹರು</div>
-                        <div className="text-[9px] font-semibold text-black">(HM Signature & Seal)</div>
+                        <div className="text-[9px] font-semibold text-black">(Head Master Sign & Seal)</div>
                       </div>
 
                       {/* Signature 3: CRP */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          <input
-                            type="text"
-                            value={crpName}
-                            onChange={(e) => setCrpName(e.target.value)}
-                            placeholder="CRP ಹೆಸರು"
-                            className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black"
-                          />
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">ಸಿ.ಆರ್.ಪಿ ಸಹಿ</div>
-                        <div className="text-[9px] font-semibold text-black">(CRP Signature)</div>
+                        <div className="text-[9px] font-semibold text-black">(CRP Sign)</div>
                       </div>
 
                       {/* Signature 4: ECO */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          <input
-                            type="text"
-                            value={ecoName}
-                            onChange={(e) => setEcoName(e.target.value)}
-                            placeholder="ECO ಹೆಸರು"
-                            className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black"
-                          />
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">ಇ.ಸಿ.ಒ ಸಹಿ</div>
-                        <div className="text-[9px] font-semibold text-black">(ECO Signature)</div>
+                        <div className="text-[9px] font-semibold text-black">(ECO Sign)</div>
                       </div>
                     </div>
                   </div>

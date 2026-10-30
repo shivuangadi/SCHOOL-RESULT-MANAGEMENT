@@ -142,11 +142,9 @@ export const printPrimaryCcePage2Register = async (
         padding-right: 7.5mm !important; /* Strict 0.75cm (7.5mm) right margin */
         padding-top: 8.5mm !important; /* Strict 0.85cm (8.5mm) top margin */
         padding-bottom: 8.5mm !important; /* Strict 0.85cm (8.5mm) bottom margin */
-        width: 100% !important;
-        max-width: 100% !important;
+        width: ${isA4 ? 297 : 355.6}mm !important;
+        min-height: ${isA4 ? 210 : 215.9}mm !important;
         box-sizing: border-box !important;
-        height: auto !important;
-        min-height: 0 !important;
         break-after: page !important;
         page-break-after: page !important;
         page-break-inside: avoid !important;
@@ -184,8 +182,7 @@ export const printPrimaryCcePage2Register = async (
       #kannada-english-page2-isolated-portal th,
       #kannada-english-page2-isolated-portal td {
         border: 1px solid #000000 !important;
-        padding: ${isA4 ? '1px 1px' : '1.5px 1.5px'} !important;
-        font-size: ${isA4 ? '9px' : '10px'} !important;
+        padding: ${isA4 ? '0.5px 0.5px' : '1px 1px'} !important;
         line-height: 1.1 !important;
         text-align: center !important;
         vertical-align: middle !important;
@@ -508,8 +505,7 @@ export const exportPrimaryCcePage2Pdf = async (
       #kannada-english-page2-staging-portal th,
       #kannada-english-page2-staging-portal td {
         border: 1px solid #000000 !important;
-        padding: ${isA4 ? '1px 1px' : '1.5px 1.5px'} !important;
-        font-size: ${isA4 ? '9px' : '10px'} !important;
+        padding: ${isA4 ? '0.5px 0.5px' : '1px 1px'} !important;
         line-height: 1.1 !important;
         text-align: center !important;
         vertical-align: middle !important;
@@ -529,7 +525,18 @@ export const exportPrimaryCcePage2Pdf = async (
 
     const clone = element.cloneNode(true) as HTMLElement;
     clone.classList.add('cce-pdf-mode');
-    clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button').forEach((el) => el.remove());
+    clone.querySelectorAll('.cce-print-hidden, .print\\:hidden, button, select').forEach((btn) => {
+      if (btn.tagName.toLowerCase() === 'select') {
+        const sel = btn as HTMLSelectElement;
+        const span = document.createElement('span');
+        span.className = 'font-bold font-mono text-center inline-block w-full text-black';
+        span.style.fontSize = sel.style.fontSize || '14px';
+        span.textContent = sel.value || '-';
+        sel.parentNode?.replaceChild(span, sel);
+      } else {
+        btn.remove();
+      }
+    });
 
     // Replace inputs with values
     const originalInputs = element.querySelectorAll<HTMLInputElement>('input:not([type="button"]):not([type="submit"])');

@@ -44,7 +44,7 @@ const DEMO_SCHOOL_DATA: SchoolRecord = {
 };
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, schoolRecord, isAdmin, isLoading } = useAuth();
+  const { currentUser, schoolRecord, isAdmin, isLoading, isImpersonating, exitImpersonation } = useAuth();
   const { lang } = useLanguage();
 
   // Demo mode state
@@ -150,6 +150,28 @@ const MainAppContent: React.FC = () => {
         activeNavTab={activeNavTab}
         onSelectNavTab={setActiveNavTab}
       />
+
+      {/* Admin Impersonation Active Banner */}
+      {isImpersonating && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-slate-950 px-4 py-2.5 shadow-md border-b-2 border-amber-600 sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm font-bold">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-md text-[11px] font-black uppercase tracking-wider">
+                👑 Admin Impersonation Active
+              </span>
+              <span>
+                ವೀಕ್ಷಿಸುತ್ತಿರುವ ಶಾಲೆ / Viewing as: <strong className="underline text-slate-900">{schoolRecord?.schoolName}</strong> (DISE: <span className="font-mono font-black">{schoolRecord?.diseCode}</span>)
+              </span>
+            </div>
+            <button
+              onClick={exitImpersonation}
+              className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
+            >
+              <span>🔙 ನಿರ್ವಾಹಕರ ಪ್ಯಾನೆಲ್‌ಗೆ ಹಿಂತಿರುಗಿ / Return to Admin Portal</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Workspace */}
       <main className="flex-1 relative flex flex-col justify-start overflow-y-auto">

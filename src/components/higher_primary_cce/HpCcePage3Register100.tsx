@@ -913,9 +913,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                         <span className="font-bold text-[12px]">
                           {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ' : 'Class Teacher Signature'}
                         </span>
-                        <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[22px]">
-                          {classTeacherName || '____________________'}
-                        </div>
+                        <div className="mt-1 border-b border-black pb-0.5 min-h-[22px]"></div>
                       </div>
                     </div>
                     <div className="text-center">
@@ -923,9 +921,7 @@ export const HpCcePage3Register100: React.FC<HpCcePage3Register100Props> = ({
                         <span className="font-bold text-[12px]">
                           {isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ' : 'Head Master Signature'}
                         </span>
-                        <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[22px]">
-                          {schoolRecord?.headmasterName || (isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳು' : 'Head Master')}
-                        </div>
+                        <div className="mt-1 border-b border-black pb-0.5 min-h-[22px]"></div>
                       </div>
                     </div>
                   </div>

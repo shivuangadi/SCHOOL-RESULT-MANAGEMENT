@@ -1,3 +1,12 @@
+/**
+ * ============================================================================
+ * LOCKED MODULE: MARATHI & URDU PRIMARY 100 MARKS CONSOLIDATION REGISTER (PAGE 2)
+ * STATUS: 100% PERFECT & LOCKED BY USER REQUEST
+ * DO NOT MODIFY THE LAYOUT, COLUMN WIDTHS, FONT SIZE (14), SYSTEM PRINT,
+ * OR PDF EXPORT WITHOUT EXPLICIT PERMISSION FROM THE USER.
+ * IF A COMMAND RISKS MODIFYING THIS REPORT, REMIND THE USER FIRST!
+ * ============================================================================
+ */
 import React, { useState, useMemo, useRef } from 'react';
 import { SchoolRecord, isCwsnStudent, formatClassOrdinal, formatClassStd } from '../../types';
 import {
@@ -84,10 +93,10 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
   // Fixed calibrated layout:
   // - Fixed 12 students per page for perfect fit
   // - Fixed 11.5mm (1.15cm) row height
-  // - Prominent font size 11.0px
+  // - Font size 14.0px for marks and grades (as requested)
   const studentsPerPage = 12;
   const rowHeightCm = 1.15;
-  const fontSizeMarksPt = 11.0;
+  const fontSizeMarksPt = 14.0;
 
   // Status message for feedback
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -428,7 +437,7 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                       <span>WORKING DAYS: <strong>{workingDays}</strong></span>
                     </div>
                     <div>
-                      <span>CLASS TEACHER'S NAME: <strong>{classTeacherName || 'Class Teacher'}</strong></span>
+                      <span>CLASS TEACHER</span>
                     </div>
                     <div>
                       <span>PAGE: <strong>{pageIdx + 1} / {chunks.length}</strong></span>
@@ -442,25 +451,25 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                     className="w-full text-center border-collapse border-2 border-black table-fixed text-[9.5px]"
                     style={{ tableLayout: 'fixed', width: '100%' }}
                   >
-                    {/* Fixed percentage widths: All 24 columns sum to exactly 100% to fit printable area */}
+                    {/* Fixed percentage widths: Student Name decreased by 2% (from 15% to 13%), subjects +0.2% each */}
                     <colgroup>
                       {/* 1. Sl No */}
                       <col style={{ width: '2.5%' }} />
                       {/* 2. Reg No + SATS No */}
                       <col style={{ width: '7.5%' }} />
-                      {/* 3. Student Name + DOB */}
-                      <col style={{ width: '15.0%' }} />
+                      {/* 3. Student Name + DOB (Decreased by 2% from 15% to 13%) */}
+                      <col style={{ width: '13.0%' }} />
                       {/* 4. Gender + Category (Boy or Girl) */}
                       <col style={{ width: '4.5%' }} />
                       {/* 5. Attendance (3.8%) */}
                       <col style={{ width: '3.8%' }} />
-                      {/* 6-15. Part-A 5 Subjects x 2 cols = 10 cols (35.0%) */}
+                      {/* 6-15. Part-A 5 Subjects x 2 cols = 10 cols (37.0%) */}
                       {subjects.map((sub) => (
                         <React.Fragment key={sub.code}>
-                          {/* Marks column: 3.8% (Decreased by 1%, same width as Attendance!) */}
-                          <col style={{ width: '3.8%' }} />
-                          {/* Grade column: 3.2% */}
-                          <col style={{ width: '3.2%' }} />
+                          {/* Marks column: 4.0% */}
+                          <col style={{ width: '4.0%' }} />
+                          {/* Grade column: 3.4% */}
+                          <col style={{ width: '3.4%' }} />
                         </React.Fragment>
                       ))}
                       {/* 16. Total 500 */}
@@ -761,7 +770,7 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                                 {cSt.overallGrade || '-'}
                               </td>
 
-                              {/* 19-23. Part-B 5 Co-Scholastic Grades (No downward arrow) */}
+                              {/* 19-23. Part-B 5 Co-Scholastic Grades (Font size 14, PDF visible) */}
                               {MARATHI_URDU_CO_ACTIVITIES.map((act) => (
                                 <td
                                   key={act.key}
@@ -770,14 +779,11 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                                 >
                                   {onUpdateFinalCoGrade ? (
                                     <div className="relative w-full h-full flex items-center justify-center">
-                                      <span className="hidden print:inline cce-pdf-text font-bold font-mono text-center">
-                                        {finalCo[act.key] || '-'}
-                                      </span>
                                       <select
                                         value={finalCo[act.key] || ''}
                                         onChange={(e) => onUpdateFinalCoGrade(st.id, act.key, e.target.value)}
                                         style={{ fontSize: `${fontSizeMarksPt}px` }}
-                                        className="appearance-none [-webkit-appearance:none] [-moz-appearance:none] bg-transparent font-bold font-mono text-black border-none outline-none cursor-pointer text-center w-full cce-screen-input print:hidden"
+                                        className="appearance-none [-webkit-appearance:none] [-moz-appearance:none] bg-transparent font-bold font-mono text-black border-none outline-none cursor-pointer text-center w-full cce-screen-input"
                                         title="Select Grade"
                                       >
                                         <option value="">-</option>
@@ -785,9 +791,20 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
                                         <option value="B">B</option>
                                         <option value="C">C</option>
                                       </select>
+                                      <span
+                                        className="cce-pdf-text hidden font-bold font-mono text-center inline-block w-full text-black"
+                                        style={{ fontSize: `${fontSizeMarksPt}px` }}
+                                      >
+                                        {finalCo[act.key] || '-'}
+                                      </span>
                                     </div>
                                   ) : (
-                                    finalCo[act.key] || '-'
+                                    <span
+                                      className="font-bold font-mono text-center inline-block w-full text-black"
+                                      style={{ fontSize: `${fontSizeMarksPt}px` }}
+                                    >
+                                      {finalCo[act.key] || '-'}
+                                    </span>
                                   )}
                                 </td>
                               ))}
@@ -860,45 +877,25 @@ export const MarathiUrduCcePage2Register: React.FC<MarathiUrduCcePage2RegisterPr
 
                       {/* Signature 1: Class Teacher */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          {classTeacherName || ' '}
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">Class Teacher's Signature</div>
                       </div>
 
                       {/* Signature 2: Head Master & Seal */}
                       <div className="text-center space-y-1">
-                        <div className="w-48 border-b border-black pb-1 font-bold text-center">
-                          {schoolRecord?.headmasterName || ' '}
-                        </div>
+                        <div className="w-48 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">Head Master's Signature & Seal</div>
                       </div>
 
                       {/* Signature 3: CRP */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          <input
-                            type="text"
-                            value={crpName}
-                            onChange={(e) => setCrpName(e.target.value)}
-                            placeholder="CRP Name"
-                            className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black"
-                          />
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">CRP Signature</div>
                       </div>
 
                       {/* Signature 4: ECO */}
                       <div className="text-center space-y-1">
-                        <div className="w-40 border-b border-black pb-1 font-bold text-center">
-                          <input
-                            type="text"
-                            value={ecoName}
-                            onChange={(e) => setEcoName(e.target.value)}
-                            placeholder="ECO Name"
-                            className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black"
-                          />
-                        </div>
+                        <div className="w-40 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black">ECO Signature</div>
                       </div>
                     </div>

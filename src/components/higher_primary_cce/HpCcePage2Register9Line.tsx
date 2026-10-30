@@ -857,18 +857,18 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                                   {/* CASTE, DOB, SATS NO, GENDER: Centered in cell - Labels in one line, numbers in next line */}
                                   <div className="w-full text-black font-mono text-center flex flex-col items-center justify-center space-y-0.5">
                                     <div className="truncate w-full text-[11px] leading-tight"><span className="font-bold">Caste:</span> {st.caste || 'GM'}</div>
-                                    {(st.dob || st.dateOfBirth) && (
-                                      <div className="w-full leading-tight">
-                                        <div className="font-bold text-[9.5px] text-slate-800 leading-tight">DOB:</div>
-                                        <div className="font-bold text-[11px] text-black tracking-tight leading-tight">{st.dob || st.dateOfBirth}</div>
+                                    <div className="w-full leading-tight">
+                                      <div className="font-bold text-[9px] text-slate-800 leading-tight">DOB:</div>
+                                      <div className="font-bold text-[10.5px] text-black tracking-tight leading-tight">
+                                        {st.dob || st.dateOfBirth || '-'}
                                       </div>
-                                    )}
-                                    {st.satsNo && st.satsNo.trim() !== '' && st.satsNo.trim() !== 'N/A' && st.satsNo.trim() !== '-' && (
-                                      <div className="w-full leading-tight">
-                                        <div className="font-bold text-[9.5px] text-slate-800 leading-tight">SATS No:</div>
-                                        <div className="font-bold text-[11px] text-black tracking-tight leading-tight">{st.satsNo.trim()}</div>
+                                    </div>
+                                    <div className="w-full leading-tight">
+                                      <div className="font-bold text-[9px] text-slate-800 leading-tight">SATS No:</div>
+                                      <div className="font-bold text-[10.5px] text-black tracking-tight leading-tight">
+                                        {st.satsNo?.trim() || (st as any).sats_no?.trim() || (st as any).satsNumber || '-'}
                                       </div>
-                                    )}
+                                    </div>
                                     <div className="truncate w-full text-[11px] leading-tight"><span className="font-bold">Gender:</span> {st.gender === 'Girl' ? 'Girl' : 'Boy'}</div>
                                   </div>
                                 </div>
@@ -1563,9 +1563,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   <div className="w-64 text-center">
                     <span className="font-bold text-[12px]">ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ</span>
                     <span className="block text-[10px] font-normal text-slate-700">(Class Teacher Signature)</span>
-                    <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[24px]">
-                      {effectiveTeacherName || '____________________'}
-                    </div>
+                    <div className="mt-1 border-b border-black pb-0.5 min-h-[24px]"></div>
                   </div>
                 </div>
 
@@ -1573,9 +1571,7 @@ export const HpCcePage2Register9Line: React.FC<HpCcePage2Register9LineProps> = (
                   <div className="w-64 text-center">
                     <span className="font-bold text-[12px]">ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ</span>
                     <span className="block text-[10px] font-normal text-slate-700">(Head Master Signature)</span>
-                    <div className="font-black text-[12px] mt-1 border-b border-black pb-0.5 min-h-[24px]">
-                      {schoolRecord?.headmasterName || 'ಮುಖ್ಯ ಗುರುಗಳು'}
-                    </div>
+                    <div className="mt-1 border-b border-black pb-0.5 min-h-[24px]"></div>
                   </div>
                 </div>
               </div>

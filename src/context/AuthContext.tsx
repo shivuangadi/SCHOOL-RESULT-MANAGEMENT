@@ -47,6 +47,10 @@ interface AuthContextType {
   resetPasswordForDise: (diseOrEmail: string) => Promise<{ success: boolean; message: string }>;
   refreshSchoolRecord: () => Promise<void>;
   updateSchoolRecord: (updates: Partial<SchoolRecord>) => Promise<boolean>;
+  isImpersonating: boolean;
+  impersonatingDise: string | null;
+  impersonateSchool: (diseCode: string) => Promise<boolean>;
+  exitImpersonation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -56,6 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRecord, setUserRecord] = useState<UserRecord | null>(null);
   const [schoolRecord, setSchoolRecord] = useState<SchoolRecord | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isImpersonating, setIsImpersonating] = useState<boolean>(() => {
+    return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('kseab_admin_impersonating') === 'true';
+  });
+  const [impersonatingDise, setImpersonatingDise] = useState<string | null>(() => {
+    return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('kseab_impersonating_dise') : null;
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -565,10 +575,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const impersonateSchool = async (diseCode: string): Promise<boolean> => {
+    const cleaned = diseCode.trim();
+    setIsLoading(true);
+    try {
+      let schoolData: SchoolRecord | null = null;
+      try {
+        const snap = await getDoc(doc(db, 'schools', cleaned));
+        if (snap.exists()) {
+          schoolData = snap.data() as SchoolRecord;
+        }
+      } catch (e) {
+        console.warn('Impersonate Firestore read fallback:', e);
+      }
+      if (!schoolData) {
+        schoolData = getLocalSchoolByDise(cleaned);
+      }
+      if (!schoolData) {
+        schoolData = {
+          schoolId: cleaned,
+          diseCode: cleaned,
+          schoolName: `School ${cleaned}`,
+          schoolType: 'Government',
+          schoolMedium: 'Kannada',
+          headmasterName: 'Headmaster',
+          taluk: 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ',
+          district: 'Belagavi',
+          mobile: '9731766727',
+          email: '',
+          status: 'APPROVED',
+          paymentStatus: 'PAID',
+          subscriptionStatus: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+        };
+      }
+
+      sessionStorage.setItem('kseab_admin_session_backup', 'true');
+      sessionStorage.setItem('kseab_admin_impersonating', 'true');
+      sessionStorage.setItem('kseab_impersonating_dise', cleaned);
+      sessionStorage.setItem(SESSION_KEY, cleaned);
+      localStorage.setItem(SESSION_KEY, cleaned);
+
+      const uid = schoolData.ownerUid || `school_${cleaned}`;
+      const userObj = {
+        uid,
+        email: schoolData.email,
+        displayName: schoolData.headmasterName,
+      };
+      const userRec: UserRecord = {
+        uid,
+        diseCode: cleaned,
+        schoolId: cleaned,
+        role: 'schoolAdmin',
+        name: schoolData.headmasterName,
+        email: schoolData.email,
+        status: schoolData.status || 'APPROVED',
+        createdAt: schoolData.createdAt,
+      };
+
+      setCurrentUser(userObj as any);
+      setSchoolRecord(schoolData);
+      setUserRecord(userRec);
+      setIsAdmin(false);
+      setIsImpersonating(true);
+      setImpersonatingDise(cleaned);
+      setIsLoading(false);
+      return true;
+    } catch (err: any) {
+      setIsLoading(false);
+      console.error('Failed to impersonate school:', err);
+      return false;
+    }
+  };
+
+  const exitImpersonation = () => {
+    sessionStorage.removeItem('kseab_admin_impersonating');
+    sessionStorage.removeItem('kseab_impersonating_dise');
+    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.setItem('kseab_admin_session', 'true');
+
+    setIsImpersonating(false);
+    setImpersonatingDise(null);
+    setIsAdmin(true);
+    setSchoolRecord(null);
+    setCurrentUser({ uid: 'admin_master', email: ADMIN_EMAIL, displayName: 'Shri S R Angadi' } as any);
+    setUserRecord({
+      uid: 'admin_master',
+      role: 'admin',
+      name: 'Shri S R Angadi (Science Teacher)',
+      email: ADMIN_EMAIL,
+      status: 'APPROVED',
+      createdAt: new Date().toISOString(),
+    });
+  };
+
   const logout = async () => {
     sessionStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem('kseab_admin_session');
+    sessionStorage.removeItem('kseab_admin_session_backup');
+    sessionStorage.removeItem('kseab_admin_impersonating');
+    sessionStorage.removeItem('kseab_impersonating_dise');
     try {
       await signOut(auth);
     } catch {
@@ -578,6 +686,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserRecord(null);
     setSchoolRecord(null);
     setIsAdmin(false);
+    setIsImpersonating(false);
+    setImpersonatingDise(null);
   };
 
   return (
@@ -598,6 +708,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPasswordForDise,
         refreshSchoolRecord,
         updateSchoolRecord,
+        isImpersonating,
+        impersonatingDise,
+        impersonateSchool,
+        exitImpersonation,
       }}
     >
       {children}

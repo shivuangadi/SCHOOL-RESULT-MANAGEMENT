@@ -24,6 +24,9 @@ interface ReportPrintPreviewModalProps {
   title: string;
   subtitle?: string;
   filename?: string;
+  paperSize?: 'a4' | 'legal';
+  orientation?: 'portrait' | 'landscape';
+  forceSinglePage?: boolean;
   children: React.ReactNode;
 }
 
@@ -33,6 +36,9 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
   title,
   subtitle,
   filename = 'School_Report.pdf',
+  paperSize = 'legal',
+  orientation = 'landscape',
+  forceSinglePage = false,
   children,
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -51,7 +57,7 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
   const handlePrint = async () => {
     if (printContentRef.current) {
       showTemporaryStatus('ಮುದ್ರಣ ವಿಂಡೋ ತೆರೆಯಲಾಗುತ್ತಿದೆ... / Opening print dialog...');
-      await executeReportPrint(printContentRef.current, title);
+      await executeReportPrint(printContentRef.current, title, paperSize, orientation);
     }
   };
 
@@ -60,7 +66,7 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
       setIsExportingPdf(true);
       showTemporaryStatus('PDF ತಯಾರಿಸಲಾಗುತ್ತಿದೆ... / Generating PDF file...');
       try {
-        const ok = await downloadElementAsPdf(printContentRef.current, filename);
+        const ok = await downloadElementAsPdf(printContentRef.current, filename, paperSize, orientation, forceSinglePage);
         if (ok) {
           showTemporaryStatus('✅ PDF ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ! / PDF downloaded successfully!');
         } else {
@@ -78,7 +84,7 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
   const handleOpenInNewTab = () => {
     if (printContentRef.current) {
       showTemporaryStatus('ಹೊಸ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ತೆರೆಯಲಾಗುತ್ತಿದೆ... / Opening clean print tab...');
-      openCleanPrintWindow(printContentRef.current, title);
+      openCleanPrintWindow(printContentRef.current, title, paperSize, orientation);
     }
   };
 

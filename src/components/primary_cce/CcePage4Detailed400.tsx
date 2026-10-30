@@ -1898,28 +1898,17 @@ export const CcePage4Detailed400: React.FC<CcePage4Detailed400Props> = ({
                       </div>
                     </div>
 
-                    {/* Signature 1: Class Teacher Name & Sign (Fetched from school profile) */}
+                    {/* Signature 1: Class Teacher Sign */}
                     <div className="text-center space-y-1">
-                      <div className="w-56 border-b border-black pb-1 font-bold text-center text-xs">
-                        <input
-                          type="text"
-                          value={ctName}
-                          onChange={(e) => setCtName(e.target.value)}
-                          className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black focus:bg-slate-100"
-                          placeholder={isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು' : "Class Teacher's Name"}
-                          title="Class Teacher's Name (Fetched from School Profile)"
-                        />
-                      </div>
+                      <div className="w-56 border-b border-black pb-1 h-6"></div>
                       <div className="text-[11px] font-black uppercase tracking-wider text-black">
-                        {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಹೆಸರು ಮತ್ತು ಸಹಿ' : "Class Teacher's Name & Signature"}
+                        {isKannada ? 'ವರ್ಗ ಶಿಕ್ಷಕರ ಸಹಿ' : "Class Teacher's Signature"}
                       </div>
                     </div>
 
                     {/* Signature 2: Head Master Sign & Seal */}
                     <div className="text-center space-y-1">
-                      <div className="w-56 border-b border-black pb-1 font-bold text-center text-xs text-black">
-                        {schoolRecord?.headmasterName || (isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳು' : 'Head Master')}
-                      </div>
+                      <div className="w-56 border-b border-black pb-1 h-6"></div>
                       <div className="text-[11px] font-black uppercase tracking-wider text-black">
                         {isKannada ? 'ಮುಖ್ಯ ಗುರುಗಳ ಸಹಿ ಮತ್ತು ಮೊಹರು' : "Head Master's Signature & Seal"}
                       </div>

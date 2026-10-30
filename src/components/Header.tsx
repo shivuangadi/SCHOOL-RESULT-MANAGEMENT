@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Layers,
+  FileText,
 } from 'lucide-react';
 
 export type NavCategory =
@@ -27,7 +28,8 @@ export type NavCategory =
   | 'marksEntry'
   | 'reportPrinting'
   | 'subjectStructure'
-  | 'schoolProfile';
+  | 'schoolProfile'
+  | 'coverPageDesigner';
 
 interface HeaderProps {
   onOpenAdminModal?: () => void;
@@ -344,6 +346,21 @@ export const Header: React.FC<HeaderProps> = ({
                 <School className="w-3.5 h-3.5 shrink-0" />
                 <span>School Profile</span>
               </button>
+
+              {/* [ Cover Page Designer / ಮುಖಪುಟ ವಿನ್ಯಾಸಕ ] */}
+              <button
+                type="button"
+                onClick={() => handleNavClick('coverPageDesigner')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
+                  activeNavTab === 'coverPageDesigner'
+                    ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300'
+                    : 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-white border border-amber-400/50'
+                }`}
+                title="Open Cover Page Designer (ಮುಖಪುಟ ವಿನ್ಯಾಸಕ)"
+              >
+                <FileText className="w-3.5 h-3.5 shrink-0 text-amber-300" />
+                <span>ಮುಖಪುಟ ವಿನ್ಯಾಸಕ (Cover Page)</span>
+              </button>
             </nav>
 
             {/* [ Logout ] */}
@@ -460,7 +477,21 @@ export const Header: React.FC<HeaderProps> = ({
               <span>School Profile</span>
             </button>
 
-            {/* 7. Logout */}
+            {/* 7. Cover Page Designer */}
+            <button
+              type="button"
+              onClick={() => handleNavClick('coverPageDesigner')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2.5 transition cursor-pointer ${
+                activeNavTab === 'coverPageDesigner'
+                  ? 'bg-amber-400 text-slate-950 font-black'
+                  : 'text-amber-300 hover:bg-blue-800'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span>ಮುಖಪುಟ ವಿನ್ಯಾಸಕ (Cover Page Designer)</span>
+            </button>
+
+            {/* 8. Logout */}
             <div className="pt-1 border-t border-blue-800/80 mt-1">
               <button
                 type="button"

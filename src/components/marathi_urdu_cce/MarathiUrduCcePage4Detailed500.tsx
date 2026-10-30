@@ -1073,10 +1073,16 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                                       className="mt-1 text-black font-mono space-y-0.2 text-center leading-tight"
                                       style={{ fontSize: `${detailsFontSize}px` }}
                                     >
-                                      <div><span className="font-bold">CASTE:</span> {st.caste || 'GM'}</div>
-                                      <div><span className="font-bold">DOB:</span> {st.dob || st.dateOfBirth || '01/06/2016'}</div>
-                                      <div><span className="font-bold">SATS:</span> {st.satsNo || 'N/A'}</div>
-                                      <div><span className="font-bold">GENDER:</span> {st.gender === 'Girl' ? 'Girl' : (st.gender === 'Boy' ? 'Boy' : ((st as any).gender || '-'))}</div>
+                                      <div className="truncate w-full"><span className="font-bold">CASTE:</span> {st.caste || 'GM'}</div>
+                                      <div className="w-full leading-tight">
+                                        <div className="font-bold text-[8px] text-slate-800 leading-tight">DOB:</div>
+                                        <div className="font-bold tracking-tight leading-tight">{st.dob || st.dateOfBirth || '-'}</div>
+                                      </div>
+                                      <div className="w-full leading-tight">
+                                        <div className="font-bold text-[8px] text-slate-800 leading-tight">SATS No:</div>
+                                        <div className="font-bold tracking-tight leading-tight">{st.satsNo?.trim() || (st as any).sats_no?.trim() || (st as any).satsNumber || '-'}</div>
+                                      </div>
+                                      <div className="truncate w-full"><span className="font-bold">GENDER:</span> {st.gender === 'Girl' ? 'Girl' : (st.gender === 'Boy' ? 'Boy' : ((st as any).gender || '-'))}</div>
                                     </div>
                                   </td>
                                 )}
@@ -1510,24 +1516,14 @@ export const MarathiUrduCcePage4Detailed500: React.FC<MarathiUrduCcePage4Detaile
                       </div>
 
                       <div className="text-center space-y-1">
-                        <div className="w-56 border-b border-black pb-1 font-bold text-center text-xs">
-                          <input
-                            type="text"
-                            value={ctName}
-                            onChange={(e) => setCtName(e.target.value)}
-                            className="w-full text-center bg-transparent border-none outline-none font-bold text-xs text-black focus:bg-slate-100"
-                            placeholder="Class Teacher's Name"
-                          />
-                        </div>
+                        <div className="w-56 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black uppercase tracking-wider text-black">
-                          Class Teacher's Name & Signature
+                          Class Teacher's Signature
                         </div>
                       </div>
 
                       <div className="text-center space-y-1">
-                        <div className="w-56 border-b border-black pb-1 font-bold text-center text-xs text-black">
-                          {schoolRecord?.headmasterName || 'Head Master'}
-                        </div>
+                        <div className="w-56 border-b border-black pb-1 h-6"></div>
                         <div className="text-[11px] font-black uppercase tracking-wider text-black">
                           Head Master's Signature & Seal
                         </div>
