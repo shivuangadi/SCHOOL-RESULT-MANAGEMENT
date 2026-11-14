@@ -10,6 +10,8 @@ import { calculateGrade, calculateSubjectGrade } from '../data/demoData';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, getDocs, onSnapshot, writeBatch } from 'firebase/firestore';
 import { cleanForFirestore } from './studentStore';
+import { dbPut, dbPutBatch } from '../lib/indexedDb';
+import { srmsSyncEngine } from './srmsSyncEngine';
 
 const getMarksStorageKey = (diseCode: string, academicYear?: string) => {
   return academicYear ? `kseab_real_exam_marks_${diseCode}_${academicYear}` : `kseab_real_exam_marks_${diseCode}`;
@@ -59,6 +61,23 @@ export const saveRealMarksToLocal = (
     }
   } catch (err) {
     console.warn('Error saving marks to local cache:', err);
+  }
+
+  // Persist to offline IndexedDB storage
+  try {
+    const list = Object.entries(marksMap).map(([studentId, marks]) => ({
+      ...marks,
+      id: `${diseCode}_${studentId}`,
+      diseCode,
+      studentId,
+    }));
+    if (list.length > 0) {
+      dbPutBatch('marks', list).catch((err) => {
+        console.warn('IndexedDB saveRealMarksToLocal notice:', err);
+      });
+    }
+  } catch (err) {
+    console.warn('IndexedDB marks batching error:', err);
   }
 };
 
@@ -159,15 +178,41 @@ export const saveStudentMarks = async (
     updatedAt: new Date().toISOString(),
   };
 
-  // 1. Write to Firestore safely
+  // 1. Immediately write to offline IndexedDB
   try {
-    const docRef = doc(db, 'schools', targetDise, 'examMarks', studentMarks.studentId);
-    await setDoc(docRef, cleanForFirestore(cleanMarks));
-  } catch (err) {
-    console.warn('Firestore saveStudentMarks network notice (saved in local cache):', err);
+    await dbPut('marks', {
+      ...cleanMarks,
+      id: `${targetDise}_${studentMarks.studentId}`,
+      diseCode: targetDise,
+      studentId: studentMarks.studentId,
+    });
+  } catch (idbErr) {
+    console.warn('IndexedDB write error for marks:', idbErr);
   }
 
-  // 2. Update local cache
+  // 2. Write to Firestore safely if online, otherwise enqueue for sync
+  let firestoreSuccess = false;
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const docRef = doc(db, 'schools', targetDise, 'examMarks', studentMarks.studentId);
+      await setDoc(docRef, cleanForFirestore(cleanMarks));
+      firestoreSuccess = true;
+    } catch (err) {
+      console.warn('Firestore saveStudentMarks network notice (saved in local cache & queued):', err);
+    }
+  }
+
+  if (!firestoreSuccess) {
+    await srmsSyncEngine.enqueueOperation(
+      'MARKS_UPSERT',
+      targetDise,
+      studentMarks.studentId,
+      cleanMarks,
+      currentYear
+    );
+  }
+
+  // 3. Update local cache
   const current = getRealMarksFromLocal(targetDise, currentYear);
   current[studentMarks.studentId] = cleanMarks;
   saveRealMarksToLocal(targetDise, current, currentYear);

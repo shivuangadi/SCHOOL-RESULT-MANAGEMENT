@@ -17,6 +17,8 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
+import { dbPut, dbPutBatch, dbDelete, dbGetAll } from '../lib/indexedDb';
+import { srmsSyncEngine } from './srmsSyncEngine';
 export { formatSatsNo, formatAadharNo } from './kannadaTransliterator';
 
 export const cleanForFirestore = <T extends Record<string, any>>(obj: T): Record<string, any> => {
@@ -118,6 +120,17 @@ export const saveStudentsToLocal = (diseCode: string, students: Student[], acade
     }
   } catch (err) {
     console.warn('Error updating local student cache:', err);
+  }
+
+  // Persist to offline IndexedDB storage asynchronously
+  if (Array.isArray(students) && students.length > 0) {
+    const listWithDise = students.map((s) => ({
+      ...s,
+      diseCode: s.diseCode || diseCode,
+    }));
+    dbPutBatch('students', listWithDise).catch((err) => {
+      console.warn('IndexedDB saveStudentsToLocal notice:', err);
+    });
   }
 };
 
@@ -460,16 +473,31 @@ export const saveStudent = async (student: Student, academicYear?: string): Prom
 
   const firestoreData = cleanForFirestore(studentDoc);
 
-  // 1. Write to Firestore safely
-  localStorage.removeItem(`kseab_cleared_${diseCode}`);
+  // 1. Write immediately to offline IndexedDB
   try {
-    const docRef = doc(db, 'schools', diseCode, 'students', cleanId);
-    await setDoc(docRef, firestoreData, { merge: true });
-    // Also ensure school doc exists
-    const schoolDocRef = doc(db, 'schools', diseCode);
-    await setDoc(schoolDocRef, { diseCode, schoolId: diseCode, updatedAt: new Date().toISOString() }, { merge: true });
-  } catch (err) {
-    console.warn('Firestore saveStudent network notice (stored in local cache):', err);
+    await dbPut('students', studentDoc);
+  } catch (idbErr) {
+    console.warn('IndexedDB write notice for student:', idbErr);
+  }
+
+  // 2. Write to Firestore safely if online, otherwise enqueue for sync
+  localStorage.removeItem(`kseab_cleared_${diseCode}`);
+  let firestoreSuccess = false;
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const docRef = doc(db, 'schools', diseCode, 'students', cleanId);
+      await setDoc(docRef, firestoreData, { merge: true });
+      // Also ensure school doc exists
+      const schoolDocRef = doc(db, 'schools', diseCode);
+      await setDoc(schoolDocRef, { diseCode, schoolId: diseCode, updatedAt: new Date().toISOString() }, { merge: true });
+      firestoreSuccess = true;
+    } catch (err) {
+      console.warn('Firestore saveStudent network notice (stored in local cache & sync queue):', err);
+    }
+  }
+
+  if (!firestoreSuccess) {
+    await srmsSyncEngine.enqueueOperation('STUDENT_UPSERT', diseCode, cleanId, studentDoc, studentDoc.academicYear);
   }
 
   // 2. Update local cache
@@ -571,7 +599,17 @@ export const deleteMultipleStudents = async (
     saveDeletedStudentsToLocal(targetDise, updatedDeleted);
   }
 
-  // Purge from active local storage caches
+  // Purge from active local storage caches and IndexedDB
+  idSet.forEach((id) => {
+    dbDelete('students', id).catch((err) => console.warn('IndexedDB delete notice:', err));
+  });
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    studentsToBackup.forEach((st) => {
+      srmsSyncEngine.enqueueOperation('STUDENT_DELETE', targetDise, st.id, st, academicYear);
+    });
+  }
+
   const filteredCurrent = current.filter((s) => !idSet.has(s.id));
   saveStudentsToLocal(targetDise, filteredCurrent, academicYear);
   const filteredGeneral = general.filter((s) => !idSet.has(s.id));

@@ -23,6 +23,7 @@ import { Loader2, School, PieChart, Sparkles } from 'lucide-react';
 import { AngadiPhoto } from './components/AngadiPhoto';
 import { SchoolRecord } from './types';
 import { PassKeyExpiryReminderModal } from './components/PassKeyExpiryReminderModal';
+import { OfflineNotificationBanner } from './components/OfflineNotificationBanner';
 
 const DEMO_SCHOOL_DATA: SchoolRecord = {
   schoolId: 'DEMO_29010100101',
@@ -135,6 +136,9 @@ const MainAppContent: React.FC = () => {
 
   return (
     <div className="w-full bg-[#1e40af] text-slate-800 selection:bg-blue-600 selection:text-white relative flex flex-col min-h-screen">
+      {/* Offline Status Top Banner */}
+      <OfflineNotificationBanner />
+
       {/* Universal Header with School Details, Home Button & Logout */}
       <Header
         onOpenAdminModal={() => setIsAdminLoginOpen(true)}

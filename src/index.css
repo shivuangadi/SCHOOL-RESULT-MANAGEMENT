@@ -123,14 +123,36 @@ button.cursor-not-allowed {
   filter: brightness(1.06) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.12));
 }
 
+@keyframes srmsSlowOrbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chart-slow-spin {
+  animation: srmsSlowOrbit 28s linear infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.chart-slow-spin:hover,
+.chart-slow-spin.chart-spin-paused {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   button,
   .chart-card,
   .chart-container,
   [data-chart="true"],
-  .chart-interactive {
+  .chart-interactive,
+  .chart-slow-spin {
     transition: none !important;
     transform: none !important;
+    animation: none !important;
   }
 }
 

@@ -16,11 +16,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  FileCheck,
+  FileText,
 } from 'lucide-react';
 import { openCleanPrintWindow, shareReportToWhatsApp, downloadElementAsPdf } from '../utils/printPdfHelper';
 import { formatSatsNo } from '../utils/kannadaTransliterator';
 import { CwsnBadge } from './CwsnBadge';
 import { StudentPhotoImg } from './StudentPhotoImg';
+import { TransferCertificateModal } from './TransferCertificateModal';
+import { StudyCertificateModal } from './StudyCertificateModal';
 
 interface StudentListDetailsModalProps {
   isOpen: boolean;
@@ -41,6 +45,8 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const printableRef = useRef<HTMLDivElement>(null);
+  const [tcStudentId, setTcStudentId] = useState<string | null>(null);
+  const [certStudentId, setCertStudentId] = useState<string | null>(null);
 
   const diseCode = schoolRecord?.diseCode || '';
   const schoolName = schoolRecord?.schoolName || 'Govt School';
@@ -248,6 +254,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static">
       <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:rounded-none">
         {/* Top Header Bar */}
@@ -408,6 +415,12 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                       {renderSortIndicator('name')}
                     </th>
                     <th
+                      className="py-2.5 px-2.5 border-r border-slate-300 text-center whitespace-nowrap print:hidden"
+                      title="Generate Certificate or Transfer Certificate (TC)"
+                    >
+                      <span>Certificate &amp; TC</span>
+                    </th>
+                    <th
                       onClick={() => handleHeaderSort('sats')}
                       className="py-2.5 px-3 border-r border-slate-300 font-mono whitespace-nowrap min-w-[130px] cursor-pointer select-none hover:bg-slate-200 transition"
                       title="Click to sort by SATS Number"
@@ -498,6 +511,28 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                           <CwsnBadge status={st.cwsnStatus} />
                         </div>
                       </td>
+                      <td className="py-2 px-2 border-r border-slate-200 text-center whitespace-nowrap print:hidden">
+                        <div className="inline-flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setCertStudentId(st.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-bold text-[11px] shadow-xs transition cursor-pointer"
+                            title="Certificate / ಶಾಲಾ ದೃಢೀಕರಣ ಪತ್ರ"
+                          >
+                            <FileCheck className="w-3 h-3" />
+                            <span>Certificate</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTcStudentId(st.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shadow-xs transition cursor-pointer"
+                            title="Transfer Certificate / ವರ್ಗಾವಣೆ ಪ್ರಮಾಣ ಪತ್ರ (TC)"
+                          >
+                            <FileText className="w-3 h-3" />
+                            <span>TC</span>
+                          </button>
+                        </div>
+                      </td>
                       <td className="py-2 px-3 border-r border-slate-200 font-mono whitespace-nowrap min-w-[130px]">
                         <div className="text-red-600 font-bold tracking-wider whitespace-nowrap">{formatSatsNo(st.satsNo) || '-'}</div>
                         {st.penNo && st.penNo !== 'N/A' && st.penNo !== '-' && (
@@ -545,6 +580,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
                     <td colSpan={3} className="py-2.5 px-3 text-slate-900">
                       Total Count: {filteredStudents.length} Students
                     </td>
+                    <td className="print:hidden" />
                     <td colSpan={8} className="py-2.5 px-3 text-right text-slate-600 font-normal">
                       👦 Boys: {filteredStudents.filter((s) => s.gender === 'Boy' || !s.gender).length} • 👧 Girls: {filteredStudents.filter((s) => s.gender === 'Girl').length}
                     </td>
@@ -582,5 +618,28 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
         </div>
       </div>
     </div>
+
+    {/* Certificate Modal launched directly for selected student */}
+    {certStudentId && (
+      <StudyCertificateModal
+        isOpen={Boolean(certStudentId)}
+        onClose={() => setCertStudentId(null)}
+        students={students}
+        schoolRecord={schoolRecord}
+        initialStudentId={certStudentId}
+      />
+    )}
+
+    {/* Transfer Certificate (TC) Modal launched directly for selected student */}
+    {tcStudentId && (
+      <TransferCertificateModal
+        isOpen={Boolean(tcStudentId)}
+        onClose={() => setTcStudentId(null)}
+        students={students}
+        schoolRecord={schoolRecord}
+        initialStudentId={tcStudentId}
+      />
+    )}
+    </>
   );
 };

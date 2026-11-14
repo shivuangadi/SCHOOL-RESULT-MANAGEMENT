@@ -21,6 +21,8 @@ import {
   Layers,
   FileText,
 } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
+import { SyncStatusDashboard } from './SyncStatusDashboard';
 
 export type NavCategory =
   | 'home'
@@ -194,6 +196,14 @@ export const Header: React.FC<HeaderProps> = ({
                   {validityDate}
                 </span>
               </button>
+            )}
+
+            {/* PWA Install App Button */}
+            <PWAInstallButton variant="header" />
+
+            {/* Live Sync Status Badge (Only when school session or demo active) */}
+            {(isUserLoggedIn || isDemoActive) && (
+              <SyncStatusDashboard variant="badge" />
             )}
 
             {/* Language Switch Button (Actually Works & Toggles App) */}

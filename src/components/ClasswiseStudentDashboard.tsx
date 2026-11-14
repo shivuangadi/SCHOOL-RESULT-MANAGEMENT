@@ -69,6 +69,10 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
   const [selectedDetailClass, setSelectedDetailClass] = useState<StudentClass | null>(null);
   const [isConsolidatedProgressOpen, setIsConsolidatedProgressOpen] = useState(false);
 
+  // Interactive hover/touch states for circular charts (pauses spin & displays segment info)
+  const [hoveredDonutSlice, setHoveredDonutSlice] = useState<'boy' | 'girl' | null>(null);
+  const [hoveredPieKey, setHoveredPieKey] = useState<string | null>(null);
+
   const schoolId = schoolRecord?.schoolId || schoolRecord?.diseCode || 'default_school';
   const diseCode = schoolRecord?.diseCode || '00000000000';
   const talukName = schoolRecord?.taluk || 'ಬೆಳಗಾವಿ ಗ್ರಾಮೀಣ';
@@ -397,13 +401,17 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
     const nonZero = categoryPieData.filter((d) => d.count > 0);
     if (nonZero.length === 1) {
       const single = nonZero[0];
+      const isHovered = hoveredPieKey === single.key;
       return (
         <circle
           cx="100"
           cy="100"
-          r="80"
+          r={isHovered ? '84' : '80'}
           fill={single.color}
-          className="transition-all hover:opacity-95 cursor-pointer hover:scale-105 origin-center filter hover:brightness-110"
+          className="transition-all duration-200 cursor-pointer origin-center filter hover:brightness-110"
+          onMouseEnter={() => setHoveredPieKey(single.key)}
+          onMouseLeave={() => setHoveredPieKey(null)}
+          onTouchStart={() => setHoveredPieKey(single.key)}
           onClick={() => {
             setStudentDetailsModalState({
               isOpen: true,
@@ -429,7 +437,8 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
       const startRad = ((startAngle - 90) * Math.PI) / 180;
       const endRad = ((endAngle - 90) * Math.PI) / 180;
 
-      const r = 80;
+      const isHovered = hoveredPieKey === slice.key;
+      const r = isHovered ? 85 : 80;
       const cx = 100;
       const cy = 100;
 
@@ -447,8 +456,13 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
           d={d}
           fill={slice.color}
           stroke="#ffffff"
-          strokeWidth="2.5"
-          className="transition-all duration-200 hover:opacity-95 hover:scale-105 origin-center cursor-pointer filter hover:brightness-110"
+          strokeWidth={isHovered ? '3.5' : '2.5'}
+          className={`transition-all duration-200 cursor-pointer origin-center filter ${
+            isHovered ? 'brightness-110 drop-shadow-md' : hoveredPieKey ? 'opacity-80' : 'hover:brightness-110'
+          }`}
+          onMouseEnter={() => setHoveredPieKey(slice.key)}
+          onMouseLeave={() => setHoveredPieKey(null)}
+          onTouchStart={() => setHoveredPieKey(slice.key)}
           onClick={() => {
             setStudentDetailsModalState({
               isOpen: true,
@@ -739,7 +753,8 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
           {/* Chart 1: Donut Pie Chart (Boys vs Girls) DIRECTLY BELOW TABLE 1 */}
           <div
             data-chart="true"
-            className="chart-card chart-container bg-white rounded-3xl shadow-md border-2 border-slate-200 p-5 h-[340px] min-h-[340px] flex flex-col justify-between shrink-0 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-blue-400 hover:brightness-[1.02]"
+            onMouseLeave={() => setHoveredDonutSlice(null)}
+            className="chart-card chart-container bg-white rounded-3xl shadow-md border-2 border-slate-200 p-5 min-h-[340px] flex flex-col justify-between shrink-0 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-blue-400 hover:brightness-[1.02]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-2 h-[36px] shrink-0">
               <span className="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-2 uppercase tracking-wide">
@@ -752,63 +767,105 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5 flex-1 py-1">
-              {/* Interactive SVG Donut */}
+              {/* Interactive Rotating SVG Donut */}
               <div className="chart-interactive relative flex items-center justify-center shrink-0 transition-all duration-300 hover:-translate-y-1 hover:brightness-105">
-                <svg width={size} height={size} className="transform -rotate-90">
-                  <circle cx={center} cy={center} r={radius} stroke="#f1f5f9" strokeWidth={strokeWidth} fill="transparent" />
-                  {/* Boys Segment */}
-                  <circle
-                    cx={center}
-                    cy={center}
-                    r={radius}
-                    stroke="#2563eb"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                    strokeDasharray={`${boysDash} ${circumference}`}
-                    strokeLinecap="round"
-                    className="transition-all duration-300 ease-out cursor-pointer hover:stroke-[#1d4ed8]"
-                    onClick={handleOpenBoysList}
-                  >
-                    <title>Boys: {totalBoys} ({boysPercentage}%)</title>
-                  </circle>
-                  {/* Girls Segment */}
-                  <circle
-                    cx={center}
-                    cy={center}
-                    r={radius}
-                    stroke="#ec4899"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                    strokeDasharray={`${girlsDash} ${circumference}`}
-                    strokeDashoffset={-boysDash}
-                    strokeLinecap="round"
-                    className="transition-all duration-300 ease-out cursor-pointer hover:stroke-[#be185d]"
-                    onClick={handleOpenGirlsList}
-                  >
-                    <title>Girls: {totalGirls} ({girlsPercentage}%)</title>
-                  </circle>
-                </svg>
+                <div className={`chart-slow-spin ${hoveredDonutSlice ? 'chart-spin-paused' : ''}`}>
+                  <svg width={size} height={size} className="transform -rotate-90">
+                    <circle cx={center} cy={center} r={radius} stroke="#f1f5f9" strokeWidth={strokeWidth} fill="transparent" />
+                    {/* Boys Segment */}
+                    <circle
+                      cx={center}
+                      cy={center}
+                      r={radius}
+                      stroke={hoveredDonutSlice === 'boy' ? '#1d4ed8' : '#2563eb'}
+                      strokeWidth={hoveredDonutSlice === 'boy' ? strokeWidth + 5 : strokeWidth}
+                      fill="transparent"
+                      strokeDasharray={`${boysDash} ${circumference}`}
+                      strokeLinecap="round"
+                      className="transition-all duration-300 ease-out cursor-pointer"
+                      onMouseEnter={() => setHoveredDonutSlice('boy')}
+                      onMouseLeave={() => setHoveredDonutSlice(null)}
+                      onTouchStart={() => setHoveredDonutSlice('boy')}
+                      onClick={handleOpenBoysList}
+                    >
+                      <title>Boys: {totalBoys} ({boysPercentage}%)</title>
+                    </circle>
+                    {/* Girls Segment */}
+                    <circle
+                      cx={center}
+                      cy={center}
+                      r={radius}
+                      stroke={hoveredDonutSlice === 'girl' ? '#be185d' : '#ec4899'}
+                      strokeWidth={hoveredDonutSlice === 'girl' ? strokeWidth + 5 : strokeWidth}
+                      fill="transparent"
+                      strokeDasharray={`${girlsDash} ${circumference}`}
+                      strokeDashoffset={-boysDash}
+                      strokeLinecap="round"
+                      className="transition-all duration-300 ease-out cursor-pointer"
+                      onMouseEnter={() => setHoveredDonutSlice('girl')}
+                      onMouseLeave={() => setHoveredDonutSlice(null)}
+                      onTouchStart={() => setHoveredDonutSlice('girl')}
+                      onClick={handleOpenGirlsList}
+                    >
+                      <title>Girls: {totalGirls} ({girlsPercentage}%)</title>
+                    </circle>
+                  </svg>
+                </div>
 
-                {/* Center Content in Donut */}
+                {/* Center Content in Donut (Stays Upright while Donut Rotates) */}
                 <div
-                  onClick={handleOpenAllStudentsList}
-                  className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:scale-105 hover:-translate-y-0.5 transition-all text-center group"
-                  title="Click to view all students"
+                  onClick={hoveredDonutSlice === 'boy' ? handleOpenBoysList : hoveredDonutSlice === 'girl' ? handleOpenGirlsList : handleOpenAllStudentsList}
+                  className="absolute inset-0 m-auto w-24 h-24 rounded-full flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-all text-center group pointer-events-auto"
+                  title="Click to view students list"
                 >
-                  <span className="text-2xl sm:text-3xl font-black text-slate-950 font-mono tracking-tight leading-none group-hover:text-blue-600 transition-colors">
-                    {grandTotal}
-                  </span>
-                  <span className="text-[10px] uppercase font-black text-slate-600 mt-0.5">
-                    {isKn ? 'ವಿದ್ಯಾರ್ಥಿಗಳು' : 'Students'}
-                  </span>
+                  {hoveredDonutSlice === 'boy' ? (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-blue-700 font-mono tracking-tight leading-none">
+                        {totalBoys}
+                      </span>
+                      <span className="text-[10px] font-black text-blue-800 mt-0.5">
+                        👦 {boysPercentage}%
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-600">
+                        {isKn ? 'ಬಾಲಕರು' : 'Boys'}
+                      </span>
+                    </>
+                  ) : hoveredDonutSlice === 'girl' ? (
+                    <>
+                      <span className="text-xl sm:text-2xl font-black text-pink-700 font-mono tracking-tight leading-none">
+                        {totalGirls}
+                      </span>
+                      <span className="text-[10px] font-black text-pink-800 mt-0.5">
+                        👧 {girlsPercentage}%
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-600">
+                        {isKn ? 'ಬಾಲಕಿಯರು' : 'Girls'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl sm:text-3xl font-black text-slate-950 font-mono tracking-tight leading-none group-hover:text-blue-600 transition-colors">
+                        {grandTotal}
+                      </span>
+                      <span className="text-[10px] uppercase font-black text-slate-600 mt-0.5">
+                        {isKn ? 'ವಿದ್ಯಾರ್ಥಿಗಳು' : 'Students'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Legend Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full flex-1">
                 <div
+                  onMouseEnter={() => setHoveredDonutSlice('boy')}
+                  onMouseLeave={() => setHoveredDonutSlice(null)}
                   onClick={handleOpenBoysList}
-                  className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-blue-100 transition shadow-xs hover:-translate-y-1 hover:shadow-md hover:brightness-105 duration-200"
+                  className={`p-2.5 border rounded-xl flex items-center justify-between cursor-pointer transition shadow-xs duration-200 ${
+                    hoveredDonutSlice === 'boy'
+                      ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-300 -translate-y-1 shadow-md'
+                      : 'bg-blue-50 border-blue-200 hover:bg-blue-100 hover:-translate-y-1 hover:shadow-md'
+                  }`}
                   title="Click to view all Boys"
                 >
                   <div className="flex items-center gap-1.5">
@@ -822,8 +879,14 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
                 </div>
 
                 <div
+                  onMouseEnter={() => setHoveredDonutSlice('girl')}
+                  onMouseLeave={() => setHoveredDonutSlice(null)}
                   onClick={handleOpenGirlsList}
-                  className="p-2.5 bg-pink-50 border border-pink-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-pink-100 transition shadow-xs hover:-translate-y-1 hover:shadow-md hover:brightness-105 duration-200"
+                  className={`p-2.5 border rounded-xl flex items-center justify-between cursor-pointer transition shadow-xs duration-200 ${
+                    hoveredDonutSlice === 'girl'
+                      ? 'bg-pink-100 border-pink-500 ring-2 ring-pink-300 -translate-y-1 shadow-md'
+                      : 'bg-pink-50 border-pink-200 hover:bg-pink-100 hover:-translate-y-1 hover:shadow-md'
+                  }`}
                   title="Click to view all Girls"
                 >
                   <div className="flex items-center gap-1.5">
@@ -836,6 +899,25 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
                   <span className="text-xs font-black text-pink-900 font-mono">{girlsPercentage}%</span>
                 </div>
               </div>
+            </div>
+
+            {/* Live Segment Info Bar for Donut */}
+            <div className="pt-2 border-t border-slate-100 text-[11px] font-bold flex items-center justify-between text-slate-600 min-h-[26px]">
+              {hoveredDonutSlice === 'boy' ? (
+                <span className="text-blue-800 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" />
+                  <span>👦 ಬಾಲಕರು (Boys): <b className="font-mono">{totalBoys}</b> ({boysPercentage}%) • ಪಟ್ಟಿ ನೋಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ</span>
+                </span>
+              ) : hoveredDonutSlice === 'girl' ? (
+                <span className="text-pink-800 flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-pink-500 inline-block" />
+                  <span>👧 ಬಾಲಕಿಯರು (Girls): <b className="font-mono">{totalGirls}</b> ({girlsPercentage}%) • ಪಟ್ಟಿ ನೋಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ</span>
+                </span>
+              ) : (
+                <span className="text-slate-400">
+                  {isKn ? 'ಚಾರ್ಟ್ ಭಾಗದ ಮೇಲೆ ಮುಟ್ಟಿದರೆ ಆ ವಿಭಾಗದ ಮಾಹಿತಿ ಕಾಣಿಸುತ್ತದೆ' : 'Hover or touch a donut slice to inspect student count'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1405,7 +1487,8 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
           {/* Chart 2: Category Distribution Chart DIRECTLY BELOW TABLE 2 */}
           <div
             data-chart="true"
-            className="chart-card chart-container bg-white rounded-3xl shadow-md border-2 border-slate-200 p-5 h-[340px] min-h-[340px] flex flex-col justify-between shrink-0 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-indigo-400 hover:brightness-[1.02]"
+            onMouseLeave={() => setHoveredPieKey(null)}
+            className="chart-card chart-container bg-white rounded-3xl shadow-md border-2 border-slate-200 p-5 min-h-[340px] flex flex-col justify-between shrink-0 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:border-indigo-400 hover:brightness-[1.02]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-2 h-[36px] shrink-0">
               <span className="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-2 uppercase tracking-wide">
@@ -1422,46 +1505,84 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 flex-1 py-1">
-              {/* Interactive SVG Pie Chart */}
+              {/* Interactive Rotating SVG Pie Chart */}
               <div className="chart-interactive relative flex items-center justify-center shrink-0 transition-all duration-300 hover:-translate-y-1 hover:brightness-105">
-                <svg width="180" height="180" viewBox="0 0 200 200" className="drop-shadow-sm">
-                  {renderPieSvgSlices()}
-                </svg>
+                <div className={`chart-slow-spin ${hoveredPieKey ? 'chart-spin-paused' : ''}`}>
+                  <svg width="180" height="180" viewBox="0 0 200 200" className="drop-shadow-sm">
+                    {renderPieSvgSlices()}
+                  </svg>
+                </div>
               </div>
 
               {/* Category Legend Cards */}
               <div className="grid grid-cols-2 gap-2.5 w-full sm:w-auto flex-1 max-w-sm">
-                {categoryPieData.map((cat) => (
-                  <div
-                    key={cat.key}
-                    onClick={() => {
-                      setStudentDetailsModalState({
-                        isOpen: true,
-                        title: isKn ? `${cat.labelKn} - ಪಟ್ಟಿ (${cat.count})` : `${cat.labelEn} - List (${cat.count})`,
-                        subtitle: `${schoolRecord?.schoolName || 'Govt School'} • DISE: ${diseCode} • ಒಟ್ಟು: ${cat.count}`,
-                        students: cat.students,
-                      });
-                    }}
-                    className="p-2.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-400 rounded-2xl cursor-pointer transition-all shadow-xs space-y-1 hover:-translate-y-1 hover:shadow-md hover:brightness-105 duration-200"
-                    title={`Click to view ${cat.labelEn} students (${cat.count})`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-3.5 h-3.5 rounded-full ${cat.bg} shrink-0`} />
-                      <span className="font-black text-xs text-slate-900 truncate">
-                        {cat.key}
-                      </span>
+                {categoryPieData.map((cat) => {
+                  const isHighlighted = hoveredPieKey === cat.key;
+                  return (
+                    <div
+                      key={cat.key}
+                      onMouseEnter={() => setHoveredPieKey(cat.key)}
+                      onMouseLeave={() => setHoveredPieKey(null)}
+                      onClick={() => {
+                        setStudentDetailsModalState({
+                          isOpen: true,
+                          title: isKn ? `${cat.labelKn} - ಪಟ್ಟಿ (${cat.count})` : `${cat.labelEn} - List (${cat.count})`,
+                          subtitle: `${schoolRecord?.schoolName || 'Govt School'} • DISE: ${diseCode} • ಒಟ್ಟು: ${cat.count}`,
+                          students: cat.students,
+                        });
+                      }}
+                      className={`p-2.5 border-2 rounded-2xl cursor-pointer transition-all shadow-xs space-y-1 duration-200 ${
+                        isHighlighted
+                          ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-300 -translate-y-1 shadow-md'
+                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-slate-400 hover:-translate-y-1 hover:shadow-md'
+                      }`}
+                      title={`Click to view ${cat.labelEn} students (${cat.count})`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-3.5 h-3.5 rounded-full ${cat.bg} shrink-0`} />
+                        <span className="font-black text-xs text-slate-900 truncate">
+                          {cat.key}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs text-slate-600 font-bold font-mono">
+                          {cat.count} {isKn ? 'ವಿದ್ಯಾರ್ಥಿ' : 'Students'}
+                        </span>
+                        <span className={`text-xs font-black font-mono ${cat.text}`}>
+                          {cat.percentage}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs text-slate-600 font-bold font-mono">
-                        {cat.count} {isKn ? 'ವಿದ್ಯಾರ್ಥಿ' : 'Students'}
-                      </span>
-                      <span className={`text-xs font-black font-mono ${cat.text}`}>
-                        {cat.percentage}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Live Segment Info Bar for Pie Chart */}
+            <div className="pt-2 border-t border-slate-100 text-[11px] font-bold flex items-center justify-between text-slate-600 min-h-[26px]">
+              {(() => {
+                const activeSlice = hoveredPieKey ? categoryPieData.find((c) => c.key === hoveredPieKey) : null;
+                if (!activeSlice) {
+                  return (
+                    <span className="text-slate-400">
+                      {isKn ? 'ಪೈ ಚಾರ್ಟ್ ಭಾಗದ ಮೇಲೆ ಮುಟ್ಟಿದರೆ ಆ ಪ್ರವರ್ಗದ ವಿವರ ಕಾಣಿಸುತ್ತದೆ' : 'Hover or touch a pie slice to view category details'}
+                    </span>
+                  );
+                }
+                const boysInCat = activeSlice.students.filter((s) => s.gender === 'Boy' || !s.gender).length;
+                const girlsInCat = activeSlice.students.filter((s) => s.gender === 'Girl').length;
+                return (
+                  <div className="flex flex-wrap items-center justify-between w-full gap-2">
+                    <span className={`flex items-center gap-1.5 ${activeSlice.text}`}>
+                      <span className={`w-2.5 h-2.5 rounded-full ${activeSlice.bg} inline-block`} />
+                      <span>{isKn ? activeSlice.labelKn : activeSlice.labelEn}: <b className="font-mono">{activeSlice.count}</b> ({activeSlice.percentage}%)</span>
+                    </span>
+                    <span className="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                      👦 {boysInCat} • 👧 {girlsInCat}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

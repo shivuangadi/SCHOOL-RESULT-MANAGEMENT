@@ -27,6 +27,7 @@ import {
   saveLocalSchool,
   verifyLocalSchoolCredentials,
 } from '../utils/localSchoolStore';
+import { srmsSyncEngine } from '../utils/srmsSyncEngine';
 
 const ADMIN_EMAIL = 'shivu.angadi@gmail.com';
 const SESSION_KEY = 'kseab_active_session_dise';
@@ -86,6 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
   };
+
+  useEffect(() => {
+    if (schoolRecord?.diseCode) {
+      srmsSyncEngine.setActiveContext(schoolRecord.diseCode);
+    }
+  }, [schoolRecord?.diseCode]);
 
   useEffect(() => {
     let unsubSchool: (() => void) | null = null;
