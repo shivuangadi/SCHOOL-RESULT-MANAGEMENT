@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Student, SchoolRecord } from '../types';
 import { getRealMarksFromLocal, getStudentCalculatedResult } from '../utils/marksStore';
-import { getClassesFromRange } from '../utils/studentStore';
+import { getClassesFromRange, sortStudentsAlphabetically } from '../utils/studentStore';
 import { calculateSubjectGrade } from '../data/demoData';
 import { ReportPrintPreviewModal } from './ReportPrintPreviewModal';
 import { shareReportToWhatsApp } from '../utils/printPdfHelper';
@@ -22,6 +22,7 @@ interface ProgressCardModalProps {
   onClose: () => void;
   students: Student[];
   schoolRecord: SchoolRecord | null;
+  academicYear?: string;
 }
 
 export const ProgressCardModal: React.FC<ProgressCardModalProps> = ({
@@ -29,6 +30,7 @@ export const ProgressCardModal: React.FC<ProgressCardModalProps> = ({
   onClose,
   students,
   schoolRecord,
+  academicYear,
 }) => {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -43,8 +45,11 @@ export const ProgressCardModal: React.FC<ProgressCardModalProps> = ({
   }, [students, schoolRecord?.schoolRange]);
 
   const filteredStudents = useMemo(() => {
-    if (selectedClassFilter === 'ALL') return students;
-    return students.filter((s) => s.classStandard === selectedClassFilter);
+    const base =
+      selectedClassFilter === 'ALL'
+        ? students
+        : students.filter((s) => s.classStandard === selectedClassFilter);
+    return sortStudentsAlphabetically(base);
   }, [students, selectedClassFilter]);
 
   const currentStudent = useMemo(() => {
@@ -252,7 +257,7 @@ export const ProgressCardModal: React.FC<ProgressCardModalProps> = ({
                   <span>•</span>
                   <span>Medium: {schoolRecord?.schoolMedium || 'Kannada'}</span>
                   <span>•</span>
-                  <span>Academic Year: 2025-26</span>
+                  <span>Academic Year: {academicYear || currentStudent?.academicYear || schoolRecord?.academicYear || '2026-27'}</span>
                 </div>
                 <div className="inline-block px-5 py-1.5 bg-emerald-900 text-white font-black text-xs sm:text-sm rounded-full uppercase tracking-wider mt-1 shadow-xs">
                   ವಿದ್ಯಾರ್ಥಿ ಪ್ರಗತಿ ಪತ್ರ - ಕೇವಲ ಗ್ರೇಡ್‌ಗಳು (Progress Card - Grade Based Only)
@@ -488,7 +493,7 @@ export const ProgressCardModal: React.FC<ProgressCardModalProps> = ({
               <span>•</span>
               <span>Medium: {schoolRecord?.schoolMedium || 'Kannada'}</span>
               <span>•</span>
-              <span>Academic Year: 2025-26</span>
+              <span>Academic Year: {academicYear || currentStudent?.academicYear || schoolRecord?.academicYear || '2026-27'}</span>
             </div>
             <div className="inline-block px-5 py-1.5 bg-emerald-900 text-white font-black text-xs sm:text-sm rounded-full uppercase tracking-wider mt-1 shadow-xs">
               ವಿದ್ಯಾರ್ಥಿ ಪ್ರಗತಿ ಪತ್ರ - ಕೇವಲ ಗ್ರೇಡ್‌ಗಳು (Progress Card - Grade Based Only)

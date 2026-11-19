@@ -11,6 +11,7 @@ import {
   saveStudentMarks,
   subscribeSchoolMarks,
 } from '../utils/marksStore';
+import { compareStudentNamesAlpha } from '../utils/studentStore';
 import { distributeSubject100Marks, distributePartB100Marks } from '../utils/marksDistribution';
 import {
   executeReportPrint,
@@ -157,7 +158,7 @@ export const HigherPrimaryCceReportsModal: React.FC<HigherPrimaryCceReportsModal
     ['6', '7', '8'].forEach((cls) => {
       const classSt = students
         .filter((s) => String(s.classStandard) === cls)
-        .sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+        .sort(compareStudentNamesAlpha);
 
       map[cls] = classSt.map((st) => {
         const m = marksMap[st.id] || null;

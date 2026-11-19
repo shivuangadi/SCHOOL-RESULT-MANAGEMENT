@@ -14,6 +14,7 @@ import {
   exportStudentsToExcel,
   getClassesFromRange,
   normalizeStudentDates,
+  compareStudentNamesAlpha,
 } from '../utils/studentStore';
 import { parseSatsExcel } from '../utils/satsExcelParser';
 import { containsKannada, transliterateEnglishToKannada, cleanAllWordsEnding } from '../utils/kannadaTransliterator';
@@ -223,23 +224,23 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
     return [...filtered].sort((a, b) => {
       let res = 0;
       if (sortCol === 'name') {
-        res = (a.studentName || '').localeCompare(b.studentName || '');
+        res = compareStudentNamesAlpha(a, b);
       } else if (sortCol === 'sats') {
-        res = (a.satsNo || '').localeCompare(b.satsNo || '');
+        res = (a.satsNo || '').localeCompare(b.satsNo || '', undefined, { numeric: true });
       } else if (sortCol === 'class') {
         const cA = parseInt(a.classStandard, 10) || 0;
         const cB = parseInt(b.classStandard, 10) || 0;
         if (cA !== cB) res = cA - cB;
-        else res = (a.studentName || '').localeCompare(b.studentName || '');
+        else res = compareStudentNamesAlpha(a, b);
       } else if (sortCol === 'gender') {
         res = (a.gender || '').localeCompare(b.gender || '');
       } else if (sortCol === 'father') {
-        res = (a.fatherName || '').localeCompare(b.fatherName || '');
+        res = (a.fatherName || '').trim().localeCompare((b.fatherName || '').trim(), undefined, { sensitivity: 'base' });
       } else if (sortCol === 'mother') {
-        res = (a.motherName || '').localeCompare(b.motherName || '');
+        res = (a.motherName || '').trim().localeCompare((b.motherName || '').trim(), undefined, { sensitivity: 'base' });
       } else {
-        // Default rule:
-        // In each class students names sort A-z
+        // Default SATS rule:
+        // In each class students names sort A-Z
         // When all classes visible: sort class 1-10 and within class names sort A-Z
         if (selectedClassFilter === 'ALL') {
           const cA = parseInt(a.classStandard, 10) || 0;
@@ -247,15 +248,15 @@ export const BulkExcelStudentEditorModal: React.FC<BulkExcelStudentEditorModalPr
           if (cA !== cB) {
             res = cA - cB;
           } else {
-            res = (a.studentName || '').localeCompare(b.studentName || '');
+            res = compareStudentNamesAlpha(a, b);
           }
         } else {
-          res = (a.studentName || '').localeCompare(b.studentName || '');
+          res = compareStudentNamesAlpha(a, b);
         }
       }
 
       if (res === 0 && sortCol !== 'name') {
-        res = (a.studentName || '').localeCompare(b.studentName || '');
+        res = compareStudentNamesAlpha(a, b);
       }
 
       return sortDir === 'asc' ? res : -res;

@@ -17,6 +17,12 @@ export const containsKannada = (str: string): boolean => {
   return /[\u0C80-\u0CFF]/.test(str);
 };
 
+// Check if string contains English/Latin letters (A-Z, a-z)
+export const containsLatin = (str: string): boolean => {
+  if (!str) return false;
+  return /[a-zA-Z]/.test(str);
+};
+
 // Check if text is mostly Kannada
 export const isKannadaText = (str: string): boolean => {
   if (!str) return false;
@@ -794,8 +800,8 @@ export const transliterateEnglishToKannada = (input: string): string => {
   const str = String(input).trim();
   if (!str || str === '-' || str === 'N/A' || str === 'NA') return str;
 
-  // If already Kannada, ensure all words (first, middle, and last names) have clean vowel endings
-  if (containsKannada(str)) {
+  // If pure Kannada with no English/Latin letters, just ensure clean vowel endings
+  if (containsKannada(str) && !containsLatin(str)) {
     return cleanAllWordsEnding(str);
   }
 
@@ -807,10 +813,15 @@ export const transliterateEnglishToKannada = (input: string): string => {
     // Preserve whitespace & punctuation
     if (/^[\s\-_/().,]+$/.test(token)) return token;
 
-    // Preserves Arabic/English numbers (0-9) strictly: "don't use Kannada numbers any where"
+    // Preserve Arabic/English numbers (0-9) strictly: "don't use Kannada numbers any where"
     if (/^\d+$/.test(token)) return token;
 
-    // Word lookup & transliteration
+    // If token is already Kannada without Latin characters, clean its ending and keep it
+    if (containsKannada(token) && !containsLatin(token)) {
+      return cleanIndianEnding(token);
+    }
+
+    // Word lookup & transliteration for English/Latin tokens
     return phoneticWordToKannada(token);
   });
 
@@ -837,40 +848,40 @@ export const translateStudentToKannada = (student: Student): Student => {
     ? student.originalMotherName
     : (!containsKannada(student.motherName) ? student.motherName : (student.originalMotherName || ''));
 
-  // 2. Transliterate or preserve user-edited Kannada names:
-  // If the student already has an explicit Kannada name (in studentNameKn or studentName), PRESERVE IT!
-  // Only generate a new transliteration from English if no Kannada name exists yet.
+  // 2. Transliterate or preserve genuine pure-Kannada names:
+  // If the student already has a pure Kannada name (no untranslated Latin characters), preserve it;
+  // otherwise transliterate from the English/source text so mixed or newly-added English names are always translated.
   let knStudent: string;
-  if (student.studentNameKn && containsKannada(student.studentNameKn)) {
+  if (student.studentNameKn && containsKannada(student.studentNameKn) && !containsLatin(student.studentNameKn)) {
     knStudent = cleanAllWordsEnding(student.studentNameKn);
-  } else if (student.studentName && containsKannada(student.studentName)) {
+  } else if (student.studentName && containsKannada(student.studentName) && !containsLatin(student.studentName)) {
     knStudent = cleanAllWordsEnding(student.studentName);
   } else if (origStudent) {
     knStudent = transliterateEnglishToKannada(origStudent);
   } else {
-    knStudent = cleanAllWordsEnding(student.studentName || '');
+    knStudent = transliterateEnglishToKannada(student.studentName || '');
   }
 
   let knFather: string;
-  if (student.fatherNameKn && containsKannada(student.fatherNameKn)) {
+  if (student.fatherNameKn && containsKannada(student.fatherNameKn) && !containsLatin(student.fatherNameKn)) {
     knFather = cleanAllWordsEnding(student.fatherNameKn);
-  } else if (student.fatherName && containsKannada(student.fatherName)) {
+  } else if (student.fatherName && containsKannada(student.fatherName) && !containsLatin(student.fatherName)) {
     knFather = cleanAllWordsEnding(student.fatherName);
   } else if (origFather && origFather !== '-') {
     knFather = transliterateEnglishToKannada(origFather);
   } else {
-    knFather = student.fatherName && student.fatherName !== '-' ? cleanAllWordsEnding(student.fatherName) : '-';
+    knFather = student.fatherName && student.fatherName !== '-' ? transliterateEnglishToKannada(student.fatherName) : '-';
   }
 
   let knMother: string;
-  if (student.motherNameKn && containsKannada(student.motherNameKn)) {
+  if (student.motherNameKn && containsKannada(student.motherNameKn) && !containsLatin(student.motherNameKn)) {
     knMother = cleanAllWordsEnding(student.motherNameKn);
-  } else if (student.motherName && containsKannada(student.motherName)) {
+  } else if (student.motherName && containsKannada(student.motherName) && !containsLatin(student.motherName)) {
     knMother = cleanAllWordsEnding(student.motherName);
   } else if (origMother && origMother !== '-') {
     knMother = transliterateEnglishToKannada(origMother);
   } else {
-    knMother = student.motherName && student.motherName !== '-' ? cleanAllWordsEnding(student.motherName) : '-';
+    knMother = student.motherName && student.motherName !== '-' ? transliterateEnglishToKannada(student.motherName) : '-';
   }
 
   return {
@@ -890,7 +901,7 @@ export const translateStudentToKannada = (student: Student): Student => {
 
 /**
  * Restores a Student's names to the exact initial English spellings.
- * Guaranteed zero loss of English spelling precision.
+ * Guaranteed zero loss of English spelling precision, while preserving any Kannada spellings in *NameKn.
  */
 export const restoreStudentToEnglish = (student: Student): Student => {
   const englishStudentName =
@@ -910,6 +921,9 @@ export const restoreStudentToEnglish = (student: Student): Student => {
 
   return {
     ...student,
+    studentNameKn: student.studentNameKn || (containsKannada(student.studentName) ? student.studentName : undefined),
+    fatherNameKn: student.fatherNameKn || (containsKannada(student.fatherName) ? student.fatherName : undefined),
+    motherNameKn: student.motherNameKn || (containsKannada(student.motherName) ? student.motherName : undefined),
     studentName: englishStudentName || student.studentName,
     fatherName: englishFatherName || student.fatherName,
     motherName: englishMotherName || student.motherName,

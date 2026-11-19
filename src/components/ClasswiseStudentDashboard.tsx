@@ -1604,6 +1604,7 @@ export const ClasswiseStudentDashboard: React.FC<ClasswiseStudentDashboardProps>
           subtitle={studentDetailsModalState.subtitle}
           students={studentDetailsModalState.students}
           schoolRecord={schoolRecord}
+          academicYear={academicYear}
         />
       )}
 

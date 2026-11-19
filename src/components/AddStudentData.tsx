@@ -23,6 +23,8 @@ import {
   clearStudentsByClass,
   clearAllStudents,
   resetSchoolAllData,
+  sortStudentsAlphabetically,
+  compareStudentNamesAlpha,
 } from '../utils/studentStore';
 import {
   parseSatsExcel,
@@ -68,8 +70,8 @@ import {
 import {
   transliterateEnglishToKannada,
   switchStudentsLanguage,
-  translateStudentToKannada,
   containsKannada,
+  containsLatin,
   formatSatsNo,
   formatAadharNo,
   cleanAllWordsEnding,
@@ -240,39 +242,59 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     return saved === 'kn' ? 'kn' : 'en';
   });
   const [isTranslatingNames, setIsTranslatingNames] = useState(false);
+  const namesLanguageRef = useRef<'en' | 'kn'>(namesLanguage);
+  const isTranslatingRef = useRef<boolean>(false);
 
-  // Synchronize names language state based on loaded student records if not explicitly set
   useEffect(() => {
-    if (students.length > 0) {
+    namesLanguageRef.current = namesLanguage;
+  }, [namesLanguage]);
+
+  // Synchronize names language indicator based on loaded student records if not explicitly saved
+  useEffect(() => {
+    if (students.length > 0 && !isTranslatingRef.current) {
       const saved = localStorage.getItem(`names_lang_${diseCode}`) as 'en' | 'kn' | null;
       if (!saved) {
-        const hasKn = students.some((s) => s.namesLanguage === 'kn' || containsKannada(s.studentName));
-        setNamesLanguage(hasKn ? 'kn' : 'en');
+        const knCount = students.filter((s) => s.namesLanguage === 'kn' || containsKannada(s.studentName)).length;
+        const detected: 'en' | 'kn' = knCount > students.length / 2 ? 'kn' : 'en';
+        namesLanguageRef.current = detected;
+        setNamesLanguage(detected);
       }
     }
   }, [students, diseCode]);
 
   const handleToggleNamesLanguage = async (targetLang: 'en' | 'kn') => {
-    if (targetLang === namesLanguage || isTranslatingNames) return;
+    if (isTranslatingNames || isTranslatingRef.current) return;
+    if (students.length === 0) {
+      showToast('⚠️ ಅನುವಾದಿಸಲು ಯಾವುದೇ ವಿದ್ಯಾರ್ಥಿಗಳು ದಾಖಲಾಗಿಲ್ಲ (No students available to translate).');
+      return;
+    }
+
+    isTranslatingRef.current = true;
     setIsTranslatingNames(true);
     try {
-      const updatedStudents = switchStudentsLanguage(students, targetLang);
-      setStudents(updatedStudents);
+      const updatedStudents = sortStudentsAlphabetically(switchStudentsLanguage(students, targetLang));
+      namesLanguageRef.current = targetLang;
       setNamesLanguage(targetLang);
       localStorage.setItem(`names_lang_${diseCode}`, targetLang);
+      setStudents(updatedStudents);
 
       // Save updated students to persistent storage so all forms and reports immediately use the translated/original names
       await saveBulkStudents(updatedStudents, schoolId, diseCode, academicYear);
 
       if (targetLang === 'kn') {
-        showToast('✓ ವಿದ್ಯಾರ್ಥಿ ಮತ್ತು ಪೋಷಕರ ಹೆಸರುಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಲಾಗಿದೆ! (ಎಲ್ಲಾ ವರದಿಗಳು ಮತ್ತು ನಮೂನೆಗಳಲ್ಲಿ ಕನ್ನಡ ಹೆಸರುಗಳು ಅನ್ವಯವಾಗಿವೆ)');
+        showToast(
+          `✓ ಒಟ್ಟು ${updatedStudents.length} ವಿದ್ಯಾರ್ಥಿ ಮತ್ತು ಪೋಷಕರ ಹೆಸರುಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಲಾಗಿದೆ! (ಎಲ್ಲಾ ವರದಿಗಳು ಮತ್ತು ನಮೂನೆಗಳಲ್ಲಿ ಅನ್ವಯವಾಗಿದೆ)`
+        );
       } else {
-        showToast('✓ Reverted to original English names! (Fixed initial imported spellings preserved with 100% fidelity)');
+        showToast(
+          `✓ Reverted ${updatedStudents.length} student & parent names to original English spellings!`
+        );
       }
     } catch (err: any) {
       console.error('Error switching names language:', err);
       showToast('⚠️ ಭಾಷೆ ಬದಲಾವಣೆಯಲ್ಲಿ ದೋಷ ಕಂಡುಬಂದಿದೆ: ' + (err?.message || 'Error'));
     } finally {
+      isTranslatingRef.current = false;
       setIsTranslatingNames(false);
     }
   };
@@ -289,34 +311,40 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     fetchDeletedCount();
   }, [diseCode]);
 
+  const sanitizeLoadedStudents = (list: Student[]): Student[] => {
+    const cleaned = list.map((s) => ({
+      ...s,
+      studentName:
+        containsKannada(s.studentName) && !containsLatin(s.studentName)
+          ? cleanAllWordsEnding(s.studentName)
+          : s.studentName,
+      fatherName:
+        s.fatherName && containsKannada(s.fatherName) && !containsLatin(s.fatherName)
+          ? cleanAllWordsEnding(s.fatherName)
+          : s.fatherName,
+      motherName:
+        s.motherName && containsKannada(s.motherName) && !containsLatin(s.motherName)
+          ? cleanAllWordsEnding(s.motherName)
+          : s.motherName,
+    }));
+    return sortStudentsAlphabetically(cleaned);
+  };
+
   useEffect(() => {
     if (!diseCode || diseCode === '00000000000') return;
     setLoading(true);
     loadSchoolStudents(diseCode, diseCode, academicYear).then((data) => {
-      const sanitized = namesLanguage === 'kn'
-        ? data.map(translateStudentToKannada)
-        : data.map((s) => ({
-            ...s,
-            studentName: containsKannada(s.studentName) ? cleanAllWordsEnding(s.studentName) : s.studentName,
-            fatherName: s.fatherName && containsKannada(s.fatherName) ? cleanAllWordsEnding(s.fatherName) : s.fatherName,
-            motherName: s.motherName && containsKannada(s.motherName) ? cleanAllWordsEnding(s.motherName) : s.motherName,
-          }));
-      setStudents(sanitized);
+      if (isTranslatingRef.current) return;
+      setStudents(sanitizeLoadedStudents(data));
       setLoading(false);
     });
 
     const unsubscribe = subscribeSchoolStudents(
       diseCode,
       (updated) => {
-        const sanitized = namesLanguage === 'kn'
-          ? updated.map(translateStudentToKannada)
-          : updated.map((s) => ({
-              ...s,
-              studentName: containsKannada(s.studentName) ? cleanAllWordsEnding(s.studentName) : s.studentName,
-              fatherName: s.fatherName && containsKannada(s.fatherName) ? cleanAllWordsEnding(s.fatherName) : s.fatherName,
-              motherName: s.motherName && containsKannada(s.motherName) ? cleanAllWordsEnding(s.motherName) : s.motherName,
-            }));
-        setStudents(sanitized);
+        // Never overwrite optimistic translated state while bulk language save is in progress
+        if (isTranslatingRef.current) return;
+        setStudents(sanitizeLoadedStudents(updated));
         setLoading(false);
       },
       undefined,
@@ -324,7 +352,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     );
 
     return () => unsubscribe();
-  }, [diseCode, academicYear, namesLanguage]);
+  }, [diseCode, academicYear]);
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
@@ -333,7 +361,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
 
   const reloadStudents = async () => {
     const list = await loadSchoolStudents(schoolId, diseCode, academicYear);
-    setStudents(list);
+    setStudents(sanitizeLoadedStudents(list));
     fetchDeletedCount();
   };
 
@@ -499,48 +527,54 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     const trimmedFather = fatherName.trim() ? fatherName.trim() : '-';
     const trimmedMother = motherName.trim() ? motherName.trim() : '-';
 
-    // Handle name updates for both Kannada editing and English editing:
-    const hasKannadaInInput = containsKannada(trimmedName) || containsKannada(trimmedFather) || containsKannada(trimmedMother);
-    const isKannadaInput = hasKannadaInInput || namesLanguage === 'kn';
+    // Handle per-field name translation cleanly for both Kannada and English inputs:
+    const nameIsKn = containsKannada(trimmedName) && !containsLatin(trimmedName);
+    const fatherIsKn = containsKannada(trimmedFather) && !containsLatin(trimmedFather);
+    const motherIsKn = containsKannada(trimmedMother) && !containsLatin(trimmedMother);
 
-    let origName: string;
-    let origFather: string;
-    let origMother: string;
-    let knName: string;
-    let knFather: string;
-    let knMother: string;
+    const origName = !nameIsKn
+      ? trimmedName.toUpperCase()
+      : existingStudent?.originalStudentName && !containsKannada(existingStudent.originalStudentName)
+      ? existingStudent.originalStudentName
+      : existingStudent?.originalStudentName || trimmedName;
 
-    if (isKannadaInput) {
-      // User is editing or updating a Kannada name
-      knName = cleanAllWordsEnding(trimmedName);
-      knFather = trimmedFather !== '-' ? cleanAllWordsEnding(trimmedFather) : '-';
-      knMother = trimmedMother !== '-' ? cleanAllWordsEnding(trimmedMother) : '-';
-
-      // Preserve previous original English names if valid, so switching back to English still works
-      origName = existingStudent?.originalStudentName && !containsKannada(existingStudent.originalStudentName)
-        ? existingStudent.originalStudentName
-        : (existingStudent?.originalStudentName || trimmedName);
-
-      origFather = existingStudent?.originalFatherName && !containsKannada(existingStudent.originalFatherName)
+    const origFather =
+      trimmedFather === '-'
+        ? '-'
+        : !fatherIsKn
+        ? trimmedFather.toUpperCase()
+        : existingStudent?.originalFatherName && !containsKannada(existingStudent.originalFatherName)
         ? existingStudent.originalFatherName
-        : (existingStudent?.originalFatherName || trimmedFather);
+        : existingStudent?.originalFatherName || trimmedFather;
 
-      origMother = existingStudent?.originalMotherName && !containsKannada(existingStudent.originalMotherName)
+    const origMother =
+      trimmedMother === '-'
+        ? '-'
+        : !motherIsKn
+        ? trimmedMother.toUpperCase()
+        : existingStudent?.originalMotherName && !containsKannada(existingStudent.originalMotherName)
         ? existingStudent.originalMotherName
-        : (existingStudent?.originalMotherName || trimmedMother);
-    } else {
-      // User is editing in English
-      origName = trimmedName.toUpperCase();
-      origFather = trimmedFather !== '-' ? trimmedFather.toUpperCase() : '-';
-      origMother = trimmedMother !== '-' ? trimmedMother.toUpperCase() : '-';
+        : existingStudent?.originalMotherName || trimmedMother;
 
-      // Automatically transliterate updated English name to Kannada
-      knName = transliterateEnglishToKannada(origName);
-      knFather = origFather !== '-' ? transliterateEnglishToKannada(origFather) : '-';
-      knMother = origMother !== '-' ? transliterateEnglishToKannada(origMother) : '-';
-    }
+    const knName = nameIsKn
+      ? cleanAllWordsEnding(trimmedName)
+      : transliterateEnglishToKannada(trimmedName);
 
-    const effectiveLang: 'en' | 'kn' = (hasKannadaInInput || namesLanguage === 'kn') ? 'kn' : 'en';
+    const knFather =
+      trimmedFather === '-'
+        ? '-'
+        : fatherIsKn
+        ? cleanAllWordsEnding(trimmedFather)
+        : transliterateEnglishToKannada(trimmedFather);
+
+    const knMother =
+      trimmedMother === '-'
+        ? '-'
+        : motherIsKn
+        ? cleanAllWordsEnding(trimmedMother)
+        : transliterateEnglishToKannada(trimmedMother);
+
+    const effectiveLang: 'en' | 'kn' = nameIsKn || namesLanguage === 'kn' ? 'kn' : 'en';
     const activeName = effectiveLang === 'kn' ? knName : origName;
     const activeFather = effectiveLang === 'kn' ? knFather : origFather;
     const activeMother = effectiveLang === 'kn' ? knMother : origMother;
@@ -587,15 +621,11 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     }
     setIsSavingStudent(false);
 
-    // Refresh list
+    // Refresh list and automatically place newly added/edited student into exact SATS alphabetical position
     setStudents((prev) => {
       const idx = prev.findIndex((s) => s.id === id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = newStudent;
-        return copy;
-      }
-      return [newStudent, ...prev];
+      const nextList = idx >= 0 ? prev.map((s, i) => (i === idx ? newStudent : s)) : [...prev, newStudent];
+      return sortStudentsAlphabetically(nextList);
     });
 
     showToast(
@@ -848,21 +878,21 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
     return isNaN(d.getTime()) ? -1 : d.getTime();
   };
 
-  // Overall student list arranged classwise (1 to 10) and then alphabetically arranged
+  // Overall student list arranged strictly in SATS order: classwise (1 to 10) and then A-Z alphabetically
   // Or interactive column header sorting (A-Z, oldest to newest DOB, Class 1-10)
   const sortedStudents = useMemo(() => {
     const list = [...filteredStudents];
     list.sort((a, b) => {
       let res = 0;
       if (sortColumn === 'name') {
-        res = (a.studentName || '').localeCompare(b.studentName || '');
+        res = compareStudentNamesAlpha(a, b);
       } else if (sortColumn === 'class') {
         const numA = parseInt(a.classStandard, 10);
         const numB = parseInt(b.classStandard, 10);
         const cA = isNaN(numA) ? 99 : numA;
         const cB = isNaN(numB) ? 99 : numB;
         if (cA !== cB) res = cA - cB;
-        else res = (a.studentName || '').localeCompare(b.studentName || '');
+        else res = compareStudentNamesAlpha(a, b);
       } else if (sortColumn === 'dob') {
         const tA = parseDobToTimestamp(a.dob || a.dateOfBirth);
         const tB = parseDobToTimestamp(b.dob || b.dateOfBirth);
@@ -871,17 +901,17 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
         else if (tB === -1) res = -1;
         else res = tA - tB;
       } else if (sortColumn === 'parent') {
-        res = (a.fatherName || a.motherName || '').localeCompare(b.fatherName || b.motherName || '');
+        res = (a.fatherName || a.motherName || '').trim().localeCompare((b.fatherName || b.motherName || '').trim(), undefined, { sensitivity: 'base' });
       } else if (sortColumn === 'sats') {
-        res = (a.satsNo || a.penNo || '').localeCompare(b.satsNo || b.penNo || '');
+        res = (a.satsNo || a.penNo || '').localeCompare(b.satsNo || b.penNo || '', undefined, { numeric: true });
       } else if (sortColumn === 'aadhar') {
-        res = (a.aadharNo || a.schoolRegNo || '').localeCompare(b.aadharNo || b.schoolRegNo || '');
+        res = (a.aadharNo || a.schoolRegNo || '').localeCompare(b.aadharNo || b.schoolRegNo || '', undefined, { numeric: true });
       } else if (sortColumn === 'caste') {
-        res = (a.caste || a.religion || '').localeCompare(b.caste || b.religion || '');
+        res = (a.caste || a.religion || '').localeCompare(b.caste || b.religion || '', undefined, { sensitivity: 'base' });
       } else {
-        // Default rule:
-        // When all classes are visible: sort class 1-10 and within class students names sort A-Z
-        // When a single class is filtered: students names sort A-Z
+        // Default SATS rule:
+        // When all classes are visible: sort Class 1-10 and within each class sort A-Z alphabetically
+        // When a single class is filtered: sort students strictly A-Z alphabetically
         if (selectedClassFilter === 'ALL') {
           const numA = parseInt(a.classStandard, 10);
           const numB = parseInt(b.classStandard, 10);
@@ -890,20 +920,16 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
           if (cA !== cB) {
             res = cA - cB;
           } else {
-            if (a.division && b.division && a.division !== b.division) {
-              res = a.division.localeCompare(b.division);
-            } else {
-              res = (a.studentName || '').localeCompare(b.studentName || '');
-            }
+            res = compareStudentNamesAlpha(a, b);
           }
         } else {
-          res = (a.studentName || '').localeCompare(b.studentName || '');
+          res = compareStudentNamesAlpha(a, b);
         }
       }
 
       // Tie-breaker: secondary sort alphabetically by student name
       if (res === 0 && sortColumn !== 'name') {
-        res = (a.studentName || '').localeCompare(b.studentName || '');
+        res = compareStudentNamesAlpha(a, b);
       }
 
       return sortDirection === 'asc' ? res : -res;
@@ -1312,9 +1338,26 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {/* Student Name */}
               <div className="md:col-span-2">
-                <label className="block text-slate-700 font-bold mb-1">
-                  Student Name (ವಿದ್ಯಾರ್ಥಿಯ ಹೆಸರು) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-700 font-bold">
+                    Student Name (ವಿದ್ಯಾರ್ಥಿಯ ಹೆಸರು) <span className="text-red-500">*</span>
+                  </label>
+                  {(studentName.trim() || fatherName.trim() || motherName.trim()) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (studentName.trim()) setStudentName(transliterateEnglishToKannada(studentName));
+                        if (fatherName.trim()) setFatherName(transliterateEnglishToKannada(fatherName));
+                        if (motherName.trim()) setMotherName(transliterateEnglishToKannada(motherName));
+                      }}
+                      className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg text-[11px] font-black flex items-center gap-1 transition cursor-pointer"
+                      title="Translate Student, Father & Mother names in this form to Kannada"
+                    >
+                      <Languages className="w-3 h-3 text-amber-800" />
+                      <span>ಕನ್ನಡಕ್ಕೆ ಅನುವಾದಿಸಿ</span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
@@ -1330,7 +1373,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
                     }
                   }}
                   placeholder="e.g. AARAV PATIL"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none uppercase font-semibold"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-900 focus:outline-none font-semibold"
                 />
               </div>
 
@@ -2169,6 +2212,7 @@ export const AddStudentData: React.FC<AddStudentDataProps> = ({
           onClose={() => setIsCertModalOpen(false)}
           students={students}
           schoolRecord={effectiveSchoolRecord}
+          academicYear={academicYear}
           initialStudentId={selectedStudentForCert}
         />
       )}

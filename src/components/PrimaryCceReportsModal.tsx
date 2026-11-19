@@ -14,6 +14,7 @@ import {
   saveStudentMarks,
   subscribeSchoolMarks,
 } from '../utils/marksStore';
+import { compareStudentNamesAlpha } from '../utils/studentStore';
 import {
   executeReportPrint,
   downloadElementAsPdf,
@@ -136,7 +137,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
     ['1', '2', '3', '4', '5'].forEach((cls) => {
       const classSt = students
         .filter((s) => s.classStandard === cls)
-        .sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+        .sort(compareStudentNamesAlpha);
       map[cls] = classSt.map((st) => {
         let m = marksMap[st.id];
         if (!m) {
@@ -174,7 +175,7 @@ export const PrimaryCceReportsModal: React.FC<PrimaryCceReportsModalProps> = ({
     ['1', '2', '3', '4', '5'].forEach((cls) => {
       const classSt = students
         .filter((s) => s.classStandard === cls)
-        .sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+        .sort(compareStudentNamesAlpha);
       map[cls] = classSt.map((st) => {
         const m = marksMap[st.id] || null;
         return computeMarathiUrduStudentCce(st, marathiUrduMedium, m);

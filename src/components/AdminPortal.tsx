@@ -318,25 +318,47 @@ export const AdminPortal: React.FC = () => {
 
   // Subscribe to all schools collection + local store
   useEffect(() => {
+    const mergeUniqueSchools = (rawList: SchoolRecord[]): SchoolRecord[] => {
+      const byKey = new Map<string, SchoolRecord>();
+      rawList.forEach((rec, i) => {
+        if (!rec) return;
+        const normKey = String(rec.diseCode || rec.schoolId || `unknown_${i}`).trim();
+        const existing = byKey.get(normKey);
+        if (!existing) {
+          byKey.set(normKey, rec);
+        } else {
+          // Prefer the fuller record (with schoolName/status) and merge missing fields
+          const existingScore =
+            (existing.schoolName ? 2 : 0) + (existing.status ? 2 : 0) + (existing.headmasterName ? 1 : 0);
+          const incomingScore =
+            (rec.schoolName ? 2 : 0) + (rec.status ? 2 : 0) + (rec.headmasterName ? 1 : 0);
+          const merged =
+            incomingScore >= existingScore
+              ? { ...existing, ...rec }
+              : { ...rec, ...existing };
+          byKey.set(normKey, merged);
+        }
+      });
+      return Array.from(byKey.values());
+    };
+
     const schoolsColRef = collection(db, 'schools');
     const unsubscribe = onSnapshot(
       schoolsColRef,
       (snapshot) => {
-        const list: SchoolRecord[] = [];
+        const rawList: SchoolRecord[] = [];
         snapshot.forEach((d) => {
-          list.push(d.data() as SchoolRecord);
+          const data = d.data() as SchoolRecord;
+          rawList.push({
+            ...data,
+            schoolId: data.schoolId || d.id,
+            diseCode: data.diseCode || d.id,
+          });
         });
 
         // Merge any locally registered schools
         const localSchools = getLocalSchools();
-        localSchools.forEach((loc) => {
-          const exists = list.some(
-            (s) => s.diseCode === loc.diseCode || s.schoolId === loc.schoolId
-          );
-          if (!exists) {
-            list.push(loc);
-          }
-        });
+        const list = mergeUniqueSchools([...rawList, ...localSchools]);
 
         // Sort: PENDING first, then by date descending
         list.sort((a, b) => {
@@ -349,7 +371,7 @@ export const AdminPortal: React.FC = () => {
       },
       (error) => {
         console.warn('Firestore listing note, loading local schools:', error);
-        const localList = getLocalSchools();
+        const localList = mergeUniqueSchools(getLocalSchools());
         setSchools(localList);
         setLoading(false);
       }
@@ -360,14 +382,17 @@ export const AdminPortal: React.FC = () => {
 
   // Filtered schools
   const filteredSchools = schools.filter((sch) => {
-    const matchesStatus = statusFilter === 'ALL' || sch.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      statusFilter === 'PROGRESS' ||
+      sch.status === statusFilter;
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !query ||
-      sch.schoolName.toLowerCase().includes(query) ||
-      sch.diseCode.includes(query) ||
-      sch.headmasterName.toLowerCase().includes(query) ||
-      sch.mobile.includes(query);
+      (sch.schoolName || '').toLowerCase().includes(query) ||
+      (sch.diseCode || '').includes(query) ||
+      (sch.headmasterName || '').toLowerCase().includes(query) ||
+      (sch.mobile || '').includes(query);
     return matchesStatus && matchesSearch;
   });
 
@@ -983,7 +1008,7 @@ export const AdminPortal: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-xs">
                     {deletedSchools.map((ds, idx) => (
-                      <tr key={`deleted-${ds.schoolId || ds.diseCode || idx}`} className="hover:bg-purple-50/30 transition">
+                      <tr key={`deleted-${ds.schoolId || ds.diseCode || 'row'}-${idx}`} className="hover:bg-purple-50/30 transition">
                         <td className="py-3.5 px-4 font-sans">
                           <div className="font-bold text-slate-900">{ds.schoolName}</div>
                           <div className="font-mono text-blue-900 font-bold text-[11px]">DISE: {ds.diseCode}</div>
@@ -1046,7 +1071,7 @@ export const AdminPortal: React.FC = () => {
 
                 return (
                   <div
-                    key={`progress-${sch.schoolId || sch.diseCode || idx}`}
+                    key={`progress-${sch.schoolId || sch.diseCode || 'row'}-${idx}`}
                     className="p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-400 bg-white hover:shadow-md transition flex flex-col justify-between gap-3 text-xs"
                   >
                     <div className="space-y-2">
@@ -1170,7 +1195,7 @@ export const AdminPortal: React.FC = () => {
                   const isApproved = sch.status === 'APPROVED';
                   return (
                     <tr
-                      key={`table-${sch.schoolId || sch.diseCode || idx}`}
+                      key={`table-${sch.schoolId || sch.diseCode || 'row'}-${idx}`}
                       className={`hover:bg-slate-50/80 transition ${
                         isPending ? 'bg-amber-50/40' : ''
                       }`}

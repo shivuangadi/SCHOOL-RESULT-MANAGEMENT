@@ -1205,6 +1205,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           onClose={() => setIsStudyCertModalOpen(false)}
           students={students}
           schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 
@@ -1214,6 +1215,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           onClose={() => setIsCasteBirthModalOpen(false)}
           students={students}
           schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 
@@ -1223,6 +1225,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           onClose={() => setIsProgressCardModalOpen(false)}
           students={students}
           schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 
@@ -1232,6 +1235,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           onClose={() => setIsMarksCardModalOpen(false)}
           students={students}
           schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 
@@ -1327,6 +1331,7 @@ export const SchoolDashboard: React.FC<SchoolDashboardProps> = ({
           subtitle={studentDetailsModalState.subtitle}
           students={studentDetailsModalState.students}
           schoolRecord={schoolRecord}
+          academicYear={currentAcademicYear}
         />
       )}
 

@@ -21,6 +21,33 @@ import { dbPut, dbPutBatch, dbDelete, dbGetAll } from '../lib/indexedDb';
 import { srmsSyncEngine } from './srmsSyncEngine';
 export { formatSatsNo, formatAadharNo } from './kannadaTransliterator';
 
+/**
+ * SATS-style case-insensitive, locale-aware alphabetical comparator for student names.
+ * Tie-breaks cleanly by SATS number.
+ */
+export const compareStudentNamesAlpha = (a: Student, b: Student): number => {
+  const nameA = (a.studentName || '').trim();
+  const nameB = (b.studentName || '').trim();
+  const cmp = nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+  if (cmp !== 0) return cmp;
+  return (a.satsNo || '').localeCompare(b.satsNo || '', undefined, { numeric: true });
+};
+
+/**
+ * Sorts students in SATS order: Class 1 to 10 numerically ascending,
+ * and alphabetically A-Z (or Kannada Unicode order) by studentName within each class.
+ */
+export const sortStudentsAlphabetically = (students: Student[]): Student[] => {
+  return [...students].sort((a, b) => {
+    const numA = parseInt(String(a.classStandard || ''), 10);
+    const numB = parseInt(String(b.classStandard || ''), 10);
+    const cA = isNaN(numA) ? 99 : numA;
+    const cB = isNaN(numB) ? 99 : numB;
+    if (cA !== cB) return cA - cB;
+    return compareStudentNamesAlpha(a, b);
+  });
+};
+
 export const cleanForFirestore = <T extends Record<string, any>>(obj: T): Record<string, any> => {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -332,8 +359,10 @@ export const loadSchoolStudents = async (
 
   const filterByYear = (list: Student[]) => {
     const normalized = list.map(normalizeStudentDates);
-    if (!academicYear) return normalized;
-    return normalized.filter((s) => s.academicYear === academicYear || (!s.academicYear && academicYear === '2026-27'));
+    const filtered = !academicYear
+      ? normalized
+      : normalized.filter((s) => s.academicYear === academicYear || (!s.academicYear && academicYear === '2026-27'));
+    return sortStudentsAlphabetically(filtered);
   };
 
   try {
@@ -440,18 +469,21 @@ export const subscribeSchoolStudents = (
         list.push(normalizeStudentDates(d.data() as Student));
       });
       if (academicYear) {
-        const yearFiltered = list.filter((s) => s.academicYear === academicYear || (!s.academicYear && academicYear === '2026-27'));
+        const yearFiltered = sortStudentsAlphabetically(
+          list.filter((s) => s.academicYear === academicYear || (!s.academicYear && academicYear === '2026-27'))
+        );
         saveStudentsToLocal(diseCode, yearFiltered, academicYear);
         onUpdate(yearFiltered);
       } else {
-        saveStudentsToLocal(diseCode, list);
-        onUpdate(list);
+        const sortedAll = sortStudentsAlphabetically(list);
+        saveStudentsToLocal(diseCode, sortedAll);
+        onUpdate(sortedAll);
       }
     },
     (err) => {
       console.warn('Real-time student listener notice:', err);
       if (onError) onError(err);
-      onUpdate(getStudentsFromLocal(diseCode, academicYear).map(normalizeStudentDates));
+      onUpdate(sortStudentsAlphabetically(getStudentsFromLocal(diseCode, academicYear).map(normalizeStudentDates)));
     }
   );
 };
@@ -511,8 +543,9 @@ export const saveStudent = async (student: Student, academicYear?: string): Prom
     updatedList = [...current];
     updatedList[existingIdx] = studentDoc;
   } else {
-    updatedList = [studentDoc, ...current];
+    updatedList = [...current, studentDoc];
   }
+  updatedList = sortStudentsAlphabetically(updatedList);
   saveStudentsToLocal(diseCode, updatedList, studentDoc.academicYear);
 
   return studentDoc;
@@ -708,7 +741,9 @@ export const saveBulkStudents = async (
     }
   });
 
-  const merged = Array.from(studentMap.values()).filter((s) => !deletedIdSet.has(s.id));
+  const merged = sortStudentsAlphabetically(
+    Array.from(studentMap.values()).filter((s) => !deletedIdSet.has(s.id))
+  );
   saveStudentsToLocal(targetDise, merged, currentYear);
   saveStudentsToLocal(targetDise, merged); // Sync general cache as well
 
@@ -1018,9 +1053,12 @@ export const revokeDeletedStudent = async (
       // Remove from deletedStudents in Firestore
       await deleteDoc(doc(db, 'schools', targetDise, 'deletedStudents', studentId)).catch(() => {});
 
-      // Update active local students
+      // Update active local students in SATS alphabetical order
       const active = getStudentsFromLocal(targetDise);
-      saveStudentsToLocal(targetDise, [...active.filter((s) => s.id !== studentId), studentToRestore]);
+      saveStudentsToLocal(
+        targetDise,
+        sortStudentsAlphabetically([...active.filter((s) => s.id !== studentId), studentToRestore])
+      );
 
       // Remove from deleted local
       saveDeletedStudentsToLocal(targetDise, deletedLocal.filter((s) => s.id !== studentId));

@@ -24,6 +24,7 @@ import {
   saveStudentMarks,
   subscribeSchoolMarks,
 } from '../utils/marksStore';
+import { compareStudentNamesAlpha } from '../utils/studentStore';
 import {
   executeReportPrint,
   downloadElementAsPdf,
@@ -229,7 +230,9 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     };
 
     ['1', '2', '3', '4', '5'].forEach((cls) => {
-      const classSt = students.filter((s) => s.classStandard === cls);
+      const classSt = students
+        .filter((s) => s.classStandard === cls)
+        .sort(compareStudentNamesAlpha);
       map[cls] = classSt.map((st) => {
         let m = marksMap[st.id];
         if (!m) {
@@ -262,7 +265,9 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     };
 
     ['1', '2', '3', '4', '5'].forEach((cls) => {
-      const classSt = students.filter((s) => s.classStandard === cls);
+      const classSt = students
+        .filter((s) => s.classStandard === cls)
+        .sort(compareStudentNamesAlpha);
       map[cls] = classSt.map((st) => {
         const m = marksMap[st.id] || null;
         return computeMarathiUrduStudentCce(st, marathiUrduMedium, m);
@@ -286,7 +291,7 @@ export const ActiveCceMarksEntry: React.FC<ActiveCceMarksEntryProps> = ({
     ['6', '7', '8'].forEach((cls) => {
       const classSt = students
         .filter((s) => String(s.classStandard) === cls)
-        .sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+        .sort(compareStudentNamesAlpha);
       map[cls] = classSt.map((st) => {
         const m = marksMap[st.id] || null;
         return computeHpStudentCce(st, schoolMedium, m);

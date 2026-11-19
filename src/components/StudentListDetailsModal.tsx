@@ -25,6 +25,7 @@ import { CwsnBadge } from './CwsnBadge';
 import { StudentPhotoImg } from './StudentPhotoImg';
 import { TransferCertificateModal } from './TransferCertificateModal';
 import { StudyCertificateModal } from './StudyCertificateModal';
+import { compareStudentNamesAlpha } from '../utils/studentStore';
 
 interface StudentListDetailsModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface StudentListDetailsModalProps {
   subtitle?: string;
   students: Student[];
   schoolRecord: SchoolRecord | null;
+  academicYear?: string;
 }
 
 export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = ({
@@ -42,6 +44,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
   subtitle,
   students,
   schoolRecord,
+  academicYear,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const printableRef = useRef<HTMLDivElement>(null);
@@ -110,7 +113,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
     return [...list].sort((a, b) => {
       let res = 0;
       if (sortCol === 'name') {
-        res = (a.studentName || '').localeCompare(b.studentName || '');
+        res = compareStudentNamesAlpha(a, b);
       } else if (sortCol === 'sats') {
         res = (a.satsNo || '').localeCompare(b.satsNo || '');
       } else if (sortCol === 'dob') {
@@ -626,6 +629,7 @@ export const StudentListDetailsModal: React.FC<StudentListDetailsModalProps> = (
         onClose={() => setCertStudentId(null)}
         students={students}
         schoolRecord={schoolRecord}
+        academicYear={academicYear}
         initialStudentId={certStudentId}
       />
     )}

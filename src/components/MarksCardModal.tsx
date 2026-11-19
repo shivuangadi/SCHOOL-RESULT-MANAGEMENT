@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Student, SchoolRecord } from '../types';
 import { getRealMarksFromLocal, getStudentCalculatedResult } from '../utils/marksStore';
-import { getClassesFromRange } from '../utils/studentStore';
+import { getClassesFromRange, sortStudentsAlphabetically } from '../utils/studentStore';
 import { ReportPrintPreviewModal } from './ReportPrintPreviewModal';
 import { shareReportToWhatsApp } from '../utils/printPdfHelper';
 import { CwsnBadge } from './CwsnBadge';
@@ -24,6 +24,7 @@ interface MarksCardModalProps {
   onClose: () => void;
   students: Student[];
   schoolRecord: SchoolRecord | null;
+  academicYear?: string;
 }
 
 export const MarksCardModal: React.FC<MarksCardModalProps> = ({
@@ -31,6 +32,7 @@ export const MarksCardModal: React.FC<MarksCardModalProps> = ({
   onClose,
   students,
   schoolRecord,
+  academicYear,
 }) => {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -45,8 +47,11 @@ export const MarksCardModal: React.FC<MarksCardModalProps> = ({
   }, [students, schoolRecord?.schoolRange]);
 
   const filteredStudents = useMemo(() => {
-    if (selectedClassFilter === 'ALL') return students;
-    return students.filter((s) => s.classStandard === selectedClassFilter);
+    const base =
+      selectedClassFilter === 'ALL'
+        ? students
+        : students.filter((s) => s.classStandard === selectedClassFilter);
+    return sortStudentsAlphabetically(base);
   }, [students, selectedClassFilter]);
 
   const currentStudent = useMemo(() => {
@@ -249,7 +254,7 @@ export const MarksCardModal: React.FC<MarksCardModalProps> = ({
                   <span>•</span>
                   <span>Medium: {schoolRecord?.schoolMedium || 'Kannada'}</span>
                   <span>•</span>
-                  <span>Academic Year: 2025-26</span>
+                  <span>Academic Year: {academicYear || currentStudent?.academicYear || schoolRecord?.academicYear || '2026-27'}</span>
                 </div>
                 <div className="inline-block px-5 py-1.5 bg-blue-950 text-white font-black text-xs sm:text-sm rounded-full uppercase tracking-wider mt-1 shadow-xs">
                   ವಿದ್ಯಾರ್ಥಿ ವಾರ್ಷಿಕ ಪ್ರಗತಿ ಅಂಕಪಟ್ಟಿ (Cumulative CCE Marks Card)
@@ -513,7 +518,7 @@ export const MarksCardModal: React.FC<MarksCardModalProps> = ({
               <span>•</span>
               <span>Medium: {schoolRecord?.schoolMedium || 'Kannada'}</span>
               <span>•</span>
-              <span>Academic Year: 2025-26</span>
+              <span>Academic Year: {academicYear || currentStudent?.academicYear || schoolRecord?.academicYear || '2026-27'}</span>
             </div>
             <div className="inline-block px-5 py-1.5 bg-blue-950 text-white font-black text-xs sm:text-sm rounded-full uppercase tracking-wider mt-1 shadow-xs">
               ವಿದ್ಯಾರ್ಥಿ ವಾರ್ಷಿಕ ಪ್ರಗತಿ ಅಂಕಪಟ್ಟಿ (Cumulative CCE Marks Card)
